@@ -1,0 +1,36 @@
+{
+  "name": "weevil",
+  "private": true,
+  "description": "Weevil — bug reporting platform",
+  "scripts": {
+    "dev:api": "pnpm --filter @weevil/backend dev:api",
+    "dev:worker": "pnpm --filter @weevil/backend dev:worker",
+    "dev:web": "pnpm --filter @weevil/web dev",
+    "build": "pnpm -r build",
+    "build:backend": "pnpm --filter @weevil/backend build",
+    "build:web": "pnpm --filter @weevil/web build",
+    "build:ext": "pnpm --filter @weevil/extension build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "prisma:generate": "pnpm --filter @weevil/backend prisma:generate",
+    "prisma:migrate": "pnpm --filter @weevil/backend prisma:migrate",
+    "prisma:studio": "pnpm --filter @weevil/backend prisma:studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "esbuild",
+      "prisma",
+      "sharp",
+      "unrs-resolver"
+    ]
+  },
+  "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=10"
+  }
+}

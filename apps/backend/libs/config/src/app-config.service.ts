@@ -1,0 +1,56 @@
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { Env } from './env.schema';
+
+@Injectable()
+export class AppConfigService {
+  constructor(private readonly configService: ConfigService<Env, true>) {}
+
+  get nodeEnv(): Env['NODE_ENV'] {
+    return this.configService.get('NODE_ENV', { infer: true });
+  }
+
+  get apiPort(): number {
+    return this.configService.get('API_PORT', { infer: true });
+  }
+
+  get databaseUrl(): string {
+    return this.configService.get('DATABASE_URL', { infer: true });
+  }
+
+  get redisUrl(): string {
+    return this.configService.get('REDIS_URL', { infer: true });
+  }
+
+  get rabbitmqUrl(): string {
+    return this.configService.get('RABBITMQ_URL', { infer: true });
+  }
+
+  get minioEndpoint(): string {
+    return this.configService.get('MINIO_ENDPOINT', { infer: true });
+  }
+
+  get minioPort(): number {
+    return this.configService.get('MINIO_PORT', { infer: true });
+  }
+
+  get minioAccessKey(): string {
+    return this.configService.get('MINIO_ACCESS_KEY', { infer: true });
+  }
+
+  get minioSecretKey(): string {
+    return this.configService.get('MINIO_SECRET_KEY', { infer: true });
+  }
+
+  get minioUseSsl(): boolean {
+    return this.configService.get('MINIO_USE_SSL', { infer: true });
+  }
+
+  get recordingsBucket(): string {
+    return this.configService.get('MINIO_BUCKET_RECORDINGS', { infer: true });
+  }
+
+  get publicAssetUrl(): string | undefined {
+    return this.configService.get('PUBLIC_ASSET_URL', { infer: true }) || undefined;
+  }
+}

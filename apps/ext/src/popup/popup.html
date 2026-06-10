@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../shared/styles.css" />
+    <title>Weevil</title>
+  </head>
+  <body>
+    <main class="shell popup-shell">
+      <header class="header">
+        <div class="brand">
+          <div class="mark">W</div>
+          <div>
+            <span>Weevil</span>
+            <small>Bug capture</small>
+          </div>
+        </div>
+        <button id="optionsButton" class="icon-button" type="button" aria-label="Settings">...</button>
+      </header>
+
+      <section class="hero-card">
+        <div class="recording-preview">
+          <div class="preview-glow"></div>
+          <div class="record-button" id="recordButtonVisual"></div>
+        </div>
+        <div id="status" class="status">Loading...</div>
+        <div class="meter-grid">
+          <div>
+            <span>Video</span>
+            <strong id="videoStatus">Ready</strong>
+          </div>
+          <div>
+            <span>Telemetry</span>
+            <strong id="telemetryStatus">Armed</strong>
+          </div>
+        </div>
+        <label class="toggle-row" for="redactSensitiveDataToggle">
+          <span>
+            <strong>Redact secrets</strong>
+            <small>Mask cookies, tokens, and auth headers</small>
+          </span>
+          <input id="redactSensitiveDataToggle" type="checkbox" />
+        </label>
+        <div class="actions split-actions">
+          <button id="startButton" class="primary" type="button">Start capture</button>
+          <button id="screenshotButton" type="button">Screenshot</button>
+          <button id="stopButton" class="danger" type="button">Stop</button>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="./popup.js"></script>
+  </body>
+</html>

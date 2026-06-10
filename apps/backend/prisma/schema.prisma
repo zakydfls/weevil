@@ -1,0 +1,506 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../libs/database/src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+enum WorkspaceStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum ReportSource {
+  EXTENSION
+  DASHBOARD
+  API
+}
+
+enum ReportStatus {
+  DRAFT
+  UPLOADING
+  PROCESSING
+  READY
+  FAILED
+  ARCHIVED
+}
+
+enum UploadKind {
+  SCREEN_RECORDING
+  CONSOLE_LOGS
+  NETWORK_LOGS
+  SCREENSHOT
+  DOM_SNAPSHOT
+  HAR
+  OTHER
+}
+
+enum UploadStatus {
+  PENDING
+  UPLOADED
+  PROCESSING
+  READY
+  FAILED
+  EXPIRED
+}
+
+enum ReportEventKind {
+  REPORT_CREATED
+  UPLOAD_CREATED
+  UPLOAD_COMPLETED
+  PROCESSING_STARTED
+  PROCESSING_COMPLETED
+  PROCESSING_FAILED
+  CONSOLE_LOGS_ATTACHED
+  NETWORK_LOGS_ATTACHED
+  CAPTURE_SESSION_STARTED
+  CAPTURE_SESSION_COMPLETED
+  ACTIONS_ATTACHED
+  RUNTIME_ERRORS_ATTACHED
+  PERFORMANCE_ENTRIES_ATTACHED
+  DOM_EVENTS_ATTACHED
+  BACKEND_TRACES_ATTACHED
+}
+
+enum ConsoleLogLevel {
+  DEBUG
+  INFO
+  WARN
+  ERROR
+}
+
+enum CaptureSessionStatus {
+  STARTED
+  PAUSED
+  COMPLETED
+  FAILED
+}
+
+enum PageActionKind {
+  CLICK
+  DOUBLE_CLICK
+  INPUT
+  KEY_PRESS
+  SCROLL
+  HOVER
+  FORM_SUBMIT
+  NAVIGATION
+  ROUTE_CHANGE
+  VISIBILITY_CHANGE
+  CUSTOM
+}
+
+enum RuntimeErrorKind {
+  JS_ERROR
+  UNHANDLED_REJECTION
+  RESOURCE_ERROR
+  CSP_VIOLATION
+  CUSTOM
+}
+
+enum PerformanceEntryKind {
+  NAVIGATION
+  RESOURCE
+  PAINT
+  MARK
+  MEASURE
+  WEB_VITAL
+  MEMORY
+  LONG_TASK
+  CUSTOM
+}
+
+enum DomEventKind {
+  SNAPSHOT
+  MUTATION
+  SELECTION
+  FOCUS
+  BLUR
+  CUSTOM
+}
+
+enum BackendTraceStatus {
+  OK
+  ERROR
+  UNKNOWN
+}
+
+model Workspace {
+  id        String          @id @default(cuid())
+  slug      String          @unique
+  name      String
+  status    WorkspaceStatus @default(ACTIVE)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  projects Project[]
+  users    User[]
+  reports  BugReport[]
+
+  @@map("workspaces")
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  workspaceId String
+  key         String
+  name        String
+  status      ProjectStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  reports   BugReport[]
+
+  @@unique([workspaceId, key])
+  @@index([workspaceId, status])
+  @@map("projects")
+}
+
+model User {
+  id          String     @id @default(cuid())
+  workspaceId String?
+  email       String?    @unique
+  displayName String?
+  status      UserStatus @default(ACTIVE)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  workspace Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  reports   BugReport[]
+
+  @@index([workspaceId, status])
+  @@map("users")
+}
+
+model BugReport {
+  id             String       @id @default(cuid())
+  workspaceId    String
+  projectId      String
+  createdById    String?
+  title          String
+  description    String?
+  status         ReportStatus @default(DRAFT)
+  source         ReportSource @default(EXTENSION)
+  shareToken     String       @unique
+  pageUrl        String?
+  userAgent      String?
+  browserName    String?
+  browserVersion String?
+  osName         String?
+  viewportWidth  Int?
+  viewportHeight Int?
+  metadata       Json?
+  failureReason  String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
+
+  workspace       Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  project         Project               @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  createdBy       User?                 @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  uploads         ReportUpload[]
+  events          ReportEvent[]
+  consoleLogs     ConsoleLogEntry[]
+  networkRequests NetworkRequestEntry[]
+  comments        ReportComment[]
+  captureSessions CaptureSession[]
+  pageActions     PageActionEntry[]
+  runtimeErrors   RuntimeErrorEntry[]
+  performanceEntries PerformanceEntry[]
+  domEvents       DomEventEntry[]
+  backendTraces   BackendTraceEntry[]
+
+  @@index([workspaceId, projectId, status, createdAt])
+  @@index([shareToken])
+  @@map("bug_reports")
+}
+
+model CaptureSession {
+  id                  String               @id @default(cuid())
+  reportId            String
+  status              CaptureSessionStatus @default(STARTED)
+  startedAt           DateTime
+  endedAt             DateTime?
+  durationMs          Int?
+  recordingStartedAt  DateTime?
+  recordingEndedAt    DateTime?
+  pageUrl             String?
+  referrer            String?
+  title               String?
+  timezone            String?
+  locale              String?
+  userAgent           String?
+  browserName         String?
+  browserVersion      String?
+  osName              String?
+  extensionVersion    String?
+  manifestVersion     String?
+  tabId               String?
+  windowId            String?
+  viewportWidth       Int?
+  viewportHeight      Int?
+  screenWidth         Int?
+  screenHeight        Int?
+  devicePixelRatio    Float?
+  metadata            Json?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  report             BugReport             @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  pageActions        PageActionEntry[]
+  runtimeErrors      RuntimeErrorEntry[]
+  performanceEntries PerformanceEntry[]
+  domEvents          DomEventEntry[]
+  backendTraces      BackendTraceEntry[]
+  consoleLogs        ConsoleLogEntry[]
+  networkRequests    NetworkRequestEntry[]
+
+  @@index([reportId, status, startedAt])
+  @@map("capture_sessions")
+}
+
+model ReportComment {
+  id          String   @id @default(cuid())
+  reportId    String
+  authorId    String?
+  authorName  String
+  body        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  report BugReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId, createdAt])
+  @@map("report_comments")
+}
+
+model ReportUpload {
+  id            String       @id @default(cuid())
+  reportId      String
+  kind          UploadKind
+  status        UploadStatus @default(PENDING)
+  bucket        String
+  objectKey     String       @unique
+  contentType   String
+  byteSize      BigInt?
+  checksumSha256 String?
+  uploadSession String?
+  metadata      Json?
+  failureReason String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  completedAt   DateTime?
+
+  report BugReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId, kind, status])
+  @@map("report_uploads")
+}
+
+model PageActionEntry {
+  id            String          @id @default(cuid())
+  reportId      String
+  sessionId     String?
+  kind          PageActionKind
+  selector      String?
+  nodePath      String?
+  label         String?
+  tagName       String?
+  textPreview   String?
+  valuePreview  String?
+  pageUrl       String?
+  x             Int?
+  y             Int?
+  scrollX       Int?
+  scrollY       Int?
+  offsetMs      Int?
+  occurredAt    DateTime
+  metadata      Json?
+  createdAt     DateTime        @default(now())
+
+  report  BugReport       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  session CaptureSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([reportId, occurredAt])
+  @@index([sessionId, offsetMs])
+  @@map("page_action_entries")
+}
+
+model RuntimeErrorEntry {
+  id             String           @id @default(cuid())
+  reportId       String
+  sessionId      String?
+  kind           RuntimeErrorKind
+  message        String
+  sourceUrl      String?
+  lineNumber     Int?
+  columnNumber   Int?
+  stack          String?
+  componentStack String?
+  pageUrl        String?
+  offsetMs       Int?
+  occurredAt     DateTime
+  metadata       Json?
+  createdAt      DateTime         @default(now())
+
+  report  BugReport       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  session CaptureSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([reportId, kind, occurredAt])
+  @@index([sessionId, offsetMs])
+  @@map("runtime_error_entries")
+}
+
+model PerformanceEntry {
+  id            String               @id @default(cuid())
+  reportId      String
+  sessionId     String?
+  kind          PerformanceEntryKind
+  name          String
+  value         Float?
+  startTimeMs   Float?
+  durationMs    Float?
+  rating        String?
+  initiatorType String?
+  pageUrl       String?
+  offsetMs      Int?
+  occurredAt    DateTime
+  metadata      Json?
+  createdAt     DateTime             @default(now())
+
+  report  BugReport       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  session CaptureSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([reportId, kind, occurredAt])
+  @@index([sessionId, offsetMs])
+  @@map("performance_entries")
+}
+
+model DomEventEntry {
+  id            String       @id @default(cuid())
+  reportId      String
+  sessionId     String?
+  kind          DomEventKind
+  selector      String?
+  nodePath      String?
+  mutationType  String?
+  previousValue String?
+  nextValue     String?
+  pageUrl       String?
+  offsetMs      Int?
+  occurredAt    DateTime
+  attributes    Json?
+  metadata      Json?
+  createdAt     DateTime     @default(now())
+
+  report  BugReport       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  session CaptureSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([reportId, kind, occurredAt])
+  @@index([sessionId, offsetMs])
+  @@map("dom_event_entries")
+}
+
+model BackendTraceEntry {
+  id            String             @id @default(cuid())
+  reportId      String
+  sessionId     String?
+  traceId       String?
+  spanId        String?
+  parentSpanId  String?
+  serviceName   String?
+  operationName String
+  status        BackendTraceStatus @default(UNKNOWN)
+  method        String?
+  url           String?
+  statusCode    Int?
+  durationMs    Float?
+  startedAt     DateTime
+  endedAt       DateTime?
+  offsetMs      Int?
+  metadata      Json?
+  createdAt     DateTime           @default(now())
+
+  report  BugReport       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  session CaptureSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([reportId, status, startedAt])
+  @@index([traceId])
+  @@index([sessionId, offsetMs])
+  @@map("backend_trace_entries")
+}
+
+model ReportEvent {
+  id        String          @id @default(cuid())
+  reportId  String
+  kind      ReportEventKind
+  payload   Json?
+  createdAt DateTime        @default(now())
+
+  report BugReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId, kind, createdAt])
+  @@map("report_events")
+}
+
+model ConsoleLogEntry {
+  id        String          @id @default(cuid())
+  reportId  String
+  sessionId String?
+  level     ConsoleLogLevel
+  message   String
+  args      Json?
+  stack     String?
+  pageUrl   String?
+  offsetMs  Int?
+  timestamp DateTime
+  createdAt DateTime        @default(now())
+
+  report  BugReport       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  session CaptureSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([reportId, level, timestamp])
+  @@index([sessionId, offsetMs])
+  @@map("console_log_entries")
+}
+
+model NetworkRequestEntry {
+  id              String   @id @default(cuid())
+  reportId        String
+  sessionId       String?
+  requestId       String?
+  method          String
+  url             String
+  statusCode      Int?
+  durationMs      Int?
+  requestHeaders  Json?
+  responseHeaders Json?
+  requestBody     String?
+  responseBody    String?
+  error           String?
+  offsetMs        Int?
+  startedAt       DateTime
+  endedAt         DateTime?
+  createdAt       DateTime @default(now())
+
+  report  BugReport       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  session CaptureSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([reportId, method, statusCode, startedAt])
+  @@index([sessionId, offsetMs])
+  @@map("network_request_entries")
+}

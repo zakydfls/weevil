@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@weevil/config": ["libs/config/src"],
+      "@weevil/config/*": ["libs/config/src/*"],
+      "@weevil/cache": ["libs/cache/src"],
+      "@weevil/cache/*": ["libs/cache/src/*"],
+      "@weevil/contracts": ["libs/contracts/src"],
+      "@weevil/contracts/*": ["libs/contracts/src/*"],
+      "@weevil/database": ["libs/database/src"],
+      "@weevil/database/*": ["libs/database/src/*"],
+      "@weevil/observability": ["libs/observability/src"],
+      "@weevil/observability/*": ["libs/observability/src/*"],
+      "@weevil/prisma-client": ["libs/database/src/generated/prisma/client"],
+      "@weevil/queue": ["libs/queue/src"],
+      "@weevil/queue/*": ["libs/queue/src/*"],
+      "@weevil/redaction": ["libs/redaction/src"],
+      "@weevil/redaction/*": ["libs/redaction/src/*"],
+      "@weevil/reports": ["libs/reports/src"],
+      "@weevil/reports/*": ["libs/reports/src/*"],
+      "@weevil/storage": ["libs/storage/src"],
+      "@weevil/storage/*": ["libs/storage/src/*"]
+    }
+  }
+}

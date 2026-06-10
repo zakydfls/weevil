@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../shared/styles.css" />
+    <title>Weevil Settings</title>
+  </head>
+  <body>
+    <main class="shell" style="max-width: 560px">
+      <header class="header">
+        <div class="brand">
+          <div class="mark">W</div>
+          <span>Weevil Settings</span>
+        </div>
+      </header>
+
+      <section class="card">
+        <label>
+          API Base URL
+          <input id="apiBaseUrl" type="text" placeholder="http://localhost:4000/v1" />
+        </label>
+        <label>
+          Flush interval
+          <input id="flushIntervalMs" type="number" min="1000" step="500" />
+        </label>
+        <label>
+          Max batch size
+          <input id="maxBatchSize" type="number" min="1" step="1" />
+        </label>
+        <div class="check-row">
+          <span>Capture network bodies</span>
+          <input id="captureNetworkBodies" type="checkbox" />
+        </div>
+        <div class="check-row">
+          <span>Capture DOM mutations</span>
+          <input id="captureDomMutations" type="checkbox" />
+        </div>
+        <div class="check-row">
+          <span>Capture performance entries</span>
+          <input id="capturePerformance" type="checkbox" />
+        </div>
+        <div class="check-row">
+          <span>
+            Redact sensitive data
+            <small>Turn off only when you need raw cookies, tokens, and payloads for local debugging.</small>
+          </span>
+          <input id="redactSensitiveData" type="checkbox" />
+        </div>
+        <p id="status" class="hint"></p>
+        <div class="actions">
+          <button id="saveButton" class="primary" type="button">Save settings</button>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="./options.js"></script>
+  </body>
+</html>
