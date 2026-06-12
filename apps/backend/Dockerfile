@@ -42,7 +42,10 @@ COPY --from=build --chown=node:node /app/pnpm-workspace.yaml ./pnpm-workspace.ya
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 
 COPY --from=build --chown=node:node /app/apps/backend/package.json ./apps/backend/package.json
+COPY --from=build --chown=node:node /app/apps/backend/tsconfig.json ./apps/backend/tsconfig.json
+COPY --from=build --chown=node:node /app/apps/backend/tsconfig.build.json ./apps/backend/tsconfig.build.json
 COPY --from=build --chown=node:node /app/apps/backend/node_modules ./apps/backend/node_modules
+COPY --from=build --chown=node:node /app/apps/backend/libs/database/src/generated ./apps/backend/libs/database/src/generated
 COPY --from=build --chown=node:node /app/apps/backend/prisma ./apps/backend/prisma
 COPY --from=build --chown=node:node /app/apps/backend/prisma.config.ts ./apps/backend/prisma.config.ts
 COPY --from=build --chown=node:node /app/apps/backend/dist ./apps/backend/dist
