@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   CompleteCaptureSessionDto,
   CreateCaptureSessionDto,
@@ -36,8 +36,13 @@ export class ReportsService {
     private readonly tenantResolver: TenantResolverService,
   ) {}
 
-  async create(dto: CreateReportDto): Promise<ReportSummaryResponse> {
-    const tenant = await this.tenantResolver.resolve(dto.projectId);
+  async create(
+    dto: CreateReportDto,
+    options: { workspaceId?: string; createdById?: string } = {},
+  ): Promise<ReportSummaryResponse> {
+    const tenant = options.workspaceId
+      ? await this.tenantResolver.resolveForWorkspace(options.workspaceId, dto.projectId)
+      : await this.tenantResolver.resolve(dto.projectId);
     const title = dto.title?.trim() || ReportDefaults.UntitledReport;
     const shouldRedact = this.redaction.shouldRedact(dto.metadata);
 
@@ -45,6 +50,7 @@ export class ReportsService {
       data: {
         workspaceId: tenant.workspaceId,
         projectId: tenant.projectId,
+        createdById: options.createdById ?? null,
         title,
         description: this.redactText(dto.description, shouldRedact),
         source: dto.source ?? ReportSource.EXTENSION,
@@ -71,11 +77,17 @@ export class ReportsService {
     return this.mapper.toSummary(report);
   }
 
-  async findById(reportId: string): Promise<ReportSummaryResponse> {
-    const report = await this.prisma.bugReport.findUniqueOrThrow({
-      where: { id: reportId },
-    });
-
+  async findById(
+    reportId: string,
+    options: { workspaceId?: string } = {},
+  ): Promise<ReportSummaryResponse> {
+    const report = await this.prisma.bugReport.findUnique({ where: { id: reportId } });
+    if (!report) {
+      throw new NotFoundException(`Report ${reportId} not found.`);
+    }
+    if (options.workspaceId && report.workspaceId !== options.workspaceId) {
+      throw new ForbiddenException('Report belongs to a different workspace.');
+    }
     return this.mapper.toSummary(report);
   }
 
@@ -88,15 +100,22 @@ export class ReportsService {
     const report = await this.prisma.bugReport.update({
       where: { id: reportId },
       data: {
-        ...(dto.title !== undefined ? { title: dto.title.trim() || ReportDefaults.UntitledReport } : {}),
-        ...(dto.description !== undefined ? { description: this.redactText(dto.description, shouldRedact) } : {}),
+        ...(dto.title !== undefined
+          ? { title: dto.title.trim() || ReportDefaults.UntitledReport }
+          : {}),
+        ...(dto.description !== undefined
+          ? { description: this.redactText(dto.description, shouldRedact) }
+          : {}),
       },
     });
 
     return this.mapper.toSummary(report);
   }
 
-  async list(query: ListReportsQueryDto = {}): Promise<PaginatedReportsResponse> {
+  async list(
+    query: ListReportsQueryDto = {},
+    options: { workspaceId?: string } = {},
+  ): Promise<PaginatedReportsResponse> {
     const page = Math.max(1, query.page ?? 1);
     const pageSize = Math.min(Math.max(1, query.pageSize ?? 12), 100);
     const search = query.search?.trim();
@@ -104,6 +123,7 @@ export class ReportsService {
       deletedAt: null,
       status: { not: ReportStatus.DRAFT },
       source: query.source,
+      ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
       ...(typeof query.hasRecording === 'boolean'
         ? {
             uploads: query.hasRecording
@@ -168,7 +188,22 @@ export class ReportsService {
     };
   }
 
-  async findDetailById(reportId: string): Promise<ReportDetailResponse> {
+  async findDetailById(
+    reportId: string,
+    options: { workspaceId?: string } = {},
+  ): Promise<ReportDetailResponse> {
+    // First, lightweight existence + ownership check — clear errors instead of a 500.
+    const reportRow = await this.prisma.bugReport.findUnique({
+      where: { id: reportId },
+      select: { id: true, workspaceId: true },
+    });
+    if (!reportRow) {
+      throw new NotFoundException(`Report ${reportId} not found.`);
+    }
+    if (options.workspaceId && reportRow.workspaceId !== options.workspaceId) {
+      throw new ForbiddenException('Report belongs to a different workspace.');
+    }
+
     const report = await this.prisma.bugReport.findUniqueOrThrow({
       where: { id: reportId },
       include: {

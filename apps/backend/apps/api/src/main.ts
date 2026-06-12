@@ -5,6 +5,7 @@ import { AppConfigService } from '@weevil/config';
 import { API_PREFIX, ApiRoutes } from '@weevil/contracts';
 import helmet from 'helmet';
 import { ApiModule } from './api.module';
+import { PrismaExceptionFilter } from './prisma-exception.filter';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(ApiModule);
@@ -12,8 +13,11 @@ async function bootstrap(): Promise<void> {
 
   app.setGlobalPrefix(API_PREFIX);
   app.use(helmet());
+  // Lock CORS to the configured web origin(s) in prod; reflect any origin when
+  // WEB_ORIGIN is unset (dev). credentials:true is required for the session cookie.
+  const webOrigins = config.webOrigins;
   app.enableCors({
-    origin: true,
+    origin: webOrigins.length > 0 ? webOrigins : true,
     credentials: true,
   });
   app.useGlobalPipes(
@@ -23,6 +27,7 @@ async function bootstrap(): Promise<void> {
       transform: true,
     }),
   );
+  app.useGlobalFilters(new PrismaExceptionFilter());
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Weevil API')
     .setDescription('Backend API for bug recording reports, uploads, and telemetry.')

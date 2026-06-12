@@ -15,7 +15,10 @@
     "prisma:generate": "prisma generate",
     "prisma:validate": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/weevil} prisma validate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
+    "prisma:seed": "ts-node --transpile-only -r tsconfig-paths/register prisma/seed.ts",
+    "prisma:seed:prod": "ts-node --transpile-only -r tsconfig-paths/register prisma/seed.prod.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
@@ -27,6 +30,7 @@
     "@prisma/adapter-pg": "7.8.0",
     "@prisma/client": "7.8.0",
     "amqplib": "^0.10.8",
+    "argon2": "^0.44.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "dotenv": "^17.4.2",

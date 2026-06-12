@@ -7,13 +7,13 @@ export function reportStatusTone(status: ReportStatus | string): BadgeTone {
       return 'success';
     case 'PROCESSING':
     case 'UPLOADING':
-      return 'info';
+      return 'warning';
     case 'FAILED':
       return 'danger';
     case 'ARCHIVED':
       return 'neutral';
     case 'DRAFT':
     default:
-      return 'warning';
+      return 'info';
   }
 }

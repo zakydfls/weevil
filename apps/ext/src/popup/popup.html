@@ -9,44 +9,112 @@
     <main class="shell popup-shell">
       <header class="header">
         <div class="brand">
-          <div class="mark">W</div>
-          <div>
-            <span>Weevil</span>
-            <small>Bug capture</small>
+          <div class="brand-logo" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+              <title>Weevil</title>
+              <path d="M11.4 17.6 C 8 16, 6 12.5, 6.5 9.5" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+              <path d="M13.5 16.3 C 12.5 13, 13.5 9.5, 16 8" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+              <circle cx="6.3" cy="9" r="1.1" fill="#ffffff"/>
+              <circle cx="16.2" cy="7.7" r="1.1" fill="#ffffff"/>
+              <path d="M12 18.5 L 8 16 C 7 15.4, 7 14, 8 13.6 L 14 16 Z" fill="#ffffff"/>
+              <circle cx="16.5" cy="20" r="3.4" fill="#ffffff"/>
+              <ellipse cx="29" cy="26" rx="12" ry="9" fill="#ffffff"/>
+              <ellipse cx="20" cy="23" rx="3.2" ry="3.6" fill="#ffffff"/>
+              <path d="M22 32 L 21 36" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M27 33 L 27 37" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M33 33 L 34 37" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M22 21 L 20 17" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M26 19 L 26 14" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M33 19 L 35 14" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <strong>Weevil</strong>
+            <small>bug capture</small>
           </div>
         </div>
-        <button id="optionsButton" class="icon-button" type="button" aria-label="Settings">...</button>
+        <button id="optionsButton" class="icon-button" type="button" aria-label="Settings" title="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
       </header>
 
-      <section class="hero-card">
-        <div class="recording-preview">
-          <div class="preview-glow"></div>
-          <div class="record-button" id="recordButtonVisual"></div>
+      <section class="hero">
+        <div class="record-zone">
+          <div class="record-tag" id="recordTag">
+            <span class="dot" aria-hidden="true"></span>
+            <span id="recordTagLabel">armed</span>
+          </div>
+          <button id="recordButtonVisual" class="record-button" type="button" aria-label="Toggle recording"></button>
+          <div class="record-duration" id="recordDuration">
+            <span id="durationDisplay">0:00</span>
+          </div>
         </div>
-        <div id="status" class="status">Loading...</div>
+
+        <div class="status" id="status">
+          <strong>Ready to capture</strong>
+          <span>Records video, console, network, actions, errors, perf, DOM.</span>
+        </div>
+
         <div class="meter-grid">
-          <div>
-            <span>Video</span>
-            <strong id="videoStatus">Ready</strong>
+          <div class="meter" id="videoMeter" data-state="armed">
+            <span class="meter-dot" aria-hidden="true"></span>
+            <strong id="videoStatus">ready</strong>
+            <span>video</span>
           </div>
-          <div>
-            <span>Telemetry</span>
-            <strong id="telemetryStatus">Armed</strong>
+          <div class="meter" id="telemetryMeter" data-state="armed">
+            <span class="meter-dot" aria-hidden="true"></span>
+            <strong id="telemetryStatus">armed</strong>
+            <span>telemetry</span>
           </div>
         </div>
+
         <label class="toggle-row" for="redactSensitiveDataToggle">
           <span>
             <strong>Redact secrets</strong>
-            <small>Mask cookies, tokens, and auth headers</small>
+            <small>Mask cookies, tokens, and auth headers in capture data.</small>
           </span>
           <input id="redactSensitiveDataToggle" type="checkbox" />
         </label>
-        <div class="actions split-actions">
-          <button id="startButton" class="primary" type="button">Start capture</button>
-          <button id="screenshotButton" type="button">Screenshot</button>
-          <button id="stopButton" class="danger" type="button">Stop</button>
+
+        <div class="actions">
+          <div class="actions-row">
+            <button id="startButton" class="primary" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />
+              </svg>
+              Start capture
+            </button>
+            <button id="screenshotButton" type="button" aria-label="Take screenshot" title="Take screenshot">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
+            </button>
+          </div>
+          <button id="stopButton" class="danger" type="button">
+            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+              <rect x="6" y="6" width="12" height="12" rx="2" />
+            </svg>
+            Stop capture
+          </button>
         </div>
       </section>
+
+      <footer class="footer-link">
+        <a id="openDashboardLink" href="http://localhost:3000" target="_blank" rel="noreferrer noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width: 12px; height: 12px;">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            <polyline points="15 3 21 3 21 9" />
+            <line x1="10" y1="14" x2="21" y2="3" />
+          </svg>
+          Open dashboard
+        </a>
+        <kbd>⇧⌘W</kbd>
+      </footer>
     </main>
     <script type="module" src="./popup.js"></script>
   </body>

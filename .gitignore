@@ -43,3 +43,11 @@ playwright-report/
 
 # Logs
 *.log
+
+# AI
+/.claude
+/.agents
+/.impeccable
+
+/DESIGN.md
+/PRODUCT.md

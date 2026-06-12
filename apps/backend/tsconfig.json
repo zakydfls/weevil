@@ -37,7 +37,9 @@
       "@weevil/reports": ["libs/reports/src"],
       "@weevil/reports/*": ["libs/reports/src/*"],
       "@weevil/storage": ["libs/storage/src"],
-      "@weevil/storage/*": ["libs/storage/src/*"]
+      "@weevil/storage/*": ["libs/storage/src/*"],
+      "@weevil/auth": ["libs/auth/src"],
+      "@weevil/auth/*": ["libs/auth/src/*"]
     }
   }
 }

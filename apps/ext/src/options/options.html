@@ -6,49 +6,92 @@
     <title>Weevil Settings</title>
   </head>
   <body>
-    <main class="shell" style="max-width: 560px">
+    <main class="shell options-shell">
       <header class="header">
         <div class="brand">
-          <div class="mark">W</div>
-          <span>Weevil Settings</span>
+          <div class="brand-logo" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+              <title>Weevil</title>
+              <path d="M11.4 17.6 C 8 16, 6 12.5, 6.5 9.5" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+              <path d="M13.5 16.3 C 12.5 13, 13.5 9.5, 16 8" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+              <circle cx="6.3" cy="9" r="1.1" fill="#ffffff"/>
+              <circle cx="16.2" cy="7.7" r="1.1" fill="#ffffff"/>
+              <path d="M12 18.5 L 8 16 C 7 15.4, 7 14, 8 13.6 L 14 16 Z" fill="#ffffff"/>
+              <circle cx="16.5" cy="20" r="3.4" fill="#ffffff"/>
+              <ellipse cx="29" cy="26" rx="12" ry="9" fill="#ffffff"/>
+              <ellipse cx="20" cy="23" rx="3.2" ry="3.6" fill="#ffffff"/>
+              <path d="M22 32 L 21 36" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M27 33 L 27 37" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M33 33 L 34 37" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M22 21 L 20 17" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M26 19 L 26 14" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M33 19 L 35 14" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <strong>Settings</strong>
+            <small>weevil · extension</small>
+          </div>
         </div>
+        <span id="status" class="hint" aria-live="polite"></span>
       </header>
 
-      <section class="card">
-        <label>
-          API Base URL
-          <input id="apiBaseUrl" type="text" placeholder="http://localhost:4000/v1" />
-        </label>
-        <label>
-          Flush interval
-          <input id="flushIntervalMs" type="number" min="1000" step="500" />
-        </label>
-        <label>
-          Max batch size
-          <input id="maxBatchSize" type="number" min="1" step="1" />
-        </label>
+      <section class="section">
+        <h2 class="section-title">Connection</h2>
+        <div class="field">
+          <label for="apiBaseUrl">API base URL</label>
+          <input id="apiBaseUrl" type="url" placeholder="http://localhost:4000/v1" />
+          <small>Where captures are uploaded. Include the version path (e.g. <code>/v1</code>).</small>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Telemetry capture</h2>
         <div class="check-row">
-          <span>Capture network bodies</span>
+          <span>
+            <strong>Network request bodies</strong>
+            <small>Include request and response payloads. Disable for large or sensitive responses.</small>
+          </span>
           <input id="captureNetworkBodies" type="checkbox" />
         </div>
         <div class="check-row">
-          <span>Capture DOM mutations</span>
+          <span>
+            <strong>DOM mutations</strong>
+            <small>Track attribute, text, and child-list changes during the recording.</small>
+          </span>
           <input id="captureDomMutations" type="checkbox" />
         </div>
         <div class="check-row">
-          <span>Capture performance entries</span>
+          <span>
+            <strong>Performance entries</strong>
+            <small>Capture Web Vitals (LCP, FID, CLS) and resource timings.</small>
+          </span>
           <input id="capturePerformance" type="checkbox" />
         </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Privacy</h2>
         <div class="check-row">
           <span>
-            Redact sensitive data
-            <small>Turn off only when you need raw cookies, tokens, and payloads for local debugging.</small>
+            <strong>Redact sensitive data</strong>
+            <small>Mask cookies, tokens, and auth headers before upload. Turn off only when you need raw values for local debugging.</small>
           </span>
           <input id="redactSensitiveData" type="checkbox" />
         </div>
-        <p id="status" class="hint"></p>
-        <div class="actions">
-          <button id="saveButton" class="primary" type="button">Save settings</button>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Performance tuning</h2>
+        <div class="field">
+          <label for="flushIntervalMs">Flush interval (ms)</label>
+          <input id="flushIntervalMs" type="number" min="1000" step="500" />
+          <small>How often telemetry is sent to the backend. Lower = more real-time, higher = fewer requests.</small>
+        </div>
+        <div class="field">
+          <label for="maxBatchSize">Max batch size</label>
+          <input id="maxBatchSize" type="number" min="1" step="1" />
+          <small>Maximum events per upload batch. Forces a flush when this many events are buffered.</small>
         </div>
       </section>
     </main>

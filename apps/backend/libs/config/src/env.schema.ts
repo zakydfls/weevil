@@ -25,6 +25,18 @@ export const envSchema = z.object({
   MINIO_USE_SSL: booleanFromString.default(false),
   MINIO_BUCKET_RECORDINGS: z.string().min(1).default('weevil-recordings'),
   PUBLIC_ASSET_URL: z.string().optional().default(''),
+
+  // ── Web / CORS / cookie ──────────────────────────────────────────────────
+  // Comma-separated list of allowed browser origins (the Vercel FE, etc).
+  // Empty = reflect any origin (dev convenience only — set this in prod).
+  WEB_ORIGIN: z.string().optional().default(''),
+  // Session-cookie attributes. Driven by env (NOT NODE_ENV) so a homeserver
+  // running NODE_ENV=development behind HTTPS can still issue cross-site cookies.
+  // Cross-site (FE on a different host than the API) REQUIRES SameSite=None+Secure.
+  COOKIE_SAMESITE: z.enum(['lax', 'none', 'strict']).default('lax'),
+  COOKIE_SECURE: booleanFromString.default(false),
+  // e.g. ".centurycode.id" to share the cookie across api.* and app.* subdomains.
+  COOKIE_DOMAIN: z.string().optional().default(''),
 });
 
 export type Env = z.infer<typeof envSchema>;

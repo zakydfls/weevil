@@ -11,6 +11,32 @@ export interface TenantContext {
 export class TenantResolverService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Resolve tenant for an authenticated workspace. Picks the project by projectId if given,
+   * else the workspace's first project, else creates a default one.
+   */
+  async resolveForWorkspace(workspaceId: string, projectId?: string): Promise<TenantContext> {
+    if (projectId) {
+      const project = await this.prisma.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: { id: true, workspaceId: true },
+      });
+      if (project.workspaceId !== workspaceId) {
+        throw new Error('Project does not belong to the requested workspace.');
+      }
+      return { workspaceId, projectId: project.id };
+    }
+    const project = await this.prisma.project.findFirst({
+      where: { workspaceId },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (project) return { workspaceId, projectId: project.id };
+    const created = await this.prisma.project.create({
+      data: { workspaceId, key: 'DEFAULT', name: 'Default' },
+    });
+    return { workspaceId, projectId: created.id };
+  }
+
   async resolve(projectId?: string): Promise<TenantContext> {
     if (projectId) {
       const project = await this.prisma.project.findUniqueOrThrow({

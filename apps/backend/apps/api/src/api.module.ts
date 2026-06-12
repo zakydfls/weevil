@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from '@weevil/auth';
 import { CacheModule } from '@weevil/cache';
 import { AppConfigModule } from '@weevil/config';
 import { DatabaseModule } from '@weevil/database';
@@ -16,6 +17,7 @@ import { HealthController } from './health.controller';
     ObservabilityModule,
     QueueModule,
     StorageModule,
+    AuthModule,
     ReportsModule,
   ],
   controllers: [HealthController],

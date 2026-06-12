@@ -8,17 +8,28 @@ const captureNetworkBodiesInput = document.getElementById('captureNetworkBodies'
 const captureDomMutationsInput = document.getElementById('captureDomMutations') as HTMLInputElement | null;
 const capturePerformanceInput = document.getElementById('capturePerformance') as HTMLInputElement | null;
 const redactSensitiveDataInput = document.getElementById('redactSensitiveData') as HTMLInputElement | null;
-const saveButton = document.getElementById('saveButton') as HTMLButtonElement | null;
 const statusElement = document.getElementById('status');
+
+let saveTimer: number | undefined;
+let lastSaveStatusTimer: number | undefined;
 
 void load();
 
-saveButton?.addEventListener('click', () => {
-  void save();
-});
+// Auto-save on any change. Inputs debounce (300ms) so typing in a URL field doesn't thrash storage.
+apiBaseUrlInput?.addEventListener('input', () => queueSave(300));
+flushIntervalInput?.addEventListener('input', () => queueSave(300));
+maxBatchSizeInput?.addEventListener('input', () => queueSave(300));
+captureNetworkBodiesInput?.addEventListener('change', () => queueSave(0));
+captureDomMutationsInput?.addEventListener('change', () => queueSave(0));
+capturePerformanceInput?.addEventListener('change', () => queueSave(0));
+redactSensitiveDataInput?.addEventListener('change', () => queueSave(0));
 
 async function load() {
-  render(await getSettings());
+  try {
+    render(await getSettings());
+  } catch (error) {
+    setStatus(getErrorMessage(error), 'error');
+  }
 }
 
 function render(settings: ExtensionSettings) {
@@ -43,6 +54,15 @@ function render(settings: ExtensionSettings) {
   redactSensitiveDataInput.checked = settings.redactSensitiveData;
 }
 
+function queueSave(delayMs: number) {
+  if (saveTimer !== undefined) {
+    window.clearTimeout(saveTimer);
+  }
+  saveTimer = window.setTimeout(() => {
+    void save();
+  }, delayMs);
+}
+
 async function save() {
   if (
     !apiBaseUrlInput ||
@@ -56,20 +76,50 @@ async function save() {
     return;
   }
 
-  await saveSettings({
-    apiBaseUrl: apiBaseUrlInput.value.trim().replace(/\/$/, ''),
-    flushIntervalMs: Number(flushIntervalInput.value),
-    maxBatchSize: Number(maxBatchSizeInput.value),
-    captureNetworkBodies: captureNetworkBodiesInput.checked,
-    captureDomMutations: captureDomMutationsInput.checked,
-    capturePerformance: capturePerformanceInput.checked,
-    redactSensitiveData: redactSensitiveDataInput.checked,
-  });
+  const flushIntervalMs = Number(flushIntervalInput.value);
+  const maxBatchSize = Number(maxBatchSizeInput.value);
 
-  if (statusElement) {
-    statusElement.textContent = 'Settings saved.';
-    window.setTimeout(() => {
-      statusElement.textContent = '';
+  if (!Number.isFinite(flushIntervalMs) || flushIntervalMs < 1_000) {
+    setStatus('Flush interval must be at least 1000 ms.', 'error');
+    return;
+  }
+
+  if (!Number.isFinite(maxBatchSize) || maxBatchSize < 1) {
+    setStatus('Max batch size must be at least 1.', 'error');
+    return;
+  }
+
+  try {
+    await saveSettings({
+      apiBaseUrl: apiBaseUrlInput.value.trim().replace(/\/$/, ''),
+      flushIntervalMs,
+      maxBatchSize,
+      captureNetworkBodies: captureNetworkBodiesInput.checked,
+      captureDomMutations: captureDomMutationsInput.checked,
+      capturePerformance: capturePerformanceInput.checked,
+      redactSensitiveData: redactSensitiveDataInput.checked,
+    });
+    setStatus('Saved.', 'ok');
+  } catch (error) {
+    setStatus(getErrorMessage(error), 'error');
+  }
+}
+
+function setStatus(message: string, tone: 'ok' | 'error') {
+  if (!statusElement) return;
+  statusElement.textContent = message;
+  statusElement.classList.toggle('error', tone === 'error');
+  if (lastSaveStatusTimer !== undefined) {
+    window.clearTimeout(lastSaveStatusTimer);
+  }
+  if (tone === 'ok') {
+    lastSaveStatusTimer = window.setTimeout(() => {
+      if (statusElement) statusElement.textContent = '';
     }, 1_400);
   }
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  return String(error);
 }

@@ -23,6 +23,69 @@ enum ProjectStatus {
   ARCHIVED
 }
 
+/// Workspace-scoped membership role.
+/// `OWNER` is the per-tenant super-admin (one or more per workspace).
+/// `ADMIN` can manage members, projects, billing.
+/// `MEMBER` can create + manage their own captures + comment.
+/// `VIEWER` is read-only on captures & comments.
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+/// Lifecycle of a workspace membership.
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+/// Platform-level role (across all tenants). Reserved for Weevil operators.
+enum PlatformRole {
+  USER
+  SUPPORT
+  PLATFORM_ADMIN
+}
+
+/// Granular permission keys. Used in WorkspaceMember.extraPermissions / deniedPermissions
+/// for per-user overrides on top of the role's defaults.
+enum Permission {
+  // Workspace administration
+  WORKSPACE_VIEW
+  WORKSPACE_UPDATE
+  WORKSPACE_DELETE
+  WORKSPACE_BILLING
+  // Members
+  MEMBER_INVITE
+  MEMBER_REMOVE
+  MEMBER_ROLE_UPDATE
+  // Projects
+  PROJECT_CREATE
+  PROJECT_UPDATE
+  PROJECT_DELETE
+  // Reports / captures
+  REPORT_CREATE
+  REPORT_READ_ALL
+  REPORT_READ_OWN
+  REPORT_UPDATE_ANY
+  REPORT_UPDATE_OWN
+  REPORT_DELETE_ANY
+  REPORT_DELETE_OWN
+  REPORT_SHARE
+  // Comments
+  COMMENT_CREATE
+  COMMENT_DELETE_ANY
+  COMMENT_DELETE_OWN
+  // Integrations / API tokens
+  API_TOKEN_MANAGE
+  INTEGRATION_MANAGE
+  // Board (Kanban)
+  BOARD_MANAGE
+}
+
 enum ReportSource {
   EXTENSION
   DASHBOARD
@@ -146,9 +209,14 @@ model Workspace {
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
 
-  projects Project[]
-  users    User[]
-  reports  BugReport[]
+  projects     Project[]
+  reports      BugReport[]
+  members      WorkspaceMember[]
+  invites      WorkspaceInvite[]
+  sessions     AuthSession[]
+  apiTokens    ApiToken[]
+  /// Users who have selected this workspace as their default.
+  defaultedBy  User[]            @relation("UserDefaultWorkspace")
 
   @@map("workspaces")
 }
@@ -171,19 +239,124 @@ model Project {
 }
 
 model User {
-  id          String     @id @default(cuid())
-  workspaceId String?
-  email       String?    @unique
-  displayName String?
-  status      UserStatus @default(ACTIVE)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id            String       @id @default(cuid())
+  email         String       @unique
+  emailVerified DateTime?
+  displayName   String?
+  avatarUrl     String?
+  /// Hashed password (argon2id). Null for OAuth-only accounts.
+  passwordHash  String?
+  /// Platform-level role. 99% of users are USER; reserved for Weevil ops staff.
+  platformRole  PlatformRole @default(USER)
+  status        UserStatus   @default(ACTIVE)
+  /// Last workspace the user opened — used for cold-start tenant switching.
+  defaultWorkspaceId String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
-  workspace Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  reports   BugReport[]
+  defaultWorkspace Workspace?         @relation("UserDefaultWorkspace", fields: [defaultWorkspaceId], references: [id], onDelete: SetNull)
+  memberships      WorkspaceMember[]
+  sessions         AuthSession[]
+  invitesCreated   WorkspaceInvite[]  @relation("InviteCreator")
+  reports          BugReport[]
+  apiTokens        ApiToken[]
 
-  @@index([workspaceId, status])
+  @@index([status])
   @@map("users")
+}
+
+/// Junction table — a user can belong to multiple workspaces with distinct roles.
+/// This is the foundation of multi-tenancy: every workspace-scoped query joins through here.
+model WorkspaceMember {
+  id                 String           @id @default(cuid())
+  workspaceId        String
+  userId             String
+  role               WorkspaceRole    @default(MEMBER)
+  status             MembershipStatus @default(ACTIVE)
+  /// Permissions granted on top of the role's defaults.
+  extraPermissions   Permission[]
+  /// Permissions explicitly revoked from this member, overriding the role.
+  deniedPermissions  Permission[]
+  invitedById        String?
+  joinedAt           DateTime?
+  lastActiveAt       DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId, status])
+  @@index([workspaceId, role, status])
+  @@map("workspace_members")
+}
+
+/// Pending workspace invitations. Anyone with the token can accept (then becomes a member).
+model WorkspaceInvite {
+  id          String           @id @default(cuid())
+  workspaceId String
+  email       String
+  role        WorkspaceRole    @default(MEMBER)
+  token       String           @unique
+  status      MembershipStatus @default(INVITED)
+  createdById String?
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User?     @relation("InviteCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, email])
+  @@index([token])
+  @@map("workspace_invites")
+}
+
+/// Session = opaque bearer token (httpOnly cookie on the web, header on the extension/API).
+/// Rotation: a new session is issued on login; long-lived rotation extends expiresAt.
+model AuthSession {
+  id            String   @id @default(cuid())
+  userId        String
+  /// SHA-256 of the bearer token. Never store the raw token.
+  tokenHash     String   @unique
+  /// Optional active workspace for this session — saves a join on every request.
+  workspaceId   String?
+  userAgent     String?
+  ipAddress     String?
+  lastUsedAt    DateTime @default(now())
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  revokedAt     DateTime?
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@index([userId, expiresAt])
+  @@map("auth_sessions")
+}
+
+/// Scoped programmatic-access token (for CI, integrations, extension headless mode).
+model ApiToken {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  createdById   String
+  name          String
+  /// SHA-256 of the raw token. Display the raw token to the user exactly once at creation.
+  tokenHash     String   @unique
+  /// Permissions granted to this token. Subset of the creator's effective permissions.
+  permissions   Permission[]
+  lastUsedAt    DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+  revokedAt     DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, revokedAt])
+  @@map("api_tokens")
 }
 
 model BugReport {

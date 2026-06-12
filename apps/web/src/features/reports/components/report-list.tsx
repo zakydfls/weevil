@@ -26,7 +26,7 @@ export function ReportList({
   onSelect,
 }: ReportListProps) {
   return (
-    <section className="min-h-0 bg-[#fbfcfd]">
+    <section className="min-h-0 bg-[#fafbf6]">
       <div className="flex h-12 items-center justify-between border-b border-[var(--border)] bg-white px-4">
         <h2 className="text-sm font-semibold">Reports</h2>
         <Button
@@ -71,7 +71,7 @@ export function ReportList({
               onClick={() => onSelect(report.id)}
               className={`mb-2 grid w-full gap-2 rounded-md border p-3 text-left shadow-[0_1px_1px_rgba(16,24,40,0.03)] transition-colors ${
                 selectedReportId === report.id
-                  ? 'border-[#8dd7cd] bg-[#f0fbf9]'
+                  ? 'border-[#cfd6b0] bg-[#f4f6e8]'
                   : 'border-[var(--border)] bg-white hover:bg-[var(--surface-subtle)]'
               }`}
             >

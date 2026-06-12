@@ -55,6 +55,28 @@ export type Project = Prisma.ProjectModel
  */
 export type User = Prisma.UserModel
 /**
+ * Model WorkspaceMember
+ * Junction table — a user can belong to multiple workspaces with distinct roles.
+ * This is the foundation of multi-tenancy: every workspace-scoped query joins through here.
+ */
+export type WorkspaceMember = Prisma.WorkspaceMemberModel
+/**
+ * Model WorkspaceInvite
+ * Pending workspace invitations. Anyone with the token can accept (then becomes a member).
+ */
+export type WorkspaceInvite = Prisma.WorkspaceInviteModel
+/**
+ * Model AuthSession
+ * Session = opaque bearer token (httpOnly cookie on the web, header on the extension/API).
+ * Rotation: a new session is issued on login; long-lived rotation extends expiresAt.
+ */
+export type AuthSession = Prisma.AuthSessionModel
+/**
+ * Model ApiToken
+ * Scoped programmatic-access token (for CI, integrations, extension headless mode).
+ */
+export type ApiToken = Prisma.ApiTokenModel
+/**
  * Model BugReport
  * 
  */

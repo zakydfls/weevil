@@ -1,5 +1,10 @@
 import type { Metadata } from 'next';
+import { GeistMono } from 'geist/font/mono';
+import { GeistSans } from 'geist/font/sans';
+import { CommandPalette } from '@/components/command-palette';
 import { QueryProvider } from '@/components/providers/query-provider';
+import { DialogProvider } from '@/components/ui/dialog';
+import { AuthProvider } from '@/features/auth/auth-context';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -16,9 +21,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body>
-        <QueryProvider>{children}</QueryProvider>
+        <QueryProvider>
+          <DialogProvider>
+            <AuthProvider>
+              {children}
+              <CommandPalette />
+            </AuthProvider>
+          </DialogProvider>
+        </QueryProvider>
       </body>
     </html>
   );

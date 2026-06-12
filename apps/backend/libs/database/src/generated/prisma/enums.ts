@@ -34,6 +34,65 @@ export const ProjectStatus = {
 export type ProjectStatus = (typeof ProjectStatus)[keyof typeof ProjectStatus]
 
 
+export const WorkspaceRole = {
+  OWNER: 'OWNER',
+  ADMIN: 'ADMIN',
+  MEMBER: 'MEMBER',
+  VIEWER: 'VIEWER'
+} as const
+
+export type WorkspaceRole = (typeof WorkspaceRole)[keyof typeof WorkspaceRole]
+
+
+export const MembershipStatus = {
+  INVITED: 'INVITED',
+  ACTIVE: 'ACTIVE',
+  SUSPENDED: 'SUSPENDED',
+  REVOKED: 'REVOKED'
+} as const
+
+export type MembershipStatus = (typeof MembershipStatus)[keyof typeof MembershipStatus]
+
+
+export const PlatformRole = {
+  USER: 'USER',
+  SUPPORT: 'SUPPORT',
+  PLATFORM_ADMIN: 'PLATFORM_ADMIN'
+} as const
+
+export type PlatformRole = (typeof PlatformRole)[keyof typeof PlatformRole]
+
+
+export const Permission = {
+  WORKSPACE_VIEW: 'WORKSPACE_VIEW',
+  WORKSPACE_UPDATE: 'WORKSPACE_UPDATE',
+  WORKSPACE_DELETE: 'WORKSPACE_DELETE',
+  WORKSPACE_BILLING: 'WORKSPACE_BILLING',
+  MEMBER_INVITE: 'MEMBER_INVITE',
+  MEMBER_REMOVE: 'MEMBER_REMOVE',
+  MEMBER_ROLE_UPDATE: 'MEMBER_ROLE_UPDATE',
+  PROJECT_CREATE: 'PROJECT_CREATE',
+  PROJECT_UPDATE: 'PROJECT_UPDATE',
+  PROJECT_DELETE: 'PROJECT_DELETE',
+  REPORT_CREATE: 'REPORT_CREATE',
+  REPORT_READ_ALL: 'REPORT_READ_ALL',
+  REPORT_READ_OWN: 'REPORT_READ_OWN',
+  REPORT_UPDATE_ANY: 'REPORT_UPDATE_ANY',
+  REPORT_UPDATE_OWN: 'REPORT_UPDATE_OWN',
+  REPORT_DELETE_ANY: 'REPORT_DELETE_ANY',
+  REPORT_DELETE_OWN: 'REPORT_DELETE_OWN',
+  REPORT_SHARE: 'REPORT_SHARE',
+  COMMENT_CREATE: 'COMMENT_CREATE',
+  COMMENT_DELETE_ANY: 'COMMENT_DELETE_ANY',
+  COMMENT_DELETE_OWN: 'COMMENT_DELETE_OWN',
+  API_TOKEN_MANAGE: 'API_TOKEN_MANAGE',
+  INTEGRATION_MANAGE: 'INTEGRATION_MANAGE',
+  BOARD_MANAGE: 'BOARD_MANAGE'
+} as const
+
+export type Permission = (typeof Permission)[keyof typeof Permission]
+
+
 export const ReportSource = {
   EXTENSION: 'EXTENSION',
   DASHBOARD: 'DASHBOARD',

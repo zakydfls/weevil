@@ -48,9 +48,21 @@ let stopRequested = false;
 let stoppedSessionId: string | undefined;
 let overlayMode: OverlayMode = 'idle';
 let preparingEndsAt = 0;
+let preparingTotalMs = 3_000;
+let countdownRaf = 0;
 let isAnnotating = false;
-let annotationColor = '#ff3b5f';
+let annotationColor = '#e11d48';
 let annotationCanvas: HTMLCanvasElement | null = null;
+let isOverlayMinimized = false;
+const liveCounts = {
+  console: 0,
+  network: 0,
+  action: 0,
+  error: 0,
+  performance: 0,
+  dom: 0,
+};
+let escKeyHandler: ((event: KeyboardEvent) => void) | null = null;
 let annotationContext: CanvasRenderingContext2D | null = null;
 let activePointerId: number | null = null;
 let completedCapture: CaptureCompletedPayload | null = null;
@@ -137,8 +149,27 @@ function connectRuntime() {
       return;
     }
 
+    incrementLiveCount(data.type);
     void sendPageTelemetry(pageTelemetry);
   });
+}
+
+function incrementLiveCount(type: string) {
+  if (type.endsWith('CONSOLE')) liveCounts.console += 1;
+  else if (type.endsWith('NETWORK')) liveCounts.network += 1;
+  else if (type.endsWith('ACTION')) liveCounts.action += 1;
+  else if (type.endsWith('RUNTIME_ERROR') || type.endsWith('ERROR')) liveCounts.error += 1;
+  else if (type.endsWith('PERFORMANCE')) liveCounts.performance += 1;
+  else if (type.endsWith('DOM')) liveCounts.dom += 1;
+}
+
+function resetLiveCounts() {
+  liveCounts.console = 0;
+  liveCounts.network = 0;
+  liveCounts.action = 0;
+  liveCounts.error = 0;
+  liveCounts.performance = 0;
+  liveCounts.dom = 0;
 }
 
 async function handleWebBridgeCommand(payload: unknown) {
@@ -252,6 +283,7 @@ function startPreparingOverlay(countdownMs: number, title: string | undefined) {
   stoppedSessionId = undefined;
   overlayMode = 'preparing';
   completedCapture = null;
+  preparingTotalMs = Math.max(1, countdownMs);
   preparingEndsAt = Date.now() + countdownMs;
   mountRecorderOverlay();
   const page = overlayRoot?.getElementById('weevil-page');
@@ -259,6 +291,33 @@ function startPreparingOverlay(countdownMs: number, title: string | undefined) {
     page.textContent = title ?? document.title ?? 'Current tab';
   }
   updateOverlay();
+  startCountdownRing();
+}
+
+/**
+ * Smoothly fill the countdown ring with requestAnimationFrame. The 250ms
+ * overlay interval is too coarse and made the ring step/jitter; rAF updates
+ * stroke-dashoffset every frame so the sweep is continuous.
+ */
+function startCountdownRing() {
+  if (countdownRaf) cancelAnimationFrame(countdownRaf);
+  const circumference = 2 * Math.PI * 42;
+
+  const tick = () => {
+    if (overlayMode !== 'preparing') {
+      countdownRaf = 0;
+      return;
+    }
+    const ringFill = overlayRoot?.getElementById('weevil-ring-fill') as SVGCircleElement | null | undefined;
+    if (ringFill) {
+      const remaining = Math.max(0, preparingEndsAt - Date.now());
+      const progress = Math.min(1, Math.max(0, 1 - remaining / preparingTotalMs));
+      ringFill.style.strokeDashoffset = String(circumference * (1 - progress));
+    }
+    countdownRaf = requestAnimationFrame(tick);
+  };
+
+  countdownRaf = requestAnimationFrame(tick);
 }
 
 function startLocalRecording(
@@ -271,6 +330,8 @@ function startLocalRecording(
     return;
   }
 
+  const isFreshSession = sessionId !== nextSessionId;
+
   stopRequested = false;
   stoppedSessionId = undefined;
   overlayMode = 'recording';
@@ -279,10 +340,19 @@ function startLocalRecording(
   sessionId = nextSessionId;
   reportId = nextReportId;
   recordingStartedAt = startedAt;
+
+  // Only reset transient UI state on a genuinely new session — the service worker
+  // re-broadcasts CaptureStarted on tab updates / debugger reattach, which would
+  // otherwise clobber user-controlled state (minimize toggle, live counters).
+  if (isFreshSession) {
+    isOverlayMinimized = false;
+    resetLiveCounts();
+  }
+
   startFlushTimer();
   startStateSyncTimer();
   mountRecorderOverlay();
-  setPageConsolePatchEnabled(consoleCaptureMode === 'page' || consoleCaptureMode === 'debugger');
+  setPageConsolePatchEnabled(consoleCaptureMode === 'page');
   flushPendingPageTelemetry();
 }
 
@@ -373,6 +443,7 @@ function attachActionListeners() {
       return;
     }
 
+    liveCounts.action += 1;
     const target = event.target instanceof Element ? event.target : null;
     actionBuffer.push({
       sessionId,
@@ -401,6 +472,7 @@ function attachActionListeners() {
         return;
       }
 
+      liveCounts.action += 1;
       actionBuffer.push({
         sessionId,
         kind: PageActionKind.Scroll,
@@ -423,6 +495,7 @@ function captureElementAction(kind: PageActionTelemetryEntry['kind'], event: Eve
     return;
   }
 
+  liveCounts.action += 1;
   const target = event.target;
   const pointer = event instanceof MouseEvent ? event : null;
   actionBuffer.push({
@@ -668,14 +741,24 @@ function mountRecorderOverlay() {
   annotationCanvas = overlayRoot.getElementById('weevil-annotation-canvas') as HTMLCanvasElement | null;
   annotationContext = annotationCanvas?.getContext('2d', { willReadFrequently: true }) ?? null;
 
-  overlayRoot.getElementById('weevil-stop')?.addEventListener('click', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const requestStop = () => {
     setStopButtonDisabled(true);
     beginStoppingOverlay();
     void chrome.runtime
       .sendMessage({ type: RuntimeMessageTypes.StopCapture } satisfies RuntimeMessage)
       .catch(() => undefined);
+  };
+
+  overlayRoot.getElementById('weevil-stop')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    requestStop();
+  });
+  overlayRoot.getElementById('weevil-minimize')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    isOverlayMinimized = !isOverlayMinimized;
+    updateOverlay();
   });
   overlayRoot.getElementById('weevil-annotate')?.addEventListener('click', (event) => {
     event.preventDefault();
@@ -684,6 +767,19 @@ function mountRecorderOverlay() {
     isAnnotating = !isAnnotating;
     updateOverlay();
   });
+
+  escKeyHandler = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape') return;
+    if (overlayMode === 'recording' && !isAnnotating) {
+      event.preventDefault();
+      requestStop();
+    } else if (overlayMode === 'recording' && isAnnotating) {
+      event.preventDefault();
+      isAnnotating = false;
+      updateOverlay();
+    }
+  };
+  window.addEventListener('keydown', escKeyHandler, true);
   overlayRoot.querySelectorAll('[data-weevil-color]').forEach((button) => {
     button.addEventListener('click', (event) => {
       event.preventDefault();
@@ -757,12 +853,18 @@ function unmountRecorderOverlay() {
     overlayTimer = undefined;
   }
 
+  if (escKeyHandler) {
+    window.removeEventListener('keydown', escKeyHandler, true);
+    escKeyHandler = null;
+  }
+
   const host = overlayRoot?.host;
   overlayRoot = null;
   annotationCanvas = null;
   annotationContext = null;
   activePointerId = null;
   isAnnotating = false;
+  isOverlayMinimized = false;
   overlayMode = 'idle';
   window.removeEventListener('resize', resizeAnnotationCanvas);
   host?.remove();
@@ -796,8 +898,22 @@ function updateOverlay() {
   root?.setAttribute('data-artifact', completedCapture?.artifactKind ?? 'none');
   root?.toggleAttribute('data-has-preview', Boolean(completedCapture?.previewDataUrl));
   root?.toggleAttribute('data-annotating', isAnnotating);
+  root?.toggleAttribute('data-minimized', isOverlayMinimized);
   annotate?.toggleAttribute('data-active', isAnnotating);
   canvas?.toggleAttribute('data-active', isAnnotating);
+
+  // Update live counters
+  const countConsole = overlayRoot?.getElementById('weevil-count-console');
+  const countNetwork = overlayRoot?.getElementById('weevil-count-network');
+  const countAction = overlayRoot?.getElementById('weevil-count-action');
+  const countError = overlayRoot?.getElementById('weevil-count-error');
+  if (countConsole) countConsole.textContent = String(liveCounts.console);
+  if (countNetwork) countNetwork.textContent = String(liveCounts.network);
+  if (countAction) countAction.textContent = String(liveCounts.action);
+  if (countError) countError.textContent = String(liveCounts.error);
+
+  // The preparing ring is animated by startCountdownRing() via rAF for a smooth
+  // continuous sweep — intentionally not updated here on the 250ms interval.
 
   if (elapsed) {
     if (overlayMode === 'preparing') {
@@ -811,8 +927,8 @@ function updateOverlay() {
     page.textContent = document.title || location.hostname || 'Current tab';
   }
   if (countdown) {
+    // CSS handles visibility per overlayMode; just update the number.
     countdown.textContent = String(Math.max(1, Math.ceil((preparingEndsAt - Date.now()) / 1_000)));
-    countdown.style.display = overlayMode === 'preparing' ? 'inline-flex' : 'none';
   }
   if (modalTitle) {
     modalTitle.textContent =
@@ -1116,20 +1232,34 @@ function createOverlayMarkup() {
       }
 
       .weevil-root {
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", Inter, ui-sans-serif, system-ui, sans-serif;
+        --w-bg: oklch(0.992 0.003 110);
+        --w-surface: oklch(0.975 0.005 110);
+        --w-border: oklch(0.88 0.010 110);
+        --w-ink: oklch(0.18 0.016 110);
+        --w-ink-muted: oklch(0.47 0.022 110);
+        --w-ink-faint: oklch(0.60 0.018 110);
+        --w-primary: oklch(0.55 0.17 42);
+        --w-primary-soft: oklch(0.91 0.065 42);
+        --w-accent: oklch(0.55 0.17 42);
+        --w-danger: oklch(0.55 0.21 25);
+        --w-success: oklch(0.55 0.14 140);
+        --w-mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
         inset: 0;
         pointer-events: none;
         position: fixed;
+        font-feature-settings: "ss01", "cv11";
       }
 
       .weevil-backdrop {
-        background: rgba(10, 10, 10, 0.54);
-        backdrop-filter: blur(6px);
+        background: rgba(26, 29, 18, 0.50);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
         inset: 0;
         opacity: 0;
         pointer-events: none;
         position: fixed;
-        transition: opacity 160ms ease;
+        transition: opacity 220ms cubic-bezier(0.165, 0.84, 0.44, 1);
         z-index: 10;
       }
 
@@ -1139,23 +1269,25 @@ function createOverlayMarkup() {
         opacity: 1;
       }
 
+      /* ── Preparing modal: circular ring countdown ─────────────────── */
+
       .weevil-modal {
-        background: rgba(25, 30, 29, 0.88);
-        border: 1px solid rgba(255, 255, 255, 0.10);
-        border-radius: 18px;
-        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.30);
-        color: #ffffff;
+        background: var(--w-bg);
+        border-radius: 16px;
+        box-shadow: 0 24px 70px rgba(26, 29, 18, 0.30);
+        color: var(--w-ink);
         left: 50%;
-        min-width: min(360px, calc(100vw - 42px));
         opacity: 0;
-        padding: 22px 26px;
+        padding: 28px 32px 24px;
         pointer-events: none;
         position: fixed;
         text-align: center;
         top: 50%;
-        transform: translate(-50%, -50%) scale(0.98);
-        transition: opacity 160ms ease, transform 160ms ease;
+        transform: translate(-50%, -50%) scale(0.96);
+        transition: opacity 220ms cubic-bezier(0.165, 0.84, 0.44, 1),
+          transform 220ms cubic-bezier(0.165, 0.84, 0.44, 1);
         z-index: 50;
+        min-width: 320px;
       }
 
       .weevil-root[data-mode="preparing"] .weevil-modal,
@@ -1164,33 +1296,90 @@ function createOverlayMarkup() {
         transform: translate(-50%, -50%) scale(1);
       }
 
+      .weevil-ring {
+        display: block;
+        width: 96px;
+        height: 96px;
+        margin: 0 auto 18px;
+      }
+
+      .weevil-ring-track {
+        fill: none;
+        stroke: var(--w-surface);
+        stroke-width: 4;
+      }
+
+      .weevil-ring-fill {
+        fill: none;
+        stroke: var(--w-primary);
+        stroke-width: 4;
+        stroke-linecap: round;
+        stroke-dasharray: 263.89;
+        stroke-dashoffset: 263.89;
+        transform: rotate(-90deg);
+        transform-origin: center;
+        /* Driven smoothly by requestAnimationFrame — no CSS transition (it would
+           fight the per-frame updates and reintroduce the stepped/choppy look). */
+      }
+
+      /* SVG <text> aligns by glyph geometry (dominant-baseline:central +
+         text-anchor:middle), so the digit lands on the ring's exact center
+         regardless of font line-box quirks. */
+      .weevil-countdown {
+        font-family: var(--w-mono);
+        font-size: 36px;
+        font-weight: 600;
+        fill: var(--w-ink);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .weevil-root[data-mode="stopping"] .weevil-countdown,
+      .weevil-root[data-mode="stopping"] .weevil-ring-fill,
+      .weevil-root[data-mode="stopping"] .weevil-ring-track {
+        display: none;
+      }
+
       .weevil-modal-title {
-        font-size: 20px;
-        font-weight: 780;
-        letter-spacing: 0;
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
         line-height: 1.2;
+        color: var(--w-ink);
       }
 
       .weevil-modal-copy {
-        color: rgba(255, 255, 255, 0.74);
-        font-size: 13px;
-        line-height: 1.55;
-        margin-top: 10px;
+        font-family: var(--w-mono);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--w-ink-faint);
+        line-height: 1.4;
+        margin-top: 8px;
       }
 
-      .weevil-countdown {
-        align-items: center;
-        background: #ffffff;
-        border-radius: 999px;
-        color: #101010;
-        display: inline-flex;
-        font-size: 15px;
-        font-weight: 800;
-        height: 36px;
-        justify-content: center;
-        margin-top: 14px;
-        min-width: 36px;
-        padding: 0 12px;
+      .weevil-modal-hint {
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 0.5px solid var(--w-border);
+        font-family: var(--w-mono);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--w-ink-faint);
+      }
+
+      .weevil-modal-hint kbd {
+        display: inline-block;
+        padding: 1px 5px;
+        border: 0.5px solid var(--w-border);
+        border-radius: 3px;
+        background: var(--w-surface);
+        font-family: var(--w-mono);
+        font-size: 10px;
+        color: var(--w-ink-muted);
+        margin: 0 2px;
+        text-transform: none;
+        letter-spacing: 0;
       }
 
       .weevil-root[data-mode="recording"] .weevil-modal,
@@ -1199,305 +1388,259 @@ function createOverlayMarkup() {
         display: none;
       }
 
-      .weevil-review {
-        background: #ffffff;
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        border-radius: 18px;
-        box-shadow: 0 28px 90px rgba(15, 23, 42, 0.24);
-        display: grid;
-        grid-template-columns: minmax(560px, 1fr) minmax(300px, 360px);
-        height: min(680px, calc(100vh - 48px));
-        left: 50%;
-        opacity: 0;
-        overflow: hidden;
-        pointer-events: none;
-        position: fixed;
-        top: 50%;
-        transform: translate(-50%, -48%) scale(0.98);
-        transition: opacity 160ms ease, transform 160ms ease;
-        width: min(1120px, calc(100vw - 48px));
-        z-index: 55;
-      }
+      /* ── Recording shell — workshop bar bottom right ──────────────── */
 
-      .weevil-root[data-mode="done"] .weevil-review {
-        opacity: 1;
-        pointer-events: auto;
-        transform: translate(-50%, -50%) scale(1);
-      }
-
-      .weevil-review-stage {
-        background:
-          radial-gradient(circle at 14% 8%, rgba(37, 99, 235, 0.08), transparent 32%),
-          linear-gradient(180deg, #f8fbff 0%, #f3f6fb 100%);
-        display: grid;
-        grid-template-rows: 1fr auto;
-        min-width: 0;
-        padding: 22px;
-      }
-
-      .weevil-review-preview-wrap {
+      .weevil-shell {
+        display: flex;
         align-items: center;
-        background: #0f172a;
-        border: 1px solid #e3e8f7;
-        border-radius: 16px;
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.70);
-        display: grid;
-        min-height: 0;
-        overflow: hidden;
-        place-items: center;
-      }
-
-      .weevil-review-preview,
-      .weevil-review-video {
-        display: none;
-        height: 100%;
-        object-fit: contain;
-        width: 100%;
-      }
-
-      .weevil-review-video {
-        background: #050816;
-      }
-
-      .weevil-review-fallback {
-        color: #ffffff;
-        display: grid;
-        gap: 12px;
-        justify-items: center;
-        padding: 28px;
-        text-align: center;
-      }
-
-      .weevil-review-fallback svg {
-        color: #2563eb;
-        height: 52px;
-        width: 52px;
-      }
-
-      .weevil-review-fallback strong {
-        font-size: 18px;
-      }
-
-      .weevil-review-fallback span {
-        color: rgba(255, 255, 255, 0.72);
-        font-size: 13px;
-        line-height: 1.5;
-        max-width: 360px;
-      }
-
-      .weevil-review-strip {
-        align-items: center;
-        display: grid;
-        gap: 14px;
-        grid-template-columns: auto 1fr auto;
-        margin-top: 18px;
-      }
-
-      .weevil-review-play {
-        align-items: center;
-        appearance: none;
-        background: #ffffff;
-        border: 1px solid #dbe3f5;
+        gap: 0;
+        background: var(--w-ink);
+        border: 0.5px solid rgba(255, 255, 255, 0.08);
         border-radius: 12px;
-        color: #172033;
-        cursor: pointer;
-        display: inline-grid;
-        font: inherit;
-        height: 38px;
-        place-items: center;
-        width: 42px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+        color: #ffffff;
+        font-family: inherit;
+        right: 20px;
+        bottom: 20px;
+        max-width: calc(100vw - 40px);
+        min-height: 48px;
+        padding: 4px;
+        pointer-events: auto;
+        position: fixed;
+        user-select: none;
+        z-index: 40;
+        transition: width 220ms cubic-bezier(0.165, 0.84, 0.44, 1),
+          padding 220ms cubic-bezier(0.165, 0.84, 0.44, 1),
+          transform 220ms cubic-bezier(0.165, 0.84, 0.44, 1);
+        animation: weevil-shell-in 320ms cubic-bezier(0.19, 1, 0.22, 1);
       }
 
-      .weevil-review-play::before {
-        content: "▶";
-        font-size: 14px;
+      @keyframes weevil-shell-in {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .weevil-shell-recording {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 10px 0 12px;
+        height: 40px;
+      }
+
+      .weevil-dot {
+        position: relative;
+        width: 8px;
+        height: 8px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: var(--w-danger);
+      }
+
+      .weevil-dot::after {
+        content: "";
+        position: absolute;
+        inset: -4px;
+        border-radius: 50%;
+        border: 1.5px solid var(--w-danger);
+        opacity: 0;
+        animation: weevil-ring-pulse 1.8s ease-out infinite;
+      }
+
+      @keyframes weevil-ring-pulse {
+        0% {
+          opacity: 0.55;
+          transform: scale(0.7);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(1.3);
+        }
+      }
+
+      .weevil-time {
+        font-family: var(--w-mono);
+        font-size: 13px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: #ffffff;
         line-height: 1;
       }
 
-      .weevil-review-play[data-playing]::before {
-        content: "Ⅱ";
-        font-size: 13px;
-        font-weight: 800;
+      .weevil-divider {
+        width: 0.5px;
+        height: 22px;
+        background: rgba(255, 255, 255, 0.14);
+        flex-shrink: 0;
+        margin: 0 2px;
       }
 
-      .weevil-root:not([data-has-preview]) .weevil-review-play,
-      .weevil-root[data-artifact="screenshot"] .weevil-review-play {
-        cursor: default;
-        opacity: 0.45;
-      }
-
-      .weevil-review-progress {
-        background: #ffffff;
-        border: 1px solid #a7f3d0;
-        border-radius: 999px;
-        height: 12px;
-        overflow: hidden;
-      }
-
-      .weevil-review-progress span {
-        background: #70e2bd;
-        display: block;
-        height: 100%;
-        transition: width 120ms linear;
-        width: 0%;
-      }
-
-      .weevil-review-meta {
-        color: #172033;
-        font-size: 13px;
-        font-weight: 760;
-      }
-
-      .weevil-review-panel {
-        background: #ffffff;
-        border-left: 1px solid #e6ecf8;
-        display: grid;
-        grid-template-rows: auto 1fr auto;
-        min-width: 0;
-        padding: 20px;
-      }
-
-      .weevil-review-top {
-        align-items: center;
+      .weevil-stats {
         display: flex;
-        gap: 10px;
-        justify-content: space-between;
-      }
-
-      .weevil-review-select,
-      .weevil-review-close,
-      .weevil-review-open {
         align-items: center;
-        appearance: none;
-        background: #ffffff;
-        border: 1px solid #dbe3f5;
-        border-radius: 12px;
-        color: #172033;
-        cursor: pointer;
-        display: inline-flex;
-        font: inherit;
-        font-size: 13px;
-        font-weight: 720;
-        height: 36px;
-        justify-content: center;
-        padding: 0 12px;
-      }
-
-      .weevil-review-close {
-        font-size: 20px;
-        padding: 0;
-        width: 38px;
-      }
-
-      .weevil-review-form {
-        display: grid;
-        gap: 14px;
-        align-content: center;
-        padding-top: 18px;
-      }
-
-      .weevil-review-title-text,
-      .weevil-review-description-text {
-        appearance: none;
-        background: #f8faff;
-        border: 1px solid #e6ecf8;
-        border-radius: 12px;
-        color: #172033;
-        font: inherit;
-        outline: none;
-        padding: 10px 12px;
-        width: 100%;
-      }
-
-      .weevil-review-title-text {
-        font-size: 22px;
-        font-weight: 800;
-        line-height: 1.18;
-        overflow-wrap: anywhere;
-      }
-
-      .weevil-review-description-text {
-        color: #66738d;
-        font-size: 14px;
-        line-height: 1.5;
-        min-height: 84px;
-        resize: vertical;
-      }
-
-      .weevil-review-detail-grid {
-        display: grid;
         gap: 10px;
-        grid-template-columns: 1fr 1fr;
-      }
-
-      .weevil-review-detail {
-        background: #f8faff;
-        border: 1px solid #e6ecf8;
-        border-radius: 12px;
-        padding: 10px;
-      }
-
-      .weevil-review-detail span {
-        color: #66738d;
-        display: block;
+        font-family: var(--w-mono);
         font-size: 11px;
-        font-weight: 700;
-        margin-bottom: 4px;
+        color: rgba(255, 255, 255, 0.72);
+        font-variant-numeric: tabular-nums;
       }
 
-      .weevil-review-detail strong {
-        color: #172033;
-        display: block;
-        font-size: 13px;
-        font-weight: 760;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .weevil-review-footer {
-        align-items: end;
-        display: flex;
-        gap: 14px;
-        justify-content: space-between;
-      }
-
-      .weevil-review-saved {
-        align-items: center;
-        color: #66738d;
+      .weevil-stats .stat {
         display: inline-flex;
-        font-size: 12px;
-        font-weight: 720;
+        align-items: center;
+        gap: 4px;
       }
 
-      .weevil-review-saved::before {
-        background: #10b981;
-        border-radius: 999px;
-        content: "";
-        display: inline-block;
-        height: 8px;
-        margin-right: 8px;
-        width: 8px;
-      }
-
-      .weevil-review-copy {
-        appearance: none;
-        background: #2563eb;
-        border: 0;
-        border-radius: 13px;
+      .weevil-stats .stat strong {
         color: #ffffff;
+        font-weight: 600;
+        min-width: 1ch;
+      }
+
+      .weevil-stats .stat[data-tone="error"] strong {
+        color: oklch(0.78 0.16 25);
+      }
+
+      .weevil-stats .stat[data-tone="error"]:has(strong:not(:empty)):not([data-zero]) strong {
+        color: oklch(0.78 0.16 25);
+      }
+
+      .weevil-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding-left: 4px;
+      }
+
+      .weevil-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        appearance: none;
+        border: 0;
+        border-radius: 8px;
         cursor: pointer;
         font: inherit;
-        font-size: 14px;
-        font-weight: 780;
-        min-height: 44px;
-        padding: 0 18px;
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 500;
+        height: 32px;
+        padding: 0 10px;
+        transition: background-color 140ms cubic-bezier(0.165, 0.84, 0.44, 1),
+          color 140ms cubic-bezier(0.165, 0.84, 0.44, 1),
+          transform 100ms cubic-bezier(0.165, 0.84, 0.44, 1);
       }
 
-      .weevil-review-copy:hover {
-        background: #1d4ed8;
+      .weevil-button:active {
+        transform: scale(0.96);
       }
 
+      .weevil-button svg {
+        height: 14px;
+        width: 14px;
+      }
+
+      .weevil-icon {
+        background: transparent;
+        color: rgba(255, 255, 255, 0.72);
+        min-width: 32px;
+        padding: 0;
+      }
+
+      .weevil-icon:hover {
+        background: rgba(255, 255, 255, 0.10);
+        color: #ffffff;
+      }
+
+      .weevil-icon[data-active] {
+        background: var(--w-accent);
+        color: #ffffff;
+      }
+
+      .weevil-stop {
+        background: var(--w-danger);
+        color: #ffffff;
+        font-weight: 600;
+        padding: 0 12px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .weevil-stop:hover {
+        background: oklch(0.50 0.22 25);
+      }
+
+      /* Minimized state — just the dot + timer */
+      .weevil-root[data-minimized] .weevil-shell {
+        padding: 0;
+      }
+
+      .weevil-root[data-minimized] .weevil-shell-recording {
+        padding: 0 10px;
+        gap: 8px;
+        height: 36px;
+      }
+
+      .weevil-root[data-minimized] .weevil-divider,
+      .weevil-root[data-minimized] .weevil-stats,
+      .weevil-root[data-minimized] .weevil-actions .weevil-icon:not(#weevil-minimize),
+      .weevil-root[data-minimized] .weevil-stop {
+        display: none;
+      }
+
+      /* Annotation palette */
+      .weevil-palette {
+        position: absolute;
+        right: 0;
+        bottom: 48px;
+        display: none;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px;
+        background: var(--w-ink);
+        border: 0.5px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+        pointer-events: auto;
+      }
+
+      .weevil-root[data-annotating] .weevil-palette {
+        display: flex;
+      }
+
+      .weevil-swatch {
+        appearance: none;
+        border: 1.5px solid transparent;
+        border-radius: 999px;
+        cursor: pointer;
+        height: 18px;
+        width: 18px;
+        padding: 0;
+        transition: transform 120ms cubic-bezier(0.165, 0.84, 0.44, 1);
+      }
+
+      .weevil-swatch:hover {
+        transform: scale(1.12);
+      }
+
+      .weevil-swatch[data-active] {
+        border-color: #ffffff;
+      }
+
+      .weevil-root[data-mode="stopping"] .weevil-shell,
+      .weevil-root[data-mode="done"] .weevil-shell {
+        display: none;
+      }
+
+      /* Annotation overlays */
       .weevil-annotation-canvas {
         display: none;
         inset: 0;
@@ -1523,187 +1666,356 @@ function createOverlayMarkup() {
       }
 
       .weevil-root[data-annotating] .weevil-annotation-frame {
-        border-color: #ffd400;
+        border-color: var(--w-accent);
         border-width: 3px;
       }
 
-      .weevil-shell {
-        align-items: center;
-        background: rgba(21, 21, 20, 0.94);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 999px;
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
-        color: #ffffff;
-        display: flex;
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        gap: 8px;
-        left: 50%;
-        max-width: min(410px, calc(100vw - 28px));
-        min-width: 0;
-        min-height: 42px;
-        padding: 5px 6px;
-        pointer-events: auto;
-        position: fixed;
-        bottom: 18px;
-        transform: translateX(-50%);
-        user-select: none;
-        z-index: 40;
-      }
+      /* ── Review modal (post-capture) ──────────────────────────────── */
 
-      .weevil-dot {
-        align-items: center;
-        background: #ff4d4f;
-        border-radius: 999px;
-        box-shadow: 0 0 0 6px rgba(255, 77, 79, 0.16);
-        display: flex;
-        height: 10px;
-        justify-content: center;
-        margin-left: 5px;
-        width: 10px;
-      }
-
-      .weevil-copy {
+      .weevil-review {
+        background: var(--w-bg);
+        border-radius: 14px;
+        box-shadow: 0 28px 90px rgba(26, 29, 18, 0.30);
         display: grid;
-        flex: 1 1 auto;
-        min-width: 0;
+        grid-template-columns: minmax(560px, 1fr) minmax(320px, 380px);
+        height: min(680px, calc(100vh - 48px));
+        left: 50%;
+        opacity: 0;
+        overflow: hidden;
+        pointer-events: none;
+        position: fixed;
+        top: 50%;
+        transform: translate(-50%, -48%) scale(0.97);
+        transition: opacity 220ms cubic-bezier(0.165, 0.84, 0.44, 1),
+          transform 220ms cubic-bezier(0.165, 0.84, 0.44, 1);
+        width: min(1120px, calc(100vw - 48px));
+        z-index: 55;
       }
 
-      .weevil-title {
+      .weevil-root[data-mode="done"] .weevil-review {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translate(-50%, -50%) scale(1);
+      }
+
+      .weevil-review-stage {
+        background: var(--w-surface);
+        display: grid;
+        grid-template-rows: 1fr auto;
+        min-width: 0;
+        padding: 20px;
+        border-right: 0.5px solid var(--w-border);
+      }
+
+      .weevil-review-preview-wrap {
+        align-items: center;
+        background: var(--w-ink);
+        border-radius: 10px;
+        display: grid;
+        min-height: 0;
+        overflow: hidden;
+        place-items: center;
+        position: relative;
+      }
+
+      .weevil-review-preview,
+      .weevil-review-video {
+        display: none;
+        height: 100%;
+        object-fit: contain;
+        width: 100%;
+      }
+
+      .weevil-review-video {
+        background: #000000;
+      }
+
+      .weevil-review-fallback {
+        color: #ffffff;
+        display: grid;
+        gap: 10px;
+        justify-items: center;
+        padding: 28px;
+        text-align: center;
+      }
+
+      .weevil-review-fallback svg {
+        color: var(--w-primary-soft);
+        height: 44px;
+        width: 44px;
+      }
+
+      .weevil-review-fallback strong {
+        font-size: 15px;
+        font-weight: 600;
+        color: #ffffff;
+      }
+
+      .weevil-review-fallback span {
+        font-family: var(--w-mono);
+        font-size: 11px;
+        line-height: 1.5;
+        color: rgba(255, 255, 255, 0.62);
+        max-width: 320px;
+      }
+
+      .weevil-review-strip {
+        align-items: center;
+        display: grid;
+        gap: 12px;
+        grid-template-columns: auto 1fr auto;
+        margin-top: 14px;
+      }
+
+      .weevil-review-play {
+        align-items: center;
+        appearance: none;
+        background: var(--w-bg);
+        border: 0.5px solid var(--w-border);
+        border-radius: 8px;
+        color: var(--w-ink);
+        cursor: pointer;
+        display: inline-grid;
+        font: inherit;
+        height: 34px;
+        place-items: center;
+        width: 38px;
+        transition: border-color 140ms cubic-bezier(0.165, 0.84, 0.44, 1);
+      }
+
+      .weevil-review-play:hover {
+        border-color: var(--w-primary);
+      }
+
+      .weevil-review-play::before {
+        content: "▶";
+        font-size: 12px;
+        line-height: 1;
+      }
+
+      .weevil-review-play[data-playing]::before {
+        content: "❚❚";
+        font-size: 11px;
+        letter-spacing: -2px;
+      }
+
+      .weevil-root:not([data-has-preview]) .weevil-review-play,
+      .weevil-root[data-artifact="screenshot"] .weevil-review-play {
+        cursor: default;
+        opacity: 0.45;
+      }
+
+      .weevil-review-progress {
+        background: var(--w-bg);
+        border: 0.5px solid var(--w-border);
+        border-radius: 999px;
+        height: 8px;
+        overflow: hidden;
+      }
+
+      .weevil-review-progress span {
+        background: var(--w-primary);
+        display: block;
+        height: 100%;
+        transition: width 120ms linear;
+        width: 0%;
+      }
+
+      .weevil-review-meta {
+        font-family: var(--w-mono);
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--w-ink-muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .weevil-review-panel {
+        background: var(--w-bg);
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        min-width: 0;
+        padding: 20px;
+      }
+
+      .weevil-review-top {
         align-items: center;
         display: flex;
-        gap: 6px;
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 0;
-        line-height: 1.2;
+        gap: 8px;
+        justify-content: space-between;
       }
 
-      .weevil-time {
-        background: rgba(255, 255, 255, 0.12);
-        border-radius: 999px;
-        color: #ffffff;
-        font-variant-numeric: tabular-nums;
-        padding: 2px 6px;
-      }
-
-      .weevil-page,
-      .weevil-status {
-        color: rgba(255, 255, 255, 0.68);
+      .weevil-review-eyebrow {
+        font-family: var(--w-mono);
         font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--w-ink-faint);
+      }
+
+      .weevil-review-close,
+      .weevil-review-open {
+        align-items: center;
+        appearance: none;
+        background: var(--w-bg);
+        border: 0.5px solid var(--w-border);
+        border-radius: 8px;
+        color: var(--w-ink);
+        cursor: pointer;
+        display: inline-flex;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        height: 32px;
+        justify-content: center;
+        padding: 0 12px;
+        transition: border-color 140ms cubic-bezier(0.165, 0.84, 0.44, 1),
+          background-color 140ms cubic-bezier(0.165, 0.84, 0.44, 1);
+      }
+
+      .weevil-review-close:hover,
+      .weevil-review-open:hover {
+        border-color: var(--w-primary);
+        background: var(--w-surface);
+      }
+
+      .weevil-review-close {
+        font-size: 18px;
+        padding: 0;
+        width: 32px;
+      }
+
+      .weevil-review-form {
+        display: grid;
+        gap: 12px;
+        align-content: start;
+        padding-top: 18px;
+        min-height: 0;
+        overflow-y: auto;
+      }
+
+      .weevil-review-title-text,
+      .weevil-review-description-text {
+        appearance: none;
+        background: var(--w-bg);
+        border: 0.5px solid var(--w-border);
+        border-radius: 8px;
+        color: var(--w-ink);
+        font: inherit;
+        outline: none;
+        padding: 10px 12px;
+        width: 100%;
+        transition: border-color 140ms cubic-bezier(0.165, 0.84, 0.44, 1),
+          box-shadow 140ms cubic-bezier(0.165, 0.84, 0.44, 1);
+      }
+
+      .weevil-review-title-text:focus,
+      .weevil-review-description-text:focus {
+        border-color: var(--w-primary);
+        box-shadow: 0 0 0 2px var(--w-primary-soft);
+      }
+
+      .weevil-review-title-text {
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
         line-height: 1.25;
-        max-width: 142px;
+        overflow-wrap: anywhere;
+      }
+
+      .weevil-review-description-text {
+        font-size: 13px;
+        line-height: 1.55;
+        min-height: 88px;
+        resize: vertical;
+        color: var(--w-ink-muted);
+      }
+
+      .weevil-review-detail-grid {
+        display: grid;
+        gap: 0;
+        border: 0.5px solid var(--w-border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .weevil-review-detail {
+        display: grid;
+        grid-template-columns: 90px 1fr;
+        gap: 12px;
+        padding: 8px 12px;
+        border-bottom: 0.5px solid var(--w-border);
+        align-items: center;
+      }
+
+      .weevil-review-detail:last-child {
+        border-bottom: 0;
+      }
+
+      .weevil-review-detail span {
+        font-family: var(--w-mono);
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--w-ink-faint);
+      }
+
+      .weevil-review-detail strong {
+        font-family: var(--w-mono);
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--w-ink);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
 
-      .weevil-status {
-        display: none;
-      }
-
-      .weevil-actions {
+      .weevil-review-footer {
         align-items: center;
         display: flex;
-        gap: 5px;
-        margin-left: auto;
+        gap: 12px;
+        justify-content: space-between;
+        padding-top: 16px;
+        border-top: 0.5px solid var(--w-border);
+        margin-top: 16px;
       }
 
-      .weevil-button {
+      .weevil-review-saved {
         align-items: center;
-        appearance: none;
-        border: 1px solid transparent;
-        border-radius: 999px;
-        cursor: pointer;
+        color: var(--w-ink-muted);
         display: inline-flex;
-        font-family: inherit;
-        font-size: 12px;
-        font-weight: 700;
-        height: 30px;
-        justify-content: center;
-        padding: 0 11px;
-        transition: transform 120ms ease, background 120ms ease, color 120ms ease;
+        gap: 6px;
+        font-family: var(--w-mono);
+        font-size: 11px;
+        font-weight: 500;
       }
 
-      .weevil-button svg {
-        height: 14px;
-        width: 14px;
-      }
-
-      .weevil-icon {
-        background: rgba(255, 255, 255, 0.10);
-        color: #ffffff;
-        min-width: 30px;
-        padding: 0;
-      }
-
-      .weevil-icon[data-active] {
-        background: #ffffff;
-        color: #111111;
-      }
-
-      .weevil-stop {
-        background: #ffffff;
-        color: #171717;
-        min-width: 56px;
-      }
-
-      .weevil-palette {
-        align-items: center;
-        background: rgba(21, 21, 20, 0.94);
-        border: 1px solid rgba(255, 255, 255, 0.12);
+      .weevil-review-saved::before {
+        background: var(--w-success);
         border-radius: 999px;
-        bottom: 68px;
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
-        display: none;
-        gap: 8px;
-        left: 50%;
-        padding: 8px 10px;
-        pointer-events: auto;
-        position: fixed;
-        transform: translateX(-50%);
-        z-index: 45;
+        content: "";
+        display: inline-block;
+        height: 6px;
+        width: 6px;
       }
 
-      .weevil-root[data-annotating] .weevil-palette {
-        display: flex;
-      }
-
-      .weevil-swatch {
+      .weevil-review-copy {
         appearance: none;
-        border: 2px solid transparent;
-        border-radius: 999px;
+        background: var(--w-primary);
+        border: 0;
+        border-radius: 8px;
+        color: #ffffff;
         cursor: pointer;
-        height: 16px;
-        padding: 0;
-        width: 16px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        min-height: 36px;
+        padding: 0 18px;
+        transition: background-color 140ms cubic-bezier(0.165, 0.84, 0.44, 1);
       }
 
-      .weevil-swatch[data-active] {
-        border-color: #ffffff;
-        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.16);
-      }
-
-      .weevil-root[data-mode="stopping"] .weevil-shell,
-      .weevil-root[data-mode="done"] .weevil-shell {
-        display: none;
-      }
-
-      .weevil-root[data-mode="preparing"] #weevil-annotate,
-      .weevil-root[data-mode="preparing"] #weevil-clear,
-      .weevil-root[data-mode="preparing"] #weevil-stop {
-        display: none;
-      }
-
-      @media (max-width: 520px) {
-        .weevil-shell {
-          min-width: 0;
-          width: auto;
-        }
-
-        .weevil-page,
-        .weevil-status {
-          max-width: 104px;
-        }
+      .weevil-review-copy:hover {
+        background: oklch(0.49 0.18 42);
       }
 
       @media (max-width: 900px) {
@@ -1715,8 +2027,32 @@ function createOverlayMarkup() {
         }
 
         .weevil-review-panel {
-          border-left: 0;
-          border-top: 1px solid #e6ecf8;
+          border-top: 0.5px solid var(--w-border);
+        }
+
+        .weevil-review-stage {
+          border-right: 0;
+          border-bottom: 0.5px solid var(--w-border);
+        }
+      }
+
+      @media (max-width: 520px) {
+        .weevil-shell {
+          right: 12px;
+          bottom: 12px;
+        }
+        .weevil-stats {
+          gap: 6px;
+          font-size: 10px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          transition-duration: 0.001ms !important;
+          animation-duration: 0.001ms !important;
         }
       }
     </style>
@@ -1724,15 +2060,27 @@ function createOverlayMarkup() {
       <div class="weevil-backdrop"></div>
       <canvas class="weevil-annotation-canvas" id="weevil-annotation-canvas"></canvas>
       <div class="weevil-annotation-frame"></div>
+
       <div class="weevil-modal" role="status" aria-live="polite">
-        <div class="weevil-modal-title" id="weevil-modal-title">
-          <span data-mode-label="preparing">Preparing to record</span>
+        <svg class="weevil-ring" viewBox="0 0 96 96" aria-hidden="true">
+          <circle class="weevil-ring-track" cx="48" cy="48" r="42"></circle>
+          <circle class="weevil-ring-fill" id="weevil-ring-fill" cx="48" cy="48" r="42"></circle>
+          <text
+            id="weevil-countdown"
+            class="weevil-countdown"
+            x="48"
+            y="48"
+            text-anchor="middle"
+            dominant-baseline="central"
+          >3</text>
+        </svg>
+        <div class="weevil-modal-title" id="weevil-modal-title">Recording starts in…</div>
+        <div class="weevil-modal-copy" id="weevil-modal-copy">keep this tab visible</div>
+        <div class="weevil-modal-hint">
+          press <kbd>esc</kbd> any time to stop
         </div>
-        <div class="weevil-modal-copy" id="weevil-modal-copy">
-          Your capture will start in a moment. Keep this tab visible.
-        </div>
-        <div class="weevil-countdown" id="weevil-countdown">3</div>
       </div>
+
       <div class="weevil-review" role="dialog" aria-modal="true" aria-label="Capture review">
         <div class="weevil-review-stage">
           <div class="weevil-review-preview-wrap">
@@ -1744,36 +2092,37 @@ function createOverlayMarkup() {
                 <path d="m10 9 5 3-5 3V9Z" fill="currentColor"/>
               </svg>
               <strong>Capture saved</strong>
-              <span>Your recording is uploaded. Open the dashboard to replay video with console, network, actions, and backend traces.</span>
+              <span>Recording uploaded. Open the dashboard to replay video with all telemetry synced.</span>
             </div>
           </div>
           <div class="weevil-review-strip">
             <button class="weevil-review-play" id="weevil-review-play" type="button" aria-label="Play preview"></button>
             <div class="weevil-review-progress"><span></span></div>
-            <div class="weevil-review-meta" id="weevil-review-duration">Ready</div>
+            <div class="weevil-review-meta" id="weevil-review-duration">ready</div>
           </div>
         </div>
         <div class="weevil-review-panel">
           <div class="weevil-review-top">
-            <button class="weevil-review-close" id="weevil-review-close" type="button" aria-label="Close">×</button>
-            <div style="display:flex;gap:10px;align-items:center">
+            <span class="weevil-review-eyebrow">review</span>
+            <div style="display:flex;gap:8px;align-items:center">
               <button class="weevil-review-open" id="weevil-review-open" type="button">Open dashboard</button>
+              <button class="weevil-review-close" id="weevil-review-close" type="button" aria-label="Close">×</button>
             </div>
           </div>
           <div class="weevil-review-form">
-            <input class="weevil-review-title-text" id="weevil-review-title" type="text" maxlength="180" value="Untitled capture" />
-            <textarea class="weevil-review-description-text" id="weevil-review-description" maxlength="4000">Recording captured from the Weevil browser extension.</textarea>
+            <input class="weevil-review-title-text" id="weevil-review-title" type="text" maxlength="180" value="Untitled capture" placeholder="Title this capture" />
+            <textarea class="weevil-review-description-text" id="weevil-review-description" maxlength="4000" placeholder="What broke? What did you expect?">Recording captured from the Weevil browser extension.</textarea>
             <div class="weevil-review-detail-grid">
               <div class="weevil-review-detail">
-                <span>Type</span>
+                <span>type</span>
                 <strong id="weevil-review-kind">Capture</strong>
               </div>
               <div class="weevil-review-detail">
-                <span>Size</span>
+                <span>size</span>
                 <strong id="weevil-review-size">0 B</strong>
               </div>
-              <div class="weevil-review-detail" style="grid-column:1 / -1">
-                <span>Source URL</span>
+              <div class="weevil-review-detail">
+                <span>source</span>
                 <strong id="weevil-review-url">Current page</strong>
               </div>
             </div>
@@ -1784,35 +2133,43 @@ function createOverlayMarkup() {
           </div>
         </div>
       </div>
+
       <div class="weevil-shell" role="status" aria-live="polite">
-        <div class="weevil-dot" aria-hidden="true"></div>
-        <div class="weevil-copy">
-          <div class="weevil-title">
-            <span>Recording</span>
-            <span class="weevil-time" id="weevil-elapsed">0:00</span>
+        <div class="weevil-shell-recording">
+          <span class="weevil-dot" aria-hidden="true"></span>
+          <span class="weevil-time" id="weevil-elapsed">0:00</span>
+          <span class="weevil-divider" aria-hidden="true"></span>
+          <span class="weevil-stats" aria-label="Live telemetry counts">
+            <span class="stat"><strong id="weevil-count-console">0</strong>cn</span>
+            <span class="stat"><strong id="weevil-count-network">0</strong>net</span>
+            <span class="stat"><strong id="weevil-count-action">0</strong>act</span>
+            <span class="stat" data-tone="error"><strong id="weevil-count-error">0</strong>err</span>
+          </span>
+          <span class="weevil-divider" aria-hidden="true"></span>
+          <div class="weevil-actions">
+            <button class="weevil-button weevil-icon" id="weevil-annotate" type="button" title="Annotate (Esc to exit)" aria-label="Annotate">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 20h4.2L19 9.2a2.8 2.8 0 0 0-4-4L4.2 16 4 20Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <path d="m13.5 6.5 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button class="weevil-button weevil-icon" id="weevil-clear" type="button" title="Clear annotations" aria-label="Clear annotations">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button class="weevil-button weevil-icon" id="weevil-minimize" type="button" title="Toggle minimize" aria-label="Toggle minimize">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 14h7v7M20 10h-7V3M4 14l-1 1M20 10l1-1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <div class="weevil-palette" aria-label="Annotation colors">
+              ${['#e11d48', '#c64a1f', '#5d8a3b', '#5d6b1f', '#1a1d12', '#ffffff']
+                .map((color) => `<button class="weevil-swatch" data-weevil-color="${color}" type="button" style="background:${color}" title="${color}"></button>`)
+                .join('')}
+            </div>
+            <button class="weevil-button weevil-stop" id="weevil-stop" type="button" title="Stop (Esc)">Stop</button>
           </div>
-          <div class="weevil-page" id="weevil-page">Current tab</div>
-          <div class="weevil-status" id="weevil-status">Console, network, actions, and video are live</div>
-        </div>
-        <div class="weevil-actions">
-          <button class="weevil-button weevil-icon" id="weevil-annotate" type="button" title="Annotate" aria-label="Annotate">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M4 20h4.2L19 9.2a2.8 2.8 0 0 0-4-4L4.2 16 4 20Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-              <path d="m13.5 6.5 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </button>
-          <button class="weevil-button weevil-icon" id="weevil-clear" type="button" title="Clear annotations" aria-label="Clear annotations">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="m4 15 8.8-8.8a2.6 2.6 0 0 1 3.7 0l1.3 1.3a2.6 2.6 0 0 1 0 3.7L10 19H5.6L4 17.4V15Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-              <path d="M9 10.5 13.5 15M14 19h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </button>
-          <div class="weevil-palette" aria-label="Annotation colors">
-            ${['#111827', '#ffffff', '#c084fc', '#a855f7', '#2563eb', '#38bdf8', '#fdba74', '#f97316', '#10b981', '#22c55e', '#f87171', '#ef4444']
-              .map((color) => `<button class="weevil-swatch" data-weevil-color="${color}" type="button" style="background:${color}" title="${color}"></button>`)
-              .join('')}
-          </div>
-          <button class="weevil-button weevil-stop" id="weevil-stop" type="button">Stop</button>
         </div>
       </div>
     </div>

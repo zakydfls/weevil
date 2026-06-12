@@ -39,6 +39,7 @@ import type { BackendTraceEntry, NetworkRequestEntry, ReportDetail, TimelineEntr
 import { apiClient } from '@/lib/api/client';
 import { formatBytes, formatDate } from '@/lib/utils';
 import { reportKeys } from '../queries';
+import { StatusBadge } from './status-badge';
 
 interface CaptureDetailViewProps {
   report: ReportDetail | undefined;
@@ -57,11 +58,13 @@ type DevToolsTab =
   | 'DOM'
   | 'Backend';
 
+// Visible tabs only — other telemetry (Timeline, Actions, Errors, Performance, Backend)
+// is still captured and stored, but not surfaced in the UI for now.
 const devToolsTabItems = [
   { id: 'Info', icon: Info },
   { id: 'Console', icon: Terminal },
   { id: 'Network', icon: Wifi },
-  { id: 'Backend', icon: Server },
+  { id: 'DOM', icon: FileCode2 },
 ] satisfies Array<{ id: DevToolsTab; icon: typeof Clock }>;
 const networkFilterLabels = ['All', 'Fetch/XHR', 'WS', 'JS', 'CSS', 'Media', 'Font', 'Doc', 'Other'] as const;
 type NetworkFilter = (typeof networkFilterLabels)[number];
@@ -92,8 +95,25 @@ export function CaptureDetailView({
   const [isDevToolsOpen, setIsDevToolsOpen] = useState(true);
   const [devToolsWidth, setDevToolsWidth] = useState(640);
   const [copyFeedback, setCopyFeedback] = useState<CopyFeedbackTarget>(null);
+  const [currentTimeMs, setCurrentTimeMs] = useState(0);
+  const [videoDurationMs, setVideoDurationMs] = useState(0);
+  const [seekTargetMs, setSeekTargetMs] = useState<number | null>(null);
   const queryClient = useQueryClient();
   const comments = report?.comments ?? [];
+
+  const seekTo = (ms: number) => setSeekTargetMs(ms);
+  const handleSeekComplete = () => setSeekTargetMs(null);
+
+  useEffect(() => {
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onBack();
+      }
+    }
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onBack]);
 
   async function handleCreateComment() {
     if (!report || !commentBody.trim()) {
@@ -116,40 +136,47 @@ export function CaptureDetailView({
       return;
     }
 
-    const url = new URL(window.location.href);
-    url.searchParams.set('capture', report.id);
+    const url = new URL(`/c/${report.id}`, window.location.origin);
     await writeClipboard(url.toString());
     setCopyFeedback('link');
     window.setTimeout(() => setCopyFeedback(null), 1_400);
   }
 
-  async function handleSendToApp() {
+  async function handleCopyMarkdown() {
     if (!report) {
       return;
     }
 
-    await writeClipboard(
-      JSON.stringify(
-        {
-          id: report.id,
-          title: report.title,
-          status: report.status,
-          pageUrl: report.pageUrl,
-          shareToken: report.shareToken,
-          counts: {
-            console: report.consoleLogs.length,
-            network: report.networkRequests.length,
-            actions: report.pageActions.length,
-            errors: report.runtimeErrors.length,
-            performance: report.performanceEntries.length,
-            dom: report.domEvents.length,
-            backend: report.backendTraces.length,
-          },
-        },
-        null,
-        2,
-      ),
-    );
+    const shareUrl = new URL(`/c/${report.id}`, window.location.origin);
+
+    const counts = [
+      report.consoleLogs.length > 0 ? `${report.consoleLogs.length} console` : null,
+      report.networkRequests.length > 0 ? `${report.networkRequests.length} network` : null,
+      report.pageActions.length > 0 ? `${report.pageActions.length} actions` : null,
+      report.runtimeErrors.length > 0 ? `**${report.runtimeErrors.length} errors**` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+
+    const firstError = report.runtimeErrors[0];
+
+    const markdown = [
+      `### 🐛 ${report.title}`,
+      '',
+      report.description ? `${report.description}` : '_No description._',
+      '',
+      `- **URL:** ${report.pageUrl ?? '—'}`,
+      `- **Status:** \`${report.status}\``,
+      `- **Browser:** ${[report.browserName, report.browserVersion].filter(Boolean).join(' ') || '—'}`,
+      counts ? `- **Telemetry:** ${counts}` : null,
+      firstError ? `- **First error:** \`${firstError.message}\`` : null,
+      '',
+      `[Open in Weevil →](${shareUrl.toString()})`,
+    ]
+      .filter((line) => line !== null)
+      .join('\n');
+
+    await writeClipboard(markdown);
     setCopyFeedback('send');
     window.setTimeout(() => setCopyFeedback(null), 1_400);
   }
@@ -164,11 +191,11 @@ export function CaptureDetailView({
 
   if (isLoading || !report) {
     return (
-      <section className="min-h-[calc(100vh-1rem)] rounded-2xl border border-[#e2e0dc] bg-white p-8">
-        <div className="h-10 w-40 animate-pulse rounded bg-[#efeeeb]" />
+      <section className="min-h-[calc(100vh-1rem)] rounded-2xl border border-[#dfdcc9] bg-white p-8">
+        <div className="h-10 w-40 animate-pulse rounded bg-[#efeee7]" />
         <div className="mt-8 grid gap-6 2xl:grid-cols-[minmax(0,1fr)_36rem]">
-          <div className="aspect-video animate-pulse rounded-2xl bg-[#efeeeb]" />
-          <div className="animate-pulse rounded-2xl bg-[#efeeeb]" />
+          <div className="aspect-video animate-pulse rounded-2xl bg-[#efeee7]" />
+          <div className="animate-pulse rounded-2xl bg-[#efeee7]" />
         </div>
       </section>
     );
@@ -177,29 +204,42 @@ export function CaptureDetailView({
   return (
     <section
       data-shell-mode="detail"
-      className={`weevil-fade-in grid h-screen max-h-screen overflow-hidden bg-[#f7f8ff] transition-[grid-template-columns] duration-200 ease-out ${
+      className={`weevil-fade-in grid h-[calc(100vh-3.5rem)] max-h-[calc(100vh-3.5rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-[var(--bg)] transition-[grid-template-columns] duration-200 ease-out ${
         isDevToolsOpen ? 'xl:[grid-template-columns:minmax(0,1fr)_var(--devtools-width)]' : ''
       }`}
       style={{ '--devtools-width': `${devToolsWidth}px` } as CSSProperties}
     >
-      <div className="grid min-h-0 grid-rows-[auto_1fr] overflow-hidden bg-white">
-        <header className="flex min-h-16 flex-col items-start justify-between gap-3 border-b border-[#dfe5f5] bg-white/95 px-4 py-3 sm:flex-row sm:items-center lg:px-6">
-          <div className="flex items-center gap-3">
-            <Button type="button" variant="secondary" size="icon" className="rounded-xl" onClick={onBack}>
-              <Home className="h-5 w-5" aria-hidden />
-            </Button>
-            <button type="button" onClick={onBack} className="flex items-center gap-2 text-[#64708a]">
-              <ArrowLeft className="h-4 w-4" aria-hidden />
-              Captures
-            </button>
+      <header
+        className={`flex min-h-14 items-center gap-2 border-b border-[var(--border)] bg-[var(--bg)]/95 px-3 backdrop-blur sm:gap-3 sm:px-4 lg:px-6 ${
+          isDevToolsOpen ? 'xl:col-span-2' : ''
+        }`}
+      >
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onBack}
+            aria-label="Back to inbox"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+          </Button>
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-center gap-2">
+              <StatusBadge status={report.status} />
+              <span className="truncate text-sm font-semibold text-[var(--ink)]">{report.title}</span>
+            </div>
+            <div className="hidden items-center gap-3 font-mono text-[11px] text-[var(--ink-faint)] sm:flex">
+              <span className="truncate">{report.pageUrl ?? report.id}</span>
+            </div>
           </div>
-          <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:justify-end">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {!isDevToolsOpen ? (
               <Button
                 type="button"
                 variant="secondary"
-                className="h-9 rounded-xl px-3 text-sm"
+                size="sm"
                 onClick={() => setIsDevToolsOpen(true)}
+                className="hidden sm:inline-flex"
               >
                 DevTools
               </Button>
@@ -207,91 +247,145 @@ export function CaptureDetailView({
             <Button
               type="button"
               variant="secondary"
-              className="h-9 rounded-xl border-[#dfe5f5] bg-white px-3 text-sm text-[#25324d] hover:bg-[#f2f5ff]"
-              onClick={() => void handleSendToApp()}
+              size="sm"
+              title="Copy as Markdown — paste into Linear, Slack, Jira, etc."
+              onClick={() => void handleCopyMarkdown()}
+              aria-label="Copy as Markdown"
             >
-              {copyFeedback === 'send' ? <Check className="h-4 w-4" aria-hidden /> : <Send className="h-4 w-4" aria-hidden />}
-              {copyFeedback === 'send' ? 'Copied payload' : 'Send to app'}
-              <ChevronDown className="h-4 w-4" aria-hidden />
+              {copyFeedback === 'send' ? (
+                <Check className="h-3.5 w-3.5" aria-hidden />
+              ) : (
+                <FileText className="h-3.5 w-3.5" aria-hidden />
+              )}
+              <span className="hidden md:inline">{copyFeedback === 'send' ? 'Copied' : 'Copy as Markdown'}</span>
             </Button>
             <Button
               type="button"
-              className="h-9 rounded-xl bg-[#2563eb] px-4 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+              variant="primary"
+              size="sm"
               onClick={() => void handleCopyLink()}
+              aria-label="Copy link"
             >
-              {copyFeedback === 'link' ? <Check className="h-5 w-5" aria-hidden /> : <Link2 className="h-5 w-5" aria-hidden />}
-              {copyFeedback === 'link' ? 'Copied' : 'Copy link'}
-              <ChevronDown className="h-4 w-4" aria-hidden />
+              {copyFeedback === 'link' ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Link2 className="h-3.5 w-3.5" aria-hidden />}
+              <span className="hidden sm:inline">{copyFeedback === 'link' ? 'Link copied' : 'Copy link'}</span>
             </Button>
           </div>
-        </header>
+      </header>
 
-        <div className="thin-scrollbar min-h-0 overflow-auto px-4 py-5 lg:px-6 lg:py-6">
+      <div className="grid min-h-0 grid-rows-[1fr_auto] overflow-hidden bg-[var(--bg)]">
+        <div className="thin-scrollbar min-h-0 overflow-auto">
           <div className={isDevToolsOpen ? '' : 'mx-auto max-w-[108rem]'}>
-          <RecordingHero report={report} />
-          <CaptureStats report={report} />
-          <div className={isDevToolsOpen ? 'mt-6 max-w-4xl' : 'mt-6'}>
-            <h1 className="text-2xl font-semibold tracking-normal text-[#16213a]">{report.title}</h1>
-            <p className="mt-3 text-base leading-7 text-[#64708a] sm:text-lg">
-              {report.description || 'Add a description...'}
-            </p>
-            <div className="mt-6 border-t border-[#dfe5f5] pt-5">
-              <div className="flex items-center gap-2 text-sm text-[#4b5875]">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f97316] text-xs font-semibold text-white">
-                  W
+            <div className="sticky top-0 z-[var(--z-sticky)] border-b border-[var(--border)] bg-[var(--bg)]/95 px-4 pb-3 pt-4 backdrop-blur lg:px-6">
+              <div className="mx-auto max-w-3xl">
+                <RecordingHero
+                  report={report}
+                  seekTargetMs={seekTargetMs}
+                  onSeekComplete={handleSeekComplete}
+                  onTimeUpdate={setCurrentTimeMs}
+                  onDurationLoad={setVideoDurationMs}
+                />
+                {videoDurationMs > 0 ? (
+                  <TimelineScrubber
+                    currentMs={currentTimeMs}
+                    durationMs={videoDurationMs}
+                    entries={report.timeline ?? []}
+                    onSeek={seekTo}
+                  />
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mx-auto max-w-3xl px-4 py-7 lg:px-6">
+              <CaptureStats report={report} />
+
+              <div className="mt-8">
+                <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.02em] text-[var(--ink)]">
+                  {report.title}
+                </h1>
+                {report.description ? (
+                  <p className="mt-3 text-base leading-7 text-[var(--ink-muted)]">{report.description}</p>
+                ) : (
+                  <p className="mt-3 text-base italic leading-7 text-[var(--ink-faint)]">
+                    No description yet. Drop a few lines to give engineers a head start.
+                  </p>
+                )}
+                <div className="mt-4 flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-[var(--ink-faint)]">
+                  <span>captured</span>
+                  <span>·</span>
+                  <span className="normal-case tracking-normal text-[var(--ink-muted)]">{formatDate(report.createdAt)}</span>
                 </div>
-                Weevil created this capture · {formatDate(report.createdAt)}
               </div>
-            </div>
-            <div className="weevil-card-hover mt-5 rounded-xl border border-[#dfe5f5] bg-white p-3 shadow-sm hover:border-[#c8d7f5]">
-              <Textarea
-                value={commentBody}
-                onChange={(event) => setCommentBody(event.target.value)}
-                className="min-h-16 border-0 p-0 text-base shadow-none focus:ring-0"
-                placeholder="Write a comment or @ to mention"
-              />
-              <div className="mt-4 flex items-center justify-between text-[#64708a]">
-                <Link2 className="h-5 w-5" aria-hidden />
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={isPostingComment || !commentBody.trim()}
-                  onClick={() => void handleCreateComment()}
-                >
-                  {isPostingComment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  Send
-                </Button>
-              </div>
-            </div>
-            {comments.length > 0 ? (
-              <div className="mt-6 space-y-3">
-                {comments.map((comment) => (
-                  <div key={comment.id} className="rounded-2xl bg-[#f7f9ff] p-4">
-                    <div className="text-sm font-semibold">{comment.authorName}</div>
-                    <div className="mt-1 text-sm text-[#4b5875]">{comment.body}</div>
+
+              <section className="mt-10 border-t border-[var(--border)] pt-8">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
+                    Discussion
+                  </h2>
+                  <span className="font-mono text-[11px] text-[var(--ink-faint)]">
+                    {comments.length} {comments.length === 1 ? 'reply' : 'replies'}
+                  </span>
+                </div>
+                <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--bg)] p-3 transition-colors focus-within:border-[var(--primary)]">
+                  <Textarea
+                    value={commentBody}
+                    onChange={(event) => setCommentBody(event.target.value)}
+                    className="min-h-16 border-0 p-0 text-sm shadow-none focus:ring-0"
+                    placeholder="Write a comment, paste a fix, or @mention…"
+                  />
+                  <div className="mt-2 flex items-center justify-between text-[var(--ink-faint)]">
+                    <span className="font-mono text-[10px] uppercase tracking-wider">cmd + enter</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={isPostingComment || !commentBody.trim()}
+                      onClick={() => void handleCreateComment()}
+                    >
+                      {isPostingComment ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                      Post
+                    </Button>
                   </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
+                </div>
+                {comments.length > 0 ? (
+                  <ol className="mt-6 space-y-4 border-l border-[var(--border)] pl-5">
+                    {comments.map((comment) => (
+                      <li key={comment.id} className="relative">
+                        <span
+                          className="absolute -left-[27px] top-2 grid h-5 w-5 place-items-center rounded-full bg-[var(--primary)] text-[10px] font-semibold text-white ring-4 ring-[var(--bg)]"
+                          aria-hidden
+                        >
+                          {comment.authorName.slice(0, 1).toUpperCase()}
+                        </span>
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="text-sm font-semibold text-[var(--ink)]">{comment.authorName}</span>
+                          <time className="font-mono text-[11px] text-[var(--ink-faint)]">{formatDate(comment.createdAt)}</time>
+                        </div>
+                        <div className="mt-1 text-sm leading-6 text-[var(--ink-muted)]">{comment.body}</div>
+                      </li>
+                    ))}
+                  </ol>
+                ) : null}
+              </section>
+            </div>
           </div>
         </div>
 
         {isDevToolsOpen ? (
-        <div className="border-t border-[#dfe5f5] bg-[#f8faff] xl:hidden">
+        <div className="border-t border-[var(--border)] bg-[var(--surface)] xl:hidden">
           <DevToolsShell
             report={report}
             activeTab={activeTab}
             onActiveTabChange={setActiveTab}
             onClose={() => setIsDevToolsOpen(false)}
             isCompact
+            currentTimeMs={currentTimeMs}
+            seekTo={seekTo}
           />
         </div>
         ) : null}
       </div>
 
       {isDevToolsOpen ? (
-      <aside className="relative hidden h-screen min-h-0 border-l border-[#dfe5f5] bg-[#f8faff] xl:grid">
+      <aside className="relative hidden h-full min-h-0 min-w-0 overflow-hidden border-l border-[var(--border)] bg-[var(--surface)] xl:grid xl:grid-rows-[1fr]">
         <ResizeGrip
           label="Resize DevTools"
           className="absolute -left-1 top-0 z-20 h-full w-2 cursor-col-resize"
@@ -302,6 +396,8 @@ export function CaptureDetailView({
           activeTab={activeTab}
           onActiveTabChange={setActiveTab}
           onClose={() => setIsDevToolsOpen(false)}
+          currentTimeMs={currentTimeMs}
+          seekTo={seekTo}
         />
       </aside>
       ) : null}
@@ -315,50 +411,83 @@ function DevToolsShell({
   onActiveTabChange,
   onClose,
   isCompact = false,
+  currentTimeMs,
+  seekTo,
 }: {
   report: ReportDetail;
   activeTab: DevToolsTab;
   onActiveTabChange: (tab: DevToolsTab) => void;
   onClose: () => void;
   isCompact?: boolean;
+  currentTimeMs: number;
+  seekTo: (ms: number) => void;
 }) {
+  const counts: Partial<Record<DevToolsTab, number>> = {
+    Console: report.consoleLogs.length,
+    Network: report.networkRequests.length,
+    Actions: report.pageActions.length,
+    Errors: report.runtimeErrors.length,
+    Backend: report.backendTraces.length,
+    Performance: report.performanceEntries.length,
+    DOM: report.domEvents.length,
+    Timeline: report.timeline?.length ?? 0,
+  };
+
   return (
-    <div className={isCompact ? 'grid h-[min(34rem,76vh)] min-h-0 grid-rows-[auto_auto_1fr]' : 'grid h-full min-h-0 grid-rows-[auto_auto_1fr]'}>
-      <div className="flex h-11 items-center justify-between border-b border-[#dfe5f5] bg-white px-3">
-        <div className="flex items-center gap-2">
-          <div className="grid h-7 w-7 place-items-center rounded-lg bg-[#e0ecff] text-[#2563eb]">
-            <Zap className="h-3.5 w-3.5" aria-hidden />
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold tracking-normal text-[#16213a]">DevTools</h2>
-            <div className="text-[10px] leading-none text-[#7a849d]">Synchronized telemetry</div>
-          </div>
+    <div className={isCompact ? 'grid h-[min(36rem,76vh)] min-h-0 min-w-0 grid-rows-[auto_1fr] bg-[var(--bg)]' : 'grid h-full min-h-0 min-w-0 grid-rows-[auto_1fr] bg-[var(--bg)]'}>
+      <div className="flex h-11 items-stretch border-b border-[var(--border)] bg-[var(--surface)] pl-3 pr-1">
+        <div className="hidden items-center gap-1.5 pr-3 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)] sm:flex">
+          <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--primary)]" />
+          devtools
         </div>
-        <div className="flex items-center gap-2 text-[#7a849d]">
-          <Button type="button" variant="secondary" size="icon" className="h-8 w-8 rounded-lg" onClick={onClose}>
-            <X className="h-3.5 w-3.5" aria-hidden />
-          </Button>
+        <div className="my-2 hidden w-px shrink-0 bg-[var(--border)] sm:block" />
+        <div className="scrollbar-none flex min-w-0 flex-1 items-stretch gap-0.5 overflow-x-auto pl-1.5">
+          {devToolsTabItems.map(({ id: tab, icon: Icon }) => {
+            const isActive = activeTab === tab;
+            const count = counts[tab];
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => onActiveTabChange(tab)}
+                className={`relative flex shrink-0 items-center gap-1.5 px-3 text-[11px] font-medium transition-colors ${
+                  isActive
+                    ? 'text-[var(--ink)]'
+                    : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'
+                }`}
+              >
+                <Icon className="h-3 w-3" aria-hidden />
+                {tab}
+                {typeof count === 'number' && count > 0 ? (
+                  <span
+                    className={`min-w-4 rounded px-1 text-center font-mono text-[10px] ${
+                      isActive
+                        ? 'bg-[var(--primary-subtle)] text-[var(--primary)]'
+                        : 'text-[var(--ink-faint)]'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                ) : null}
+                {isActive ? (
+                  <span className="absolute inset-x-2 -bottom-px h-[2px] rounded-t-full bg-[var(--primary)]" />
+                ) : null}
+              </button>
+            );
+          })}
         </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="my-1.5 h-8 w-8 self-center"
+          onClick={onClose}
+          aria-label="Close DevTools"
+        >
+          <X className="h-3.5 w-3.5" aria-hidden />
+        </Button>
       </div>
-      <div className="scrollbar-none flex h-9 items-end gap-1 overflow-x-auto border-b border-[#dfe5f5] bg-[#fbfcff] px-2.5">
-        {devToolsTabItems.map(({ id: tab, icon: Icon }) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => onActiveTabChange(tab)}
-            className={`relative flex h-7 shrink-0 items-center gap-1 rounded-t-md px-2 text-[11px] transition-colors ${
-              activeTab === tab ? 'bg-white font-semibold text-[#2563eb]' : 'text-[#64708a] hover:bg-white/70'
-            }`}
-          >
-            <Icon className="h-3 w-3" aria-hidden />
-            {tab}
-            {activeTab === tab ? (
-              <span className="absolute inset-x-1.5 bottom-0 h-0.5 rounded-t-full bg-[#f97316]" />
-            ) : null}
-          </button>
-        ))}
-      </div>
-      <DevToolsPanel report={report} activeTab={activeTab} />
+      <DevToolsPanel report={report} activeTab={activeTab} currentTimeMs={currentTimeMs} seekTo={seekTo} />
     </div>
   );
 }
@@ -394,20 +523,22 @@ function BodyPreview({
   return (
     <>
       <SectionTitle title={title} />
-      <div className="border-b border-[#efeeeb]">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#f3f1ed] px-3 py-1.5 text-[11px] text-[#77736d]">
+      <div className="border-b border-[var(--border)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--divider)] bg-[var(--surface)] px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
           <span>{formatted.label}</span>
-          <span>{formatByteCount(new Blob([value]).size)}</span>
+          <span className="tabular-nums normal-case tracking-normal text-[var(--ink-muted)]">
+            {formatByteCount(new Blob([value]).size)}
+          </span>
         </div>
         {formatted.note ? (
-          <div className="border-b border-[#f3f1ed] bg-[#fbfbfa] px-3 py-1.5 text-[11px] leading-4 text-[#5f5a55]">
+          <div className="border-b border-[var(--divider)] bg-[var(--surface)] px-3 py-1.5 font-mono text-[10px] leading-4 text-[var(--ink-muted)]">
             {formatted.note}
           </div>
         ) : null}
         {'parsedJson' in formatted && viewMode === 'tree' ? (
           <JsonTreeView value={formatted.parsedJson} />
         ) : (
-          <pre className="max-h-[30rem] overflow-auto whitespace-pre px-3 py-2 font-mono text-[11px] leading-4 text-[#242321]">
+          <pre className="thin-scrollbar overflow-x-auto whitespace-pre bg-[var(--bg)] px-3 py-2.5 font-mono text-[11px] leading-5 text-[var(--ink)]">
             {viewMode === 'raw' ? value : formatted.body}
           </pre>
         )}
@@ -418,7 +549,7 @@ function BodyPreview({
 
 function JsonTreeView({ value }: { value: unknown }) {
   return (
-    <div className="thin-scrollbar max-h-[30rem] overflow-auto px-2 py-1.5 font-mono text-[11px] leading-4 text-[#242321]">
+    <div className="thin-scrollbar overflow-x-auto bg-[var(--bg)] px-2 py-2 font-mono text-[11px] leading-5 text-[var(--ink)]">
       <JsonTreeNode name={null} value={value} defaultExpanded depth={0} />
     </div>
   );
@@ -447,8 +578,8 @@ function JsonTreeNode({
 
   if (!isExpandable) {
     return (
-      <div className="flex min-w-0 items-start gap-1 py-0.5" style={{ paddingLeft: `${depth * 12}px` }}>
-        {name !== null ? <span className="shrink-0 text-[#7a849d]">{formatJsonKey(name)}:</span> : null}
+      <div className="flex min-w-0 items-start gap-1.5 py-0.5" style={{ paddingLeft: `${depth * 14}px` }}>
+        {name !== null ? <span className="shrink-0 text-[var(--ink-faint)]">{formatJsonKey(name)}:</span> : null}
         <JsonPrimitive value={value} />
       </div>
     );
@@ -459,14 +590,23 @@ function JsonTreeNode({
       <button
         type="button"
         onClick={() => setIsExpanded((current) => !current)}
-        className="flex w-full min-w-0 items-center gap-1 py-0.5 text-left hover:bg-[#f4f7ff]"
-        style={{ paddingLeft: `${depth * 12}px` }}
+        className="flex w-full min-w-0 items-center gap-1.5 rounded-sm py-0.5 text-left transition-colors hover:bg-[var(--primary-subtle)]"
+        style={{ paddingLeft: `${depth * 14}px` }}
       >
-        <span className="w-3 shrink-0 text-[#7a849d]">{isExpanded ? '▾' : '▸'}</span>
-        {name !== null ? <span className="shrink-0 text-[#7a849d]">{formatJsonKey(name)}:</span> : null}
-        <span className="text-[#475569]">
+        <span className="w-3 shrink-0 text-[var(--ink-faint)] transition-transform" style={{ transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}>
+          ▾
+        </span>
+        {name !== null ? <span className="shrink-0 text-[var(--ink-faint)]">{formatJsonKey(name)}:</span> : null}
+        <span className="text-[var(--ink-muted)]">
           {isArray ? '[' : '{'}
-          {!isExpanded ? `${entries.length} ${isArray ? 'items' : 'keys'}${isArray ? ']' : '}'}` : ''}
+          {!isExpanded ? (
+            <span className="text-[var(--ink-faint)]">
+              {' '}
+              {entries.length} {isArray ? 'items' : 'keys'} {isArray ? ']' : '}'}
+            </span>
+          ) : (
+            ''
+          )}
         </span>
       </button>
       {isExpanded ? (
@@ -474,7 +614,7 @@ function JsonTreeNode({
           {entries.map(([entryName, entryValue]) => (
             <JsonTreeNode key={String(entryName)} name={entryName} value={entryValue} depth={depth + 1} />
           ))}
-          <div className="py-0.5 text-[#475569]" style={{ paddingLeft: `${depth * 12 + 12}px` }}>
+          <div className="py-0.5 text-[var(--ink-muted)]" style={{ paddingLeft: `${depth * 14 + 14}px` }}>
             {isArray ? ']' : '}'}
           </div>
         </>
@@ -485,22 +625,22 @@ function JsonTreeNode({
 
 function JsonPrimitive({ value }: { value: unknown }) {
   if (typeof value === 'string') {
-    return <span className="break-all text-[#047857]">{JSON.stringify(value)}</span>;
+    return <span className="break-all text-[#3a5419]">{JSON.stringify(value)}</span>;
   }
 
   if (typeof value === 'number') {
-    return <span className="text-[#1d4ed8]">{value}</span>;
+    return <span className="text-[#7e5a14]">{value}</span>;
   }
 
   if (typeof value === 'boolean') {
-    return <span className="text-[#b45309]">{String(value)}</span>;
+    return <span className="text-[#a13c19]">{String(value)}</span>;
   }
 
   if (value === null) {
-    return <span className="text-[#7a849d]">null</span>;
+    return <span className="italic text-[var(--ink-faint)]">null</span>;
   }
 
-  return <span className="break-all text-[#475569]">{String(value)}</span>;
+  return <span className="break-all text-[var(--ink-muted)]">{String(value)}</span>;
 }
 
 function formatJsonKey(key: string | number) {
@@ -509,38 +649,49 @@ function formatJsonKey(key: string | number) {
 
 function CaptureStats({ report }: { report: ReportDetail }) {
   const stats = [
-    { label: 'Sessions', value: report.captureSessions?.length ?? 0, icon: Clock, accent: 'text-[#2563eb]', bg: 'bg-[#eff6ff]', ring: 'ring-[#bfdbfe]' },
-    { label: 'Actions', value: report.pageActions?.length ?? 0, icon: MousePointer2, accent: 'text-[#7c3aed]', bg: 'bg-[#f5f3ff]', ring: 'ring-[#ddd6fe]' },
-    { label: 'Errors', value: report.runtimeErrors?.length ?? 0, icon: AlertTriangle, accent: 'text-[#e11d48]', bg: 'bg-[#fff1f2]', ring: 'ring-[#fecdd3]' },
-    { label: 'Network', value: report.networkRequests?.length ?? 0, icon: Activity, accent: 'text-[#0891b2]', bg: 'bg-[#ecfeff]', ring: 'ring-[#a5f3fc]' },
-    { label: 'Perf', value: report.performanceEntries?.length ?? 0, icon: Gauge, accent: 'text-[#b45309]', bg: 'bg-[#fffbeb]', ring: 'ring-[#fde68a]' },
-    { label: 'Backend', value: report.backendTraces?.length ?? 0, icon: Database, accent: 'text-[#047857]', bg: 'bg-[#ecfdf5]', ring: 'ring-[#bbf7d0]' },
+    { label: 'console', value: report.consoleLogs?.length ?? 0, color: 'var(--tl-console)' },
+    { label: 'network', value: report.networkRequests?.length ?? 0, color: 'var(--tl-network)' },
+    { label: 'actions', value: report.pageActions?.length ?? 0, color: 'var(--tl-action)' },
+    { label: 'errors', value: report.runtimeErrors?.length ?? 0, color: 'var(--tl-error)' },
+    { label: 'backend', value: report.backendTraces?.length ?? 0, color: 'var(--tl-backend)' },
+    { label: 'perf', value: report.performanceEntries?.length ?? 0, color: 'var(--tl-performance)' },
+    { label: 'dom', value: report.domEvents?.length ?? 0, color: 'var(--ink-faint)' },
   ] as const;
 
   return (
-    <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-      {stats.map((stat, index) => (
-        <div
-          key={stat.label}
-          className="weevil-metric-card weevil-soft-rise rounded-xl border border-[#dfe5f5] bg-white px-3 py-2.5 shadow-[0_8px_22px_rgba(21,32,54,0.05)]"
-          style={{ animationDelay: `${index * 26}ms` }}
-        >
-          <div className="relative z-10 flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <div className="truncate text-[11px] font-semibold text-[#64708a]">{stat.label}</div>
-              <div className="mt-1 text-2xl font-semibold leading-none text-[#16213a]">{stat.value}</div>
-            </div>
-            <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${stat.bg} ${stat.accent} ring-1 ${stat.ring}`}>
-              <stat.icon className="h-4 w-4" aria-hidden />
-            </div>
-          </div>
+    <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-y border-[var(--border)] py-3 sm:flex sm:flex-wrap sm:items-baseline sm:gap-x-6 sm:gap-y-2">
+      {stats.map((stat) => (
+        <div key={stat.label} className="flex items-baseline gap-1.5">
+          <span
+            className="inline-block h-1.5 w-1.5 translate-y-[-2px] rounded-full"
+            style={{ backgroundColor: stat.color }}
+            aria-hidden
+          />
+          <span className="font-mono text-base font-semibold tabular-nums text-[var(--ink)]">
+            {stat.value}
+          </span>
+          <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--ink-faint)]">
+            {stat.label}
+          </span>
         </div>
       ))}
     </div>
   );
 }
 
-function RecordingHero({ report }: { report: ReportDetail }) {
+function RecordingHero({
+  report,
+  seekTargetMs,
+  onSeekComplete,
+  onTimeUpdate,
+  onDurationLoad,
+}: {
+  report: ReportDetail;
+  seekTargetMs: number | null;
+  onSeekComplete: () => void;
+  onTimeUpdate: (ms: number) => void;
+  onDurationLoad: (ms: number) => void;
+}) {
   const recordingUpload = report.uploads.find((item) => item.kind === 'SCREEN_RECORDING');
   const screenshotUpload = report.uploads.find((item) => item.kind === 'SCREENSHOT');
   const upload = recordingUpload ?? screenshotUpload;
@@ -552,6 +703,16 @@ function RecordingHero({ report }: { report: ReportDetail }) {
   const [videoError, setVideoError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const uploadId = upload?.id;
+
+  useEffect(() => {
+    if (seekTargetMs === null || !videoRef.current) return;
+    videoRef.current.currentTime = seekTargetMs / 1000;
+    if (videoRef.current.paused) {
+      void videoRef.current.play().catch(() => undefined);
+    }
+    if (!isPlayerOpen) setIsPlayerOpen(true);
+    onSeekComplete();
+  }, [seekTargetMs, isPlayerOpen, onSeekComplete]);
 
   useEffect(() => {
     let isMounted = true;
@@ -627,10 +788,14 @@ function RecordingHero({ report }: { report: ReportDetail }) {
       return;
     }
 
+    if (Number.isFinite(video.duration) && video.duration > 0) {
+      onDurationLoad(video.duration * 1000);
+    }
+
     if (!isPlayerOpen) {
-      const seekTo = Number.isFinite(video.duration) && video.duration > 0.6 ? 0.6 : 0.1;
+      const seekTarget = Number.isFinite(video.duration) && video.duration > 0.6 ? 0.6 : 0.1;
       try {
-        video.currentTime = seekTo;
+        video.currentTime = seekTarget;
       } catch {
         setHasLoadedThumbnail(true);
       }
@@ -659,13 +824,13 @@ function RecordingHero({ report }: { report: ReportDetail }) {
 
   return (
     <div
-      className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-[#dfe7fb] shadow-sm ring-1 ring-[#dfe5f5]"
+      className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--ink-strong)]"
     >
       {sourceUrl ? (
         <>
           {isScreenshot ? (
             <img
-              className="h-full w-full bg-[#f8faff] object-contain"
+              className="h-full w-full bg-[#fafbf6] object-contain"
               src={sourceUrl}
               alt={report.title}
               onLoad={() => setHasLoadedThumbnail(true)}
@@ -684,13 +849,21 @@ function RecordingHero({ report }: { report: ReportDetail }) {
               onLoadedData={() => setHasLoadedThumbnail(true)}
               onCanPlay={() => setHasLoadedThumbnail(true)}
               onSeeked={() => setHasLoadedThumbnail(true)}
+              onTimeUpdate={() => {
+                if (videoRef.current) onTimeUpdate(videoRef.current.currentTime * 1000);
+              }}
+              onDurationChange={() => {
+                if (videoRef.current && Number.isFinite(videoRef.current.duration)) {
+                  onDurationLoad(videoRef.current.duration * 1000);
+                }
+              }}
               onError={() => setVideoError('Recording file cannot be played. The uploaded WebM may be invalid or unreachable.')}
             />
           )}
           {!isPlayerOpen && !isScreenshot ? (
             <>
               <div
-                className={`absolute inset-0 bg-[linear-gradient(135deg,#2563eb,#f97316_48%,#f8fafc)] transition-opacity ${
+                className={`absolute inset-0 bg-[linear-gradient(135deg,#5d6b1f,#c64a1f_48%,#fafbf6)] transition-opacity ${
                   hasLoadedThumbnail ? 'opacity-0' : 'opacity-100'
                 }`}
               />
@@ -699,13 +872,13 @@ function RecordingHero({ report }: { report: ReportDetail }) {
                 type="button"
                 onClick={() => void loadRecording()}
                 disabled={isLoadingSource}
-                className="absolute left-1/2 top-1/2 flex h-[4.5rem] w-[4.5rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#16213a] shadow-[0_0_0_7px_rgba(255,255,255,0.22)]"
+                className="absolute left-1/2 top-1/2 flex h-[4.5rem] w-[4.5rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#1a1d12] shadow-[0_0_0_7px_rgba(255,255,255,0.22)]"
                 aria-label="Play recording"
               >
                 {isLoadingSource ? (
                   <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
                 ) : (
-                  <Play className="ml-1 h-9 w-9 fill-[#16213a]" aria-hidden />
+                  <Play className="ml-1 h-9 w-9 fill-[#1a1d12]" aria-hidden />
                 )}
               </button>
               <div className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-xl bg-black/82 px-3 py-1.5 text-base font-medium text-white">
@@ -734,25 +907,25 @@ function RecordingHero({ report }: { report: ReportDetail }) {
         </>
       ) : (
         <>
-          <div className="absolute inset-0 bg-[linear-gradient(135deg,#2563eb,#f97316_48%,#f8fafc)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(135deg,#5d6b1f,#c64a1f_48%,#fafbf6)]" />
           <div className="absolute inset-0 bg-black/42" />
           <button
             type="button"
             onClick={() => void loadRecording()}
             disabled={!upload || isLoadingSource}
-            className="absolute left-1/2 top-1/2 flex h-[4.5rem] w-[4.5rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#16213a] shadow-[0_0_0_7px_rgba(255,255,255,0.22)]"
+            className="absolute left-1/2 top-1/2 flex h-[4.5rem] w-[4.5rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#1a1d12] shadow-[0_0_0_7px_rgba(255,255,255,0.22)]"
           >
             {isLoadingSource ? (
               <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
             ) : (
-              <Play className="ml-1 h-9 w-9 fill-[#16213a]" aria-hidden />
+              <Play className="ml-1 h-9 w-9 fill-[#1a1d12]" aria-hidden />
             )}
           </button>
           <div className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-xl bg-black/82 px-3 py-1.5 text-base font-medium text-white">
             {upload ? `${isScreenshot ? 'Screenshot' : 'Recording'} · ${formatBytes(upload.byteSize)}` : 'No recording'}
           </div>
           {videoError ? (
-            <div className="absolute bottom-20 left-1/2 max-w-[80%] -translate-x-1/2 rounded-xl bg-[#dc2626] px-4 py-2 text-center text-sm font-medium text-white">
+            <div className="absolute bottom-20 left-1/2 max-w-[80%] -translate-x-1/2 rounded-xl bg-[#e11d48] px-4 py-2 text-center text-sm font-medium text-white">
               {videoError}
             </div>
           ) : null}
@@ -774,7 +947,7 @@ function RecordingErrorOverlay({
   return (
     <div className="absolute inset-0 grid place-items-center bg-black/72 p-6 text-center text-white">
       <div className="max-w-md">
-        <AlertTriangle className="mx-auto h-9 w-9 text-[#fca5a5]" aria-hidden />
+        <AlertTriangle className="mx-auto h-9 w-9 text-[#fecdd3]" aria-hidden />
         <div className="mt-3 text-lg font-semibold">Recording cannot be played</div>
         <p className="mt-2 text-sm leading-6 text-white/78">{message}</p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
@@ -790,33 +963,55 @@ function RecordingErrorOverlay({
   );
 }
 
-function DevToolsPanel({ report, activeTab }: { report: ReportDetail; activeTab: DevToolsTab }) {
+function DevToolsPanel({
+  report,
+  activeTab,
+  currentTimeMs,
+  seekTo,
+}: {
+  report: ReportDetail;
+  activeTab: DevToolsTab;
+  currentTimeMs: number;
+  seekTo: (ms: number) => void;
+}) {
   if (activeTab === 'Timeline') {
-    return <TimelinePanel entries={report.timeline ?? []} />;
+    return <TimelinePanel entries={report.timeline ?? []} currentTimeMs={currentTimeMs} seekTo={seekTo} />;
   }
 
   if (activeTab === 'Info') {
     const session = report.captureSessions?.[0];
 
     return (
-      <div className="thin-scrollbar h-full min-h-0 overflow-auto p-5">
-        <KeyValue label="URL" value={report.pageUrl ?? 'n/a'} />
-        <KeyValue label="Browser" value={[report.browserName, report.browserVersion].filter(Boolean).join(' ') || 'n/a'} />
-        <KeyValue label="OS" value={report.osName ?? 'n/a'} />
-        <KeyValue label="Viewport" value={report.viewportWidth && report.viewportHeight ? `${report.viewportWidth} x ${report.viewportHeight}` : 'n/a'} />
-        <SectionTitle title="Capture Session" />
-        <KeyValue label="Status" value={session?.status ?? 'n/a'} />
+      <div className="thin-scrollbar h-full min-h-0 overflow-auto bg-[var(--bg)]">
+        <SectionTitle title="Page" />
+        <KeyValue label="URL" value={report.pageUrl ?? '—'} />
+        <KeyValue label="Browser" value={[report.browserName, report.browserVersion].filter(Boolean).join(' ') || '—'} />
+        <KeyValue label="OS" value={report.osName ?? '—'} />
+        <KeyValue
+          label="Viewport"
+          value={report.viewportWidth && report.viewportHeight ? `${report.viewportWidth} × ${report.viewportHeight}` : '—'}
+        />
+        <KeyValue
+          label="Screen"
+          value={session?.screenWidth && session?.screenHeight ? `${session.screenWidth} × ${session.screenHeight}` : '—'}
+        />
+        <SectionTitle title="Session" />
+        <KeyValue label="Status" value={session?.status ?? '—'} />
         <KeyValue label="Duration" value={formatDuration(session?.durationMs)} />
-        <KeyValue label="Timezone" value={session?.timezone ?? 'n/a'} />
-        <KeyValue label="Locale" value={session?.locale ?? 'n/a'} />
-        <KeyValue label="Extension" value={session?.extensionVersion ?? 'n/a'} />
-        <KeyValue label="Screen" value={session?.screenWidth && session?.screenHeight ? `${session.screenWidth} x ${session.screenHeight}` : 'n/a'} />
+        <KeyValue label="Timezone" value={session?.timezone ?? '—'} />
+        <KeyValue label="Locale" value={session?.locale ?? '—'} />
+        <KeyValue label="Extension" value={session?.extensionVersion ?? '—'} />
+        <KeyValue label="User agent" value={report.userAgent ?? '—'} />
+        <SectionTitle title="IDs" />
+        <KeyValue label="Report ID" value={report.id} />
+        <KeyValue label="Share token" value={report.shareToken ?? '—'} />
+        {session?.id ? <KeyValue label="Session ID" value={session.id} /> : null}
       </div>
     );
   }
 
   if (activeTab === 'Console') {
-    return <ConsoleActivityPanel report={report} />;
+    return <ConsoleActivityPanel report={report} currentTimeMs={currentTimeMs} seekTo={seekTo} />;
   }
 
   if (activeTab === 'Network') {
@@ -825,7 +1020,7 @@ function DevToolsPanel({ report, activeTab }: { report: ReportDetail; activeTab:
 
   if (activeTab === 'Actions') {
     return (
-      <div className="thin-scrollbar h-full min-h-0 overflow-auto p-5">
+      <div className="thin-scrollbar h-full min-h-0 overflow-auto bg-[var(--bg)] p-3">
         <PanelEmptyState isEmpty={report.pageActions.length === 0} label="No user actions yet." />
         {report.pageActions.map((entry) => (
           <TelemetryCard
@@ -852,7 +1047,7 @@ function DevToolsPanel({ report, activeTab }: { report: ReportDetail; activeTab:
 
   if (activeTab === 'Errors') {
     return (
-      <div className="thin-scrollbar h-full min-h-0 overflow-auto p-5">
+      <div className="thin-scrollbar h-full min-h-0 overflow-auto bg-[var(--bg)] p-3">
         <PanelEmptyState isEmpty={report.runtimeErrors.length === 0} label="No runtime errors yet." />
         {report.runtimeErrors.map((entry) => (
           <TelemetryCard
@@ -877,7 +1072,7 @@ function DevToolsPanel({ report, activeTab }: { report: ReportDetail; activeTab:
 
   if (activeTab === 'Performance') {
     return (
-      <div className="thin-scrollbar h-full min-h-0 overflow-auto p-5">
+      <div className="thin-scrollbar h-full min-h-0 overflow-auto bg-[var(--bg)] p-3">
         <PanelEmptyState
           isEmpty={report.performanceEntries.length === 0}
           label="No performance entries yet."
@@ -906,7 +1101,7 @@ function DevToolsPanel({ report, activeTab }: { report: ReportDetail; activeTab:
 
   if (activeTab === 'DOM') {
     return (
-      <div className="thin-scrollbar h-full min-h-0 overflow-auto p-5">
+      <div className="thin-scrollbar h-full min-h-0 overflow-auto bg-[var(--bg)] p-3">
         <PanelEmptyState isEmpty={report.domEvents.length === 0} label="No DOM events yet." />
         {report.domEvents.map((entry) => (
           <TelemetryCard
@@ -938,9 +1133,9 @@ function DevToolsPanel({ report, activeTab }: { report: ReportDetail; activeTab:
   return (
     <div className="thin-scrollbar h-full min-h-0 overflow-auto p-5">
       {report.events.map((event) => (
-        <div key={event.id} className="mb-3 rounded-xl border border-[#e2e0dc] bg-white p-4">
+        <div key={event.id} className="mb-3 rounded-xl border border-[#dfdcc9] bg-white p-4">
           <div className="font-semibold">{event.kind}</div>
-          <div className="mt-1 text-sm text-[#77736d]">{formatDate(event.createdAt)}</div>
+          <div className="mt-1 text-sm text-[#7a7a72]">{formatDate(event.createdAt)}</div>
         </div>
       ))}
     </div>
@@ -981,20 +1176,20 @@ function BackendPanel({ traces }: { traces: BackendTraceEntry[] }) {
   }, [filteredTraces, selectedTraceId]);
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_1fr] overflow-hidden bg-[#f8faff]">
-      <div className="border-b border-[#dfe5f5] bg-white/90 p-2.5">
+    <div className="grid h-full min-h-0 grid-rows-[auto_1fr] overflow-hidden bg-[#fafbf6]">
+      <div className="border-b border-[#dad7c8] bg-white/90 p-2.5">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#7a849d]" aria-hidden />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#83887a]" aria-hidden />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            className="h-8 rounded-lg border-[#dfe5f5] bg-white pl-8 text-xs"
+            className="h-8 rounded-lg border-[#dad7c8] bg-white pl-8 text-xs"
             placeholder="Filter backend method, URL, status"
           />
         </div>
       </div>
       <div className="grid min-h-0 grid-cols-1 overflow-hidden md:grid-cols-[minmax(14rem,0.85fr)_minmax(0,1.15fr)]">
-        <div className="thin-scrollbar min-h-0 overflow-auto border-r border-[#dfe5f5] bg-white">
+        <div className="thin-scrollbar min-h-0 overflow-auto border-r border-[#dad7c8] bg-white">
           <PanelEmptyState
             isEmpty={filteredTraces.length === 0}
             label={traces.length === 0 ? 'No backend traces yet.' : 'No matching backend traces.'}
@@ -1006,22 +1201,22 @@ function BackendPanel({ traces }: { traces: BackendTraceEntry[] }) {
                 key={trace.id}
                 type="button"
                 onClick={() => setSelectedTraceId(trace.id)}
-                className={`grid w-full grid-cols-[1.5rem_minmax(0,1fr)] gap-2 border-b border-[#edf1fb] px-3 py-2.5 text-left transition-colors ${
-                  isSelected ? 'bg-[#eff6ff]' : 'hover:bg-[#f8faff]'
+                className={`grid w-full grid-cols-[1.5rem_minmax(0,1fr)] gap-2 border-b border-[#ecede2] px-3 py-2.5 text-left transition-colors ${
+                  isSelected ? 'bg-[#f6f7eb]' : 'hover:bg-[#fafbf6]'
                 }`}
               >
-                <span className="pt-0.5 text-right font-mono text-[10px] text-[#9aa4ba]">{index + 1}</span>
+                <span className="pt-0.5 text-right font-mono text-[10px] text-[#95988b]">{index + 1}</span>
                 <span className="min-w-0">
                   <span className="flex min-w-0 items-center gap-2">
                     <span className={`h-2 w-2 shrink-0 rounded-full ${backendStatusDotClass(trace)}`} />
-                    <span className="truncate text-xs font-semibold text-[#16213a]">{trace.operationName}</span>
+                    <span className="truncate text-xs font-semibold text-[#1a1d12]">{trace.operationName}</span>
                   </span>
-                  <span className="mt-1 flex min-w-0 items-center gap-1.5 font-mono text-[10px] text-[#64708a]">
-                    <span className="shrink-0 rounded bg-[#eef3ff] px-1.5 py-0.5 text-[#25324d]">{trace.method ?? 'TRACE'}</span>
+                  <span className="mt-1 flex min-w-0 items-center gap-1.5 font-mono text-[10px] text-[#6f7461]">
+                    <span className="shrink-0 rounded bg-[#f4f6e8] px-1.5 py-0.5 text-[#27291d]">{trace.method ?? 'TRACE'}</span>
                     <span className={backendStatusTextClass(trace)}>{trace.statusCode ?? trace.status}</span>
                     <span className="truncate">{trace.url ? getDomain(trace.url) : trace.serviceName ?? 'backend'}</span>
                   </span>
-                  <span className="mt-1 block text-[10px] text-[#7a849d]">
+                  <span className="mt-1 block text-[10px] text-[#83887a]">
                     {formatDuration(trace.durationMs)} · {formatOffset(trace.offsetMs)} · {formatDate(trace.startedAt)}
                   </span>
                 </span>
@@ -1032,30 +1227,30 @@ function BackendPanel({ traces }: { traces: BackendTraceEntry[] }) {
         <div className="thin-scrollbar min-h-0 overflow-auto bg-white">
           {selectedTrace ? (
             <div className="p-4">
-              <div className="rounded-xl border border-[#dfe5f5] bg-[#fbfcff] p-4 shadow-[0_10px_28px_rgba(21,32,54,0.05)]">
+              <div className="rounded-xl border border-[#dad7c8] bg-[#fbfcf7] p-4 shadow-[0_10px_28px_rgba(21,32,54,0.05)]">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge tone={selectedTrace.status === 'ERROR' ? 'danger' : 'success'}>
                         {selectedTrace.status}
                       </Badge>
-                      <span className="rounded-md bg-white px-2 py-1 font-mono text-xs text-[#25324d] ring-1 ring-[#dfe5f5]">
+                      <span className="rounded-md bg-white px-2 py-1 font-mono text-xs text-[#27291d] ring-1 ring-[#dad7c8]">
                         {selectedTrace.method ?? 'n/a'}
                       </span>
-                      <span className="text-xs text-[#64708a]">{formatDuration(selectedTrace.durationMs)}</span>
+                      <span className="text-xs text-[#6f7461]">{formatDuration(selectedTrace.durationMs)}</span>
                     </div>
-                    <h3 className="mt-3 break-words text-sm font-semibold leading-5 text-[#16213a]">
+                    <h3 className="mt-3 break-words text-sm font-semibold leading-5 text-[#1a1d12]">
                       {selectedTrace.operationName}
                     </h3>
                   </div>
-                  <Server className="h-5 w-5 shrink-0 text-[#2563eb]" aria-hidden />
+                  <Server className="h-5 w-5 shrink-0 text-[#5d6b1f]" aria-hidden />
                 </div>
-                <div className="mt-3 rounded-lg border border-[#dfe5f5] bg-white px-3 py-2 font-mono text-[11px] leading-5 text-[#25324d]">
+                <div className="mt-3 rounded-lg border border-[#dad7c8] bg-white px-3 py-2 font-mono text-[11px] leading-5 text-[#27291d]">
                   <span className="break-all">{selectedTrace.url ?? selectedTrace.serviceName ?? 'n/a'}</span>
                 </div>
               </div>
 
-              <div className="mt-3 overflow-hidden rounded-xl border border-[#dfe5f5] bg-white">
+              <div className="mt-3 overflow-hidden rounded-xl border border-[#dad7c8] bg-white">
                 <SectionTitle title="Trace" />
                 <KeyValue label="HTTP status" value={selectedTrace.statusCode === null || selectedTrace.statusCode === undefined ? 'n/a' : String(selectedTrace.statusCode)} />
                 <KeyValue label="Service" value={selectedTrace.serviceName ?? 'n/a'} />
@@ -1066,15 +1261,15 @@ function BackendPanel({ traces }: { traces: BackendTraceEntry[] }) {
                 <KeyValue label="Ended" value={selectedTrace.endedAt ? formatDate(selectedTrace.endedAt) : 'n/a'} />
               </div>
 
-              <div className="mt-3 overflow-hidden rounded-xl border border-[#dfe5f5] bg-white">
+              <div className="mt-3 overflow-hidden rounded-xl border border-[#dad7c8] bg-white">
                 <SectionTitle title="Metadata" />
                 <div className="thin-scrollbar max-h-64 overflow-auto p-3 font-mono text-[11px]">
-                  {selectedTrace.metadata ? <JsonTreeView value={selectedTrace.metadata} /> : <span className="text-[#7a849d]">n/a</span>}
+                  {selectedTrace.metadata ? <JsonTreeView value={selectedTrace.metadata} /> : <span className="text-[#83887a]">n/a</span>}
                 </div>
               </div>
             </div>
           ) : (
-            <div className="p-6 text-sm text-[#64708a]">Select a backend trace to inspect it.</div>
+            <div className="p-6 text-sm text-[#6f7461]">Select a backend trace to inspect it.</div>
           )}
         </div>
       </div>
@@ -1082,32 +1277,73 @@ function BackendPanel({ traces }: { traces: BackendTraceEntry[] }) {
   );
 }
 
-function TimelinePanel({ entries }: { entries: TimelineEntry[] }) {
+function TimelinePanel({
+  entries,
+  currentTimeMs,
+  seekTo,
+}: {
+  entries: TimelineEntry[];
+  currentTimeMs: number;
+  seekTo: (ms: number) => void;
+}) {
+  const activeId = useMemo(() => {
+    if (currentTimeMs <= 0) return null;
+    let best: TimelineEntry | null = null;
+    for (const entry of entries) {
+      if (entry.offsetMs == null) continue;
+      if (entry.offsetMs <= currentTimeMs) best = entry;
+      else break;
+    }
+    return best ? `${best.type}-${best.id}` : null;
+  }, [entries, currentTimeMs]);
+
   return (
-    <div className="thin-scrollbar h-full min-h-0 overflow-auto p-5">
+    <div className="thin-scrollbar h-full min-h-0 overflow-auto bg-[var(--bg)] p-4">
       <PanelEmptyState isEmpty={entries.length === 0} label="No timeline entries yet." />
-      <div className="space-y-3">
-        {entries.map((entry) => (
-          <div key={`${entry.type}-${entry.id}`} className="rounded-xl border border-[#dfe5f5] bg-white p-4 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#f4f7ff] text-[#2563eb]">
-                  <TimelineIcon type={entry.type} />
-                </span>
-                <Badge tone={entry.severity as BadgeTone}>{entry.type}</Badge>
-                <div className="min-w-0 truncate font-semibold text-[#16213a]">{entry.title}</div>
+      <div className="space-y-2">
+        {entries.map((entry) => {
+          const key = `${entry.type}-${entry.id}`;
+          const isActive = key === activeId;
+          return (
+            <div
+              key={key}
+              className={`rounded-lg border p-3 transition-colors ${
+                isActive
+                  ? 'border-[var(--primary)] bg-[var(--primary-subtle)]'
+                  : 'border-[var(--border)] bg-[var(--bg)] hover:border-[var(--border-strong)]'
+              }`}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-[var(--surface)] text-[var(--primary)]">
+                    <TimelineIcon type={entry.type} />
+                  </span>
+                  <Badge tone={entry.severity as BadgeTone}>{entry.type}</Badge>
+                  <div className="min-w-0 truncate text-sm font-semibold text-[var(--ink)]">{entry.title}</div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2 font-mono text-[11px] text-[var(--ink-faint)]">
+                  <span>{formatOffset(entry.offsetMs)}</span>
+                  <span>·</span>
+                  <span>{formatDate(entry.timestamp)}</span>
+                  {entry.offsetMs != null ? (
+                    <button
+                      type="button"
+                      onClick={() => seekTo(entry.offsetMs!)}
+                      className="ml-1 rounded px-1.5 py-0.5 text-[10px] font-semibold text-[var(--primary)] hover:bg-[var(--primary-soft)]"
+                    >
+                      jump
+                    </button>
+                  ) : null}
+                </div>
               </div>
-              <div className="shrink-0 text-xs text-[#64708a]">
-                {formatOffset(entry.offsetMs)} · {formatDate(entry.timestamp)}
-              </div>
+              {entry.subtitle ? (
+                <div className="mt-2 break-all font-mono text-[11px] leading-5 text-[var(--ink-muted)]">
+                  {entry.subtitle}
+                </div>
+              ) : null}
             </div>
-            {entry.subtitle ? (
-              <div className="mt-2 break-all font-mono text-xs leading-5 text-[#4b5875]">
-                {entry.subtitle}
-              </div>
-            ) : null}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -1153,19 +1389,19 @@ function TelemetryCard({
   rows: Array<[string, string]>;
 }) {
   return (
-    <div className="mb-3 overflow-hidden rounded-xl border border-[#e2e0dc] bg-white">
-      <div className="border-b border-[#efeeeb] p-4">
+    <div className="mb-2 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg)] transition-colors hover:border-[var(--border-strong)]">
+      <div className="border-b border-[var(--divider)] bg-[var(--surface)] px-3 py-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <Badge tone={tone}>{title}</Badge>
             {subtitle ? (
-              <div className="min-w-0 truncate text-sm font-semibold text-[#242321]">
-                {subtitle}
-              </div>
+              <div className="min-w-0 truncate text-sm font-semibold text-[var(--ink)]">{subtitle}</div>
             ) : null}
           </div>
-          <div className="shrink-0 text-xs text-[#77736d]">
-            {formatOffset(offsetMs)} · {formatDate(timestamp)}
+          <div className="shrink-0 font-mono text-[11px] text-[var(--ink-faint)]">
+            <span className="font-semibold text-[var(--ink-muted)]">{formatOffset(offsetMs)}</span>
+            <span className="px-1.5">·</span>
+            <span>{formatDate(timestamp)}</span>
           </div>
         </div>
       </div>
@@ -1184,8 +1420,8 @@ function PanelEmptyState({ isEmpty, label }: { isEmpty: boolean; label: string }
   }
 
   return (
-    <div className="rounded-xl border border-dashed border-[#d8d5cf] bg-white p-6 text-sm text-[#77736d]">
-      {label}
+    <div className="m-4 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center">
+      <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--ink-faint)]">{label}</div>
     </div>
   );
 }
@@ -1203,7 +1439,15 @@ interface ConsoleRow {
   tone: 'neutral' | 'danger' | 'info' | 'warning';
 }
 
-function ConsoleActivityPanel({ report }: { report: ReportDetail }) {
+function ConsoleActivityPanel({
+  report,
+  currentTimeMs,
+  seekTo,
+}: {
+  report: ReportDetail;
+  currentTimeMs: number;
+  seekTo: (ms: number) => void;
+}) {
   const [searchTerm, setSearchTerm] = useState('');
   const [levelFilter, setLevelFilter] = useState<ConsoleLevelFilter>('All levels');
   const rows = useMemo(() => buildConsoleRows(report), [report]);
@@ -1224,55 +1468,83 @@ function ConsoleActivityPanel({ report }: { report: ReportDetail }) {
     });
   }, [levelFilter, rows, searchTerm]);
 
+  const levelOptions: ConsoleLevelFilter[] = ['All levels', 'Errors', 'Warnings', 'Info'];
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_1fr] overflow-hidden bg-white">
-      <div className="border-b border-[#dfe5f5] bg-[#f4f7ff]">
-        <div className="grid gap-2 p-2.5 sm:grid-cols-[1fr_auto]">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#7a849d]" aria-hidden />
-            <Input
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              className="h-8 rounded-lg border-[#dfe5f5] bg-white pl-8 text-xs"
-              placeholder="Filter console message, URL"
-            />
-          </div>
-          <select
-            value={levelFilter}
-            onChange={(event) => setLevelFilter(event.target.value as ConsoleLevelFilter)}
-            className="h-8 rounded-lg border border-[#dfe5f5] bg-white px-2.5 text-xs text-[#4b5875]"
-          >
-            {(['All levels', 'Errors', 'Warnings', 'Info'] as const).map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
+    <div className="grid h-full min-h-0 grid-rows-[auto_1fr] overflow-hidden bg-[var(--bg)]">
+      <div className="grid grid-cols-[1fr_auto] gap-2 border-b border-[var(--border)] bg-[var(--bg)] px-3 py-2.5">
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--ink-faint)]"
+            aria-hidden
+          />
+          <Input
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            className="h-8 border-[var(--border)] bg-[var(--surface)] pl-8 font-mono text-xs"
+            placeholder="Filter message, URL, stack…"
+          />
+        </div>
+        <div className="flex items-center gap-0.5 rounded-md border border-[var(--border)] bg-[var(--surface)] p-0.5">
+          {levelOptions.map((option) => {
+            const active = option === levelFilter;
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setLevelFilter(option)}
+                className={`h-7 rounded-[5px] px-2 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+                  active
+                    ? 'bg-[var(--bg)] font-semibold text-[var(--ink)] shadow-[0_0_0_1px_var(--border)]'
+                    : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'
+                }`}
+              >
+                {option === 'All levels' ? 'all' : option.toLowerCase()}
+              </button>
+            );
+          })}
         </div>
       </div>
-      <div className="thin-scrollbar min-h-0 overflow-auto bg-white">
+      <div className="thin-scrollbar min-h-0 overflow-auto bg-[var(--bg)]">
         <PanelEmptyState
           isEmpty={filteredRows.length === 0}
           label={rows.length === 0 ? 'No console logs yet.' : 'No matching console logs.'}
         />
-        {filteredRows.map((row) => (
-          <div
-            key={row.id}
-            className={`grid grid-cols-[3rem_1.25rem_1fr] gap-2 border-b px-2.5 py-2 font-mono text-[11px] ${consoleRowClass(row.tone)}`}
-          >
-            <div className="text-right text-[#7a849d]">{formatOffset(row.offsetMs)}</div>
-            <div className="pt-0.5">
-              <ConsoleRowIcon row={row} />
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="font-semibold">{row.title}</span>
-                {row.url ? <span className="break-all text-[#64708a]">{row.url}</span> : null}
+        {filteredRows.map((row) => {
+          const isActive = currentTimeMs > 0 && row.offsetMs != null && Math.abs(row.offsetMs - currentTimeMs) < 1500;
+          return (
+            <div
+              key={row.id}
+              className={`group grid grid-cols-[3.5rem_1rem_1fr_auto] items-start gap-2.5 border-b px-3 py-2 font-mono text-[11px] transition-colors ${consoleRowClass(row.tone)} ${
+                isActive ? 'border-l-2 border-l-[var(--primary)] bg-[var(--primary-subtle)]' : 'border-l-2 border-l-transparent'
+              }`}
+            >
+              <div className="pt-0.5 text-right tabular-nums text-[var(--ink-faint)]">{formatOffset(row.offsetMs)}</div>
+              <div className="pt-0.5">
+                <ConsoleRowIcon row={row} />
               </div>
-              {row.message ? (
-                <div className="mt-1 break-all leading-5 text-[#4b5875]">{row.message}</div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-baseline gap-x-1.5">
+                  <span className="font-semibold">{row.title}</span>
+                  {row.url ? <span className="break-all text-[var(--ink-faint)]">{row.url}</span> : null}
+                </div>
+                {row.message ? (
+                  <div className="mt-1 whitespace-pre-wrap break-all leading-5 text-[var(--ink-muted)]">
+                    {row.message}
+                  </div>
+                ) : null}
+              </div>
+              {row.offsetMs != null ? (
+                <button
+                  type="button"
+                  onClick={() => seekTo(row.offsetMs!)}
+                  className="self-start rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--ink-faint)] opacity-0 transition-opacity hover:bg-[var(--primary-subtle)] hover:text-[var(--primary)] focus:opacity-100 group-hover:opacity-100"
+                >
+                  jump
+                </button>
               ) : null}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -1308,29 +1580,25 @@ function buildConsoleRows(report: ReportDetail): ConsoleRow[] {
 }
 
 function ConsoleRowIcon({ row }: { row: ConsoleRow }) {
-  const className = 'h-4 w-4';
+  const className = 'h-3.5 w-3.5';
 
   if (row.kind === 'runtime-error') {
-    return <AlertTriangle className={`${className} text-[#e11d48]`} aria-hidden />;
+    return <AlertTriangle className={`${className} text-[var(--danger)]`} aria-hidden />;
   }
 
-  return <Terminal className={`${className} text-[#64708a]`} aria-hidden />;
+  return <Terminal className={`${className} text-[var(--ink-faint)]`} aria-hidden />;
 }
 
 function consoleRowClass(tone: ConsoleRow['tone']) {
   if (tone === 'danger') {
-    return 'border-[#fecdd3] bg-[#fff1f2] text-[#be123c]';
+    return 'border-[var(--divider)] bg-[var(--danger-bg)]/35 text-[var(--danger-strong)]';
   }
 
   if (tone === 'warning') {
-    return 'border-[#fed7aa] bg-[#fff7ed] text-[#c2410c]';
+    return 'border-[var(--divider)] bg-[var(--accent-soft)]/35 text-[#a13c19]';
   }
 
-  if (tone === 'info') {
-    return 'border-[#dbeafe] bg-[#eff6ff] text-[#1d4ed8]';
-  }
-
-  return 'border-[#edf1fb] bg-white text-[#25324d]';
+  return 'border-[var(--divider)] bg-[var(--bg)] text-[var(--ink)]';
 }
 
 function backendStatusDotClass(trace: BackendTraceEntry) {
@@ -1339,14 +1607,14 @@ function backendStatusDotClass(trace: BackendTraceEntry) {
   }
 
   if ((trace.statusCode ?? 0) >= 400) {
-    return 'bg-[#f97316]';
+    return 'bg-[#c64a1f]';
   }
 
   if (trace.status === 'OK' || (trace.statusCode !== null && trace.statusCode !== undefined && trace.statusCode < 400)) {
-    return 'bg-[#10b981]';
+    return 'bg-[#5d8a3b]';
   }
 
-  return 'bg-[#94a3b8]';
+  return 'bg-[#95988b]';
 }
 
 function backendStatusTextClass(trace: BackendTraceEntry) {
@@ -1355,10 +1623,10 @@ function backendStatusTextClass(trace: BackendTraceEntry) {
   }
 
   if ((trace.statusCode ?? 0) >= 400) {
-    return 'shrink-0 font-semibold text-[#c2410c]';
+    return 'shrink-0 font-semibold text-[#a13c19]';
   }
 
-  return 'shrink-0 font-semibold text-[#047857]';
+  return 'shrink-0 font-semibold text-[#3a5419]';
 }
 
 function NetworkPanel({ report }: { report: ReportDetail }) {
@@ -1429,94 +1697,120 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
   }
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_1fr] overflow-hidden">
-      <div className="border-b border-[#dfe5f5] bg-[#f4f7ff] p-2.5">
+    <div className="grid h-full min-h-0 min-w-0 grid-rows-[auto_1fr] overflow-hidden bg-[var(--bg)]">
+      <div className="min-w-0 border-b border-[var(--border)] bg-[var(--bg)] px-3 py-2.5">
         <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#7a849d]" aria-hidden />
+            <Search
+              className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--ink-faint)]"
+              aria-hidden
+            />
             <Input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              className="h-8 rounded-lg border-[#dfe5f5] bg-white pl-8 text-xs"
-              placeholder="Filter method, URL, status, domain"
+              className="h-8 border-[var(--border)] bg-[var(--surface)] pl-8 font-mono text-xs"
+              placeholder="Filter method, URL, status, domain…"
             />
           </div>
-          <label className="flex h-8 items-center gap-1.5 rounded-lg border border-[#d8d5cf] bg-white px-2.5 text-[11px] text-[#5f5a55]">
-            <input
-              type="checkbox"
-              checked={errorsOnly}
-              onChange={(event) => setErrorsOnly(event.target.checked)}
-              className="h-3.5 w-3.5 accent-[#0f766e]"
-            />
-            Errors only
-          </label>
+          <button
+            type="button"
+            onClick={() => setErrorsOnly((value) => !value)}
+            aria-pressed={errorsOnly}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+              errorsOnly
+                ? 'border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger)]'
+                : 'border-[var(--border)] bg-[var(--surface)] text-[var(--ink-muted)] hover:text-[var(--ink)]'
+            }`}
+          >
+            <AlertTriangle className="h-3 w-3" aria-hidden />
+            errors only
+          </button>
         </div>
-        <div className="scrollbar-none mt-2 flex gap-1 overflow-x-auto pb-0.5 text-[11px]">
-          {networkFilterLabels.map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => {
-                setActiveFilter(item);
-                setSelectedRequestId(null);
-              }}
-              className={`flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 ${
-                item === activeFilter
-                  ? 'border-[#bfdbfe] bg-[#dbeafe] text-[#1d4ed8]'
-                  : 'border-[#dfe5f5] bg-white text-[#64708a] hover:bg-[#f8faff]'
-              }`}
-            >
-              <NetworkTypeIcon category={item} className="h-3 w-3" />
-              {item}
-            </button>
-          ))}
+        <div className="scrollbar-none mt-2 flex gap-1 overflow-x-auto pb-0.5">
+          {networkFilterLabels.map((item) => {
+            const active = item === activeFilter;
+            return (
+              <button
+                key={item}
+                type="button"
+                onClick={() => {
+                  setActiveFilter(item);
+                  setSelectedRequestId(null);
+                }}
+                className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+                  active
+                    ? 'bg-[var(--primary)] text-white'
+                    : 'text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]'
+                }`}
+              >
+                <NetworkTypeIcon category={item} className="h-3 w-3" />
+                {item}
+              </button>
+            );
+          })}
         </div>
       </div>
       <div
-        className="grid min-h-0 grid-cols-1 overflow-hidden sm:[grid-template-columns:var(--network-list-width)_6px_minmax(0,1fr)]"
+        className="grid min-h-0 min-w-0 grid-cols-1 overflow-hidden lg:[grid-template-columns:var(--network-list-width)_6px_minmax(0,1fr)]"
         style={{ '--network-list-width': `${requestListWidth}px` } as CSSProperties}
       >
-        <div className="thin-scrollbar min-h-0 overflow-auto border-r border-[#dfe5f5] bg-white">
+        <div className="thin-scrollbar min-h-0 overflow-auto border-b border-[var(--border)] bg-[var(--bg)] lg:border-b-0 lg:border-r">
           <PanelEmptyState
             isEmpty={filteredRequests.length === 0}
             label={report.networkRequests.length === 0 ? 'No network requests yet.' : 'No matching requests.'}
           />
-          {filteredRequests.map((request, index) => (
-            <button
-              key={request.id}
-              type="button"
-              onClick={() => setSelectedRequestId(request.id)}
-              className={`grid w-full grid-cols-[1.25rem_minmax(0,1fr)_auto] items-start gap-1.5 border-b border-[#edf1fb] px-2 py-1.5 text-left text-[11px] transition-colors ${
-                selected?.id === request.id ? 'bg-[#eff6ff] text-[#1d4ed8]' : 'text-[#4b5875] hover:bg-[#f8faff]'
-              }`}
-            >
-              <span className="pt-0.5 text-right font-mono text-[10px] text-[#9aa4ba]">{index + 1}</span>
-              <span className="min-w-0">
-                <span className="flex min-w-0 items-center gap-1">
-                  <NetworkRequestIcon request={request} />
-                  <span className="truncate text-[12px] font-semibold leading-4 text-[#16213a]">{shortRequestName(request.url)}</span>
+          {filteredRequests.map((request, index) => {
+            const isSelected = selected?.id === request.id;
+            return (
+              <button
+                key={request.id}
+                type="button"
+                onClick={() => setSelectedRequestId(request.id)}
+                className={`grid w-full grid-cols-[1.75rem_minmax(0,1fr)_auto] items-start gap-1.5 border-b border-[var(--divider)] border-l-2 px-2 py-2 text-left transition-colors ${
+                  isSelected
+                    ? 'border-l-[var(--primary)] bg-[var(--primary-subtle)]'
+                    : 'border-l-transparent hover:bg-[var(--surface)]'
+                }`}
+              >
+                <span className="pt-0.5 text-right font-mono text-[10px] tabular-nums text-[var(--ink-faint)]">
+                  {index + 1}
                 </span>
-                <span className="mt-0.5 flex min-w-0 items-center gap-1 overflow-hidden font-mono text-[10px] leading-3">
-                  <span className="shrink-0 text-[#4b5875]">{request.method}</span>
-                  <span className={`shrink-0 font-semibold ${networkStatusTextClass(request.statusCode, request.error)}`}>
-                    {request.statusCode ?? 'ERR'}
+                <span className="min-w-0">
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <NetworkRequestIcon request={request} />
+                    <span className="truncate text-[12px] font-semibold leading-4 text-[var(--ink)]">
+                      {shortRequestName(request.url)}
+                    </span>
                   </span>
-                  <span className="truncate text-[#7a849d]">{getDomain(request.url)}</span>
+                  <span className="mt-1 flex min-w-0 items-center gap-1.5 overflow-hidden font-mono text-[10px] leading-3">
+                    <span className="shrink-0 rounded bg-[var(--surface)] px-1 py-px font-semibold text-[var(--ink-muted)]">
+                      {request.method}
+                    </span>
+                    <span
+                      className={`shrink-0 font-semibold ${networkStatusTextClass(request.statusCode, request.error)}`}
+                    >
+                      {request.statusCode ?? 'ERR'}
+                    </span>
+                    <span className="truncate text-[var(--ink-faint)]">{getDomain(request.url)}</span>
+                  </span>
                 </span>
-              </span>
-              <span className="pt-0.5 text-right font-mono text-[10px] text-[#7a849d]">
-                {request.durationMs ?? 0}ms
-              </span>
-            </button>
-          ))}
+                <span className="pt-0.5 text-right font-mono text-[10px] tabular-nums text-[var(--ink-faint)]">
+                  {request.durationMs ?? 0}ms
+                </span>
+              </button>
+            );
+          })}
         </div>
         <ResizeGrip
           label="Resize request list"
-          className="hidden h-full cursor-col-resize border-r border-[#dfe5f5] bg-[#f8faff] hover:bg-[#eaf1ff] sm:block"
+          className="hidden h-full cursor-col-resize border-r border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--primary-subtle)] lg:block"
           onPointerDown={handleRequestListResize}
         />
-        <div className="grid min-h-0 grid-rows-[auto_1fr] overflow-hidden bg-white">
-          <div className="scrollbar-none flex h-8 items-center gap-2 overflow-x-auto border-b border-[#dfe5f5] bg-white px-2">
+        <div className="grid min-h-0 min-w-0 grid-rows-[auto_1fr] overflow-hidden bg-[var(--bg)]">
+          {/* One horizontally-scrollable strip. Every child is shrink-0 so the
+              row overflows naturally and scrolls continuously to the very end
+              (curl included). No flex-1, no pinned split, no ml-auto. */}
+          <div className="thin-scrollbar-x flex h-10 shrink-0 items-center gap-1 overflow-x-auto overflow-y-hidden border-b border-[var(--border)] bg-[var(--bg)] px-1.5">
             <button
               type="button"
               onClick={() => {
@@ -1527,63 +1821,74 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
                 setActiveDetailTab('Headers');
               }}
               aria-label="Reset network filters"
-              className="grid h-7 w-7 place-items-center rounded-md text-[#64708a] hover:bg-[#f2f5ff]"
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[var(--ink-faint)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--ink-muted)]"
             >
               <RefreshCcw className="h-3.5 w-3.5" aria-hidden />
             </button>
-            {networkDetailTabs.map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setActiveDetailTab(tab)}
-                className={`shrink-0 rounded-md px-2 py-1 text-xs ${
-                  activeDetailTab === tab ? 'bg-[#fff1e7] font-semibold text-[#c2410c]' : 'text-[#64708a] hover:bg-[#f8faff]'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
+            {networkDetailTabs.map((tab) => {
+              const active = activeDetailTab === tab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveDetailTab(tab)}
+                  className={`relative h-9 shrink-0 px-2.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+                    active
+                      ? 'font-semibold text-[var(--ink)]'
+                      : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'
+                  }`}
+                >
+                  {tab}
+                  {active ? (
+                    <span className="absolute inset-x-1.5 bottom-0 h-[2px] rounded-t-full bg-[var(--primary)]" />
+                  ) : null}
+                </button>
+              );
+            })}
+            <span className="mx-0.5 h-5 w-px shrink-0 bg-[var(--border)]" aria-hidden />
             <Button
               type="button"
-              variant="secondary"
+              variant="ghost"
               size="sm"
-              className="ml-auto h-7 shrink-0 rounded-lg px-2 text-xs"
+              className="h-7 shrink-0 px-2 font-mono text-[10px] uppercase tracking-wider"
               title={bodyViewMode === 'tree' ? 'Show raw body' : 'Show parsed tree'}
               onClick={() => setBodyViewMode((mode) => (mode === 'tree' ? 'raw' : 'tree'))}
             >
               {bodyViewMode === 'tree' ? <FileCode2 className="h-3.5 w-3.5" aria-hidden /> : <ListTree className="h-3.5 w-3.5" aria-hidden />}
-              {bodyViewMode === 'tree' ? 'Raw' : 'Tree'}
+              {bodyViewMode === 'tree' ? 'raw' : 'tree'}
             </Button>
             <Button
               type="button"
-              variant="secondary"
+              variant="ghost"
               size="sm"
-              className="h-7 shrink-0 rounded-lg px-2 text-xs"
+              className="h-7 shrink-0 px-2 font-mono text-[10px] uppercase tracking-wider"
               disabled={!selected?.responseBody}
-              title="Copy response body as captured"
+              title="Copy response body"
               onClick={() => void handleCopyResponseBody()}
             >
               {copyFeedback === 'response' ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
-              {copyFeedback === 'response' ? 'Copied' : 'Body'}
+              {copyFeedback === 'response' ? 'copied' : 'body'}
             </Button>
             <Button
               type="button"
-              variant="secondary"
+              variant="ghost"
               size="sm"
-              className="h-7 shrink-0 rounded-lg px-2 text-xs"
+              className="h-7 shrink-0 px-2 font-mono text-[10px] uppercase tracking-wider"
               disabled={!selected}
               onClick={() => void handleCopyCurl()}
-              title="Copy request as cURL"
+              title="Copy as cURL"
             >
               {copyFeedback === 'curl' ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
-              {copyFeedback === 'curl' ? 'Copied' : 'cURL'}
+              {copyFeedback === 'curl' ? 'copied' : 'curl'}
             </Button>
           </div>
           <div className="thin-scrollbar min-h-0 overflow-auto">
             {selected ? (
               <NetworkRequestDetails request={selected} activeTab={activeDetailTab} bodyViewMode={bodyViewMode} />
             ) : (
-              <div className="p-6 text-[#77736d]">Select a request to inspect its payload.</div>
+              <div className="p-8 text-center font-mono text-[11px] uppercase tracking-wider text-[var(--ink-faint)]">
+                select a request to inspect
+              </div>
             )}
           </div>
         </div>
@@ -1649,7 +1954,7 @@ function NetworkRequestIcon({ request }: { request: NetworkRequestEntry }) {
     return (
       <span
         title="Next.js RSC / Flight"
-        className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded bg-[#111827] text-[8px] font-bold leading-none text-white"
+        className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded bg-[#1a1d12] text-[8px] font-bold leading-none text-white"
       >
         N
       </span>
@@ -1686,10 +1991,10 @@ function networkStatusTextClass(statusCode: number | null | undefined, error?: s
   }
 
   if ((statusCode ?? 0) >= 300) {
-    return 'text-[#c2410c]';
+    return 'text-[#a13c19]';
   }
 
-  return 'text-[#15803d]';
+  return 'text-[#3a5419]';
 }
 
 function KeyValueList({
@@ -1707,14 +2012,18 @@ function KeyValueList({
 }
 
 function SectionTitle({ title }: { title: string }) {
-  return <div className="border-y border-[#dfe5f5] bg-[#f4f7ff] px-3 py-1.5 text-xs font-semibold text-[#25324d]">{title}</div>;
+  return (
+    <div className="sticky top-0 z-10 border-y border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
+      {title}
+    </div>
+  );
 }
 
 function KeyValue({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid grid-cols-1 border-b border-[#edf1fb] text-xs sm:grid-cols-[7.5rem_1fr]">
-      <div className="px-3 py-1.5 text-[#64708a]">{label}</div>
-      <div className="break-all px-3 pb-1.5 font-mono text-[11px] text-[#16213a] sm:py-1.5">{value}</div>
+    <div className="grid grid-cols-1 border-b border-[var(--divider)] text-xs transition-colors last:border-b-0 hover:bg-[var(--surface)] sm:grid-cols-[8rem_1fr]">
+      <div className="px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">{label}</div>
+      <div className="break-all px-3 pb-1.5 font-mono text-[11px] text-[var(--ink)] sm:py-1.5">{value}</div>
     </div>
   );
 }
@@ -1955,6 +2264,138 @@ function startHorizontalResize(
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+/** Single source of truth for timeline event kinds — used by BOTH the track
+    dots and the legend, so they can never drift apart. Colors reference the
+    --tl-* design tokens (no hardcoded hex). */
+const TIMELINE_KIND_META: { kind: string; label: string; color: string }[] = [
+  { kind: 'CONSOLE', label: 'console', color: 'var(--tl-console)' },
+  { kind: 'NETWORK', label: 'network', color: 'var(--tl-network)' },
+  { kind: 'ACTION', label: 'action', color: 'var(--tl-action)' },
+  { kind: 'ERROR', label: 'error', color: 'var(--tl-error)' },
+  { kind: 'BACKEND', label: 'backend', color: 'var(--tl-backend)' },
+  { kind: 'PERFORMANCE', label: 'perf', color: 'var(--tl-performance)' },
+  { kind: 'DOM', label: 'dom', color: 'var(--ink-faint)' },
+];
+
+const timelineEventColors: Record<string, string> = {
+  ...Object.fromEntries(TIMELINE_KIND_META.map((meta) => [meta.kind, meta.color])),
+  // Lifecycle markers reuse the action hue so they read as "the spine".
+  SESSION: 'var(--tl-action)',
+  UPLOAD: 'var(--tl-action)',
+  EVENT: 'var(--tl-action)',
+};
+
+function TimelineScrubber({
+  currentMs,
+  durationMs,
+  entries,
+  onSeek,
+}: {
+  currentMs: number;
+  durationMs: number;
+  entries: TimelineEntry[];
+  onSeek: (ms: number) => void;
+}) {
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const progressPct = durationMs > 0 ? clamp((currentMs / durationMs) * 100, 0, 100) : 0;
+
+  // Only show legend chips for kinds that actually have positioned dots, so the
+  // legend mirrors the track exactly (no phantom "network" when none recorded,
+  // no missing kinds when they are).
+  const legendKinds = TIMELINE_KIND_META.filter((meta) =>
+    entries.some((entry) => entry.type === meta.kind && entry.offsetMs != null),
+  );
+
+  function seekFromClientX(clientX: number) {
+    const track = trackRef.current;
+    if (!track) return;
+    const { left, width } = track.getBoundingClientRect();
+    const pct = clamp((clientX - left) / width, 0, 1);
+    onSeek(pct * durationMs);
+  }
+
+  function handleTrackPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    seekFromClientX(event.clientX);
+    const handleMove = (e: PointerEvent) => seekFromClientX(e.clientX);
+    const handleUp = () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+    };
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp, { once: true });
+  }
+
+  return (
+    <div className="mt-3">
+      <div
+        ref={trackRef}
+        role="slider"
+        aria-label="Video timeline scrubber"
+        aria-valuemin={0}
+        aria-valuemax={durationMs}
+        aria-valuenow={currentMs}
+        tabIndex={0}
+        className="relative h-8 cursor-pointer select-none rounded-md bg-[var(--primary-subtle)]"
+        onPointerDown={handleTrackPointerDown}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowLeft') onSeek(Math.max(0, currentMs - 5000));
+          if (event.key === 'ArrowRight') onSeek(Math.min(durationMs, currentMs + 5000));
+        }}
+      >
+        <div
+          className="absolute inset-y-0 left-0 rounded-md bg-[var(--primary-soft)]"
+          style={{ width: `${progressPct}%` }}
+        />
+        {/* Dots are inset 0.6%→99.4% so events at t=0 or t=duration don't half-
+            overflow the rounded track edges. */}
+        {entries.map((entry) => {
+          if (entry.offsetMs == null || durationMs <= 0) return null;
+          const pct = 0.6 + clamp((entry.offsetMs / durationMs) * 100, 0, 100) * 0.988;
+          const color = timelineEventColors[entry.type] ?? 'var(--ink-faint)';
+          return (
+            <button
+              key={`${entry.type}-${entry.id}`}
+              type="button"
+              aria-label={`${entry.type}: ${entry.title} at ${formatOffset(entry.offsetMs)}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSeek(entry.offsetMs!);
+              }}
+              className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-1 ring-[var(--bg)] transition-transform hover:scale-150"
+              style={{ left: `${pct}%`, backgroundColor: color }}
+            />
+          );
+        })}
+        <div
+          className="pointer-events-none absolute top-1/2 h-5 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--ink)]"
+          style={{ left: `${progressPct}%` }}
+        />
+      </div>
+      <div className="mt-1.5 flex items-center justify-between gap-3 px-0.5 font-mono text-[10px] text-[var(--ink-faint)]">
+        <span className="shrink-0">{formatOffset(currentMs)}</span>
+        {/* Legend is derived from the kinds that ACTUALLY have dots on the track,
+            using the same color source — so it always matches what's shown. */}
+        <span className="scrollbar-none flex min-w-0 items-center gap-x-3 gap-y-1 overflow-x-auto">
+          {legendKinds.length > 0 ? (
+            legendKinds.map((meta) => (
+              <span key={meta.kind} className="inline-flex shrink-0 items-center gap-1">
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: meta.color }}
+                />
+                {meta.label}
+              </span>
+            ))
+          ) : (
+            <span className="text-[var(--ink-faint)]">no timeline events</span>
+          )}
+        </span>
+        <span className="shrink-0">{formatOffset(durationMs)}</span>
+      </div>
+    </div>
+  );
 }
 
 function formatOffset(value: number | null | undefined) {

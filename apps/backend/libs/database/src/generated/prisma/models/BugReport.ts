@@ -941,10 +941,6 @@ export type NullableIntFieldUpdateOperationsInput = {
   divide?: number
 }
 
-export type NullableDateTimeFieldUpdateOperationsInput = {
-  set?: Date | string | null
-}
-
 export type BugReportCreateNestedOneWithoutCaptureSessionsInput = {
   create?: Prisma.XOR<Prisma.BugReportCreateWithoutCaptureSessionsInput, Prisma.BugReportUncheckedCreateWithoutCaptureSessionsInput>
   connectOrCreate?: Prisma.BugReportCreateOrConnectWithoutCaptureSessionsInput

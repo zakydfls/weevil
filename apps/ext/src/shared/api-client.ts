@@ -140,12 +140,19 @@ export class WeevilApiClient {
   }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
+    const headers: Record<string, string> = {
+      'content-type': 'application/json',
+      ...(init?.headers as Record<string, string> | undefined),
+    };
+
+    // Send the dashboard's session cookie to the API. Combined with the
+    // backend's `credentials: true` CORS + the extension's host_permission
+    // for the API origin, the session is recognized by the AuthGuard and
+    // captures land in the user's workspace (instead of the dev tenant).
     const response = await fetch(`${this.apiBaseUrl}${path}`, {
       ...init,
-      headers: {
-        'content-type': 'application/json',
-        ...init?.headers,
-      },
+      credentials: 'include',
+      headers,
     });
     const text = await response.text();
     const payload = text ? safeJsonParse(text) : null;

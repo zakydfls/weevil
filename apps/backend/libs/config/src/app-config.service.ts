@@ -53,4 +53,25 @@ export class AppConfigService {
   get publicAssetUrl(): string | undefined {
     return this.configService.get('PUBLIC_ASSET_URL', { infer: true }) || undefined;
   }
+
+  /** Allowed browser origins for CORS. Empty array = reflect any origin (dev). */
+  get webOrigins(): string[] {
+    return this.configService
+      .get('WEB_ORIGIN', { infer: true })
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean);
+  }
+
+  get cookieSameSite(): 'lax' | 'none' | 'strict' {
+    return this.configService.get('COOKIE_SAMESITE', { infer: true });
+  }
+
+  get cookieSecure(): boolean {
+    return this.configService.get('COOKIE_SECURE', { infer: true });
+  }
+
+  get cookieDomain(): string | undefined {
+    return this.configService.get('COOKIE_DOMAIN', { infer: true }) || undefined;
+  }
 }

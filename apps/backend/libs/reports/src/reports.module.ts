@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from '@weevil/auth';
 import { RedactionModule } from '@weevil/redaction';
 import { ReportTelemetryController } from './presentation/report-telemetry.controller';
 import { ReportsController } from './presentation/reports.controller';
@@ -10,7 +11,7 @@ import { TelemetryService } from './application/telemetry.service';
 import { UploadsService } from './application/uploads.service';
 
 @Module({
-  imports: [RedactionModule],
+  imports: [RedactionModule, AuthModule],
   controllers: [ReportsController, UploadsController, ReportTelemetryController],
   providers: [
     ReportMapper,

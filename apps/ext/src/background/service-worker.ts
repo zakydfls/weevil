@@ -534,8 +534,12 @@ async function appendPageTelemetry(message: { type: string; payload: unknown }, 
   }
 
   if (message.type.endsWith('NETWORK')) {
+    const networkStartedAt = optionalString(payload.startedAt) ?? new Date().toISOString();
     buffers.networkRequests.push(mergeCapturedNetworkHeaders({
       ...base,
+      // Offset from the request's REAL start, overriding base's flush-time value,
+      // so dots land at the right spot on the scrubber instead of all clustering.
+      offsetMs: offsetFromClamped(state.startedAt, networkStartedAt),
       requestId: optionalString(payload.requestId, maxTelemetryShortTextChars),
       method: limitText(String(payload.method ?? 'GET'), maxTelemetryMethodChars),
       url: requiredUrlString(payload.url ?? state.pageUrl),
@@ -546,7 +550,7 @@ async function appendPageTelemetry(message: { type: string; payload: unknown }, 
       requestBody: optionalString(payload.requestBody, maxTelemetryBodyChars),
       responseBody: optionalString(payload.responseBody, maxTelemetryBodyChars),
       error: optionalString(payload.error, 4_000),
-      startedAt: optionalString(payload.startedAt) ?? new Date().toISOString(),
+      startedAt: networkStartedAt,
       endedAt: optionalString(payload.endedAt),
     }, tabId));
   }
@@ -796,6 +800,7 @@ async function flushTelemetry() {
     ));
 
   if (failed.length > 0) {
+    console.error('[Weevil] telemetry upload failed', failed.map(({ task, result }) => ({ kind: task.kind, error: getErrorMessage(result.reason) })));
     await markError(
       `Telemetry upload failed: ${failed
         .map(({ task, result }) => `${task.kind}: ${getErrorMessage(result.reason)}`)
@@ -1012,7 +1017,9 @@ async function appendBrowserNetworkEntry(
     error: optionalString(error, 4_000),
     startedAt: new Date(startedAtMs).toISOString(),
     endedAt: new Date(endedAtMs).toISOString(),
-    offsetMs: offsetFromClamped(state.startedAt),
+    // Offset from the request's REAL start, not flush time — otherwise every
+    // network dot piles up at "now" on the scrubber (or goes null = no dot).
+    offsetMs: offsetFromClamped(state.startedAt, new Date(startedAtMs).toISOString()),
   });
 
   if (bufferSize() >= DEFAULT_MAX_BATCH_SIZE) {

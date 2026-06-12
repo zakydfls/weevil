@@ -45,8 +45,8 @@ export function ReportDetail({ report, isLoading }: ReportDetailProps) {
             <div className="h-6 w-40 animate-pulse rounded bg-[var(--muted)]" />
             <div className="mt-4 h-8 w-2/3 animate-pulse rounded bg-[var(--muted)]" />
           </div>
-          <div className="grid gap-4 bg-[#fafbfc] p-4 xl:grid-cols-[minmax(0,1.25fr)_28rem]">
-            <div className="aspect-video animate-pulse rounded-lg bg-[#111318]" />
+          <div className="grid gap-4 bg-[#fafbf6] p-4 xl:grid-cols-[minmax(0,1.25fr)_28rem]">
+            <div className="aspect-video animate-pulse rounded-lg bg-[#1a1d12]" />
             <div className="min-h-80 animate-pulse rounded-lg bg-[var(--muted)]" />
           </div>
         </div>
@@ -98,7 +98,7 @@ export function ReportDetail({ report, isLoading }: ReportDetailProps) {
           </div>
         </header>
 
-        <div className="grid gap-4 border-b border-[var(--border)] bg-[#fafbfc] p-4 xl:grid-cols-[minmax(0,1.25fr)_28rem]">
+        <div className="grid gap-4 border-b border-[var(--border)] bg-[#fafbf6] p-4 xl:grid-cols-[minmax(0,1.25fr)_28rem]">
           <RecordingPreview report={report} seekOffsetMs={selectedOffsetMs} />
           <SynchronizedTimeline report={report} onSeek={setSelectedOffsetMs} />
         </div>
@@ -111,7 +111,7 @@ export function ReportDetail({ report, isLoading }: ReportDetailProps) {
               onClick={() => setActiveTab(tab.id)}
               className={`h-8 rounded-md px-3 text-sm font-medium ${
                 activeTab === tab.id
-                  ? 'bg-[#111318] text-white'
+                  ? 'bg-[#1a1d12] text-white'
                   : 'text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)]'
               }`}
             >
@@ -145,7 +145,7 @@ function RecordingPreview({
   const downloadUpload = useDownloadUpload();
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[#1f2937] bg-[#0f141b] shadow-[0_14px_35px_rgba(15,20,27,0.18)]">
+    <div className="overflow-hidden rounded-lg border border-[#3a3d31] bg-[#1a1d12] shadow-[0_14px_35px_rgba(15,20,27,0.18)]">
       <div className="flex h-10 items-center justify-between border-b border-white/10 px-3 text-white">
         <div>
           <div className="text-sm font-medium">Replay</div>
@@ -162,7 +162,7 @@ function RecordingPreview({
           </Button>
         ) : null}
       </div>
-      <div className="grid aspect-video place-items-center bg-[radial-gradient(circle_at_center,#1f2937,#050608_62%)]">
+      <div className="grid aspect-video place-items-center bg-[radial-gradient(circle_at_center,#3a3d31,#0a0c05_62%)]">
         {primaryUpload ? (
           <RecordingPlayer
             reportId={report.id}
@@ -176,15 +176,15 @@ function RecordingPreview({
         )}
       </div>
       <div className="grid grid-cols-3 gap-px bg-white/10 text-xs text-white">
-        <div className="bg-[#151b23] p-3">
+        <div className="bg-[#27291d] p-3">
           <div className="text-white/50">Upload</div>
           <div className="mt-1 truncate">{primaryUpload?.status ?? 'n/a'}</div>
         </div>
-        <div className="bg-[#151b23] p-3">
+        <div className="bg-[#27291d] p-3">
           <div className="text-white/50">Type</div>
           <div className="mt-1 truncate">{primaryUpload?.contentType ?? 'n/a'}</div>
         </div>
-        <div className="bg-[#151b23] p-3">
+        <div className="bg-[#27291d] p-3">
           <div className="text-white/50">Size</div>
           <div className="mt-1 truncate">{formatBytes(primaryUpload?.byteSize)}</div>
         </div>
@@ -232,7 +232,7 @@ function RecordingPlayer({
           <Play className="h-4 w-4" aria-hidden />
           Load Recording
         </Button>
-        {error ? <div className="text-xs text-[#ffb4ab]">{error}</div> : null}
+        {error ? <div className="text-xs text-[#fecdd3]">{error}</div> : null}
       </div>
     );
   }
@@ -275,7 +275,7 @@ function SynchronizedTimeline({
                 key={entry.id}
                 type="button"
                 onClick={() => onSeek(entry.offsetMs ?? 0)}
-                className="grid w-full grid-cols-[4.5rem_1fr] gap-3 rounded-md border border-[var(--border)] bg-white p-2 text-left transition-colors hover:border-[#8dd7cd] hover:bg-[#f0fbf9]"
+                className="grid w-full grid-cols-[4.5rem_1fr] gap-3 rounded-md border border-[var(--border)] bg-white p-2 text-left transition-colors hover:border-[#cfd6b0] hover:bg-[#f4f6e8]"
               >
                 <div className="text-xs font-medium text-[var(--muted-foreground)]">
                   {formatOffset(entry.offsetMs)}
@@ -383,8 +383,8 @@ function ConsoleTab({ report }: { report: ReportDetailType }) {
   return (
     <div className="grid gap-2">
       {report.consoleLogs.map((entry) => (
-        <div key={entry.id} className="rounded-md border border-[var(--border)] bg-[#111418] p-3 text-sm text-white">
-          <div className="flex items-center gap-2 text-xs text-[#a7b0bc]">
+        <div key={entry.id} className="rounded-md border border-[var(--border)] bg-[#1a1d12] p-3 text-sm text-white">
+          <div className="flex items-center gap-2 text-xs text-[#83887a]">
             <Terminal className="h-4 w-4" aria-hidden />
             <span>{entry.level}</span>
             <span>{formatDate(entry.timestamp)}</span>

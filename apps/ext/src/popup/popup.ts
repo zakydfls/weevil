@@ -9,34 +9,44 @@ const stopButton = document.getElementById('stopButton') as HTMLButtonElement | 
 const optionsButton = document.getElementById('optionsButton') as HTMLButtonElement | null;
 const videoStatusElement = document.getElementById('videoStatus');
 const telemetryStatusElement = document.getElementById('telemetryStatus');
-const recordButtonVisual = document.getElementById('recordButtonVisual');
+const videoMeter = document.getElementById('videoMeter');
+const telemetryMeter = document.getElementById('telemetryMeter');
+const recordButtonVisual = document.getElementById('recordButtonVisual') as HTMLButtonElement | null;
+const recordTagLabel = document.getElementById('recordTagLabel');
+const durationDisplay = document.getElementById('durationDisplay');
 const redactSensitiveDataToggle = document.getElementById('redactSensitiveDataToggle') as HTMLInputElement | null;
+const openDashboardLink = document.getElementById('openDashboardLink') as HTMLAnchorElement | null;
+
+let durationInterval: number | undefined;
+let recordingStartedAtMs: number | null = null;
 
 void refresh();
 void refreshSettings();
 
 startButton?.addEventListener('click', () => {
-  startButton.disabled = true;
-  if (screenshotButton) {
-    screenshotButton.disabled = true;
+  disableActions();
+  void send(RuntimeMessageTypes.StartCapture).catch(reportError);
+  window.close();
+});
+
+recordButtonVisual?.addEventListener('click', () => {
+  if (recordButtonVisual.classList.contains('recording')) {
+    void send(RuntimeMessageTypes.StopCapture).catch(reportError);
+  } else {
+    void send(RuntimeMessageTypes.StartCapture).catch(reportError);
   }
-  stopButton?.setAttribute('disabled', 'true');
-  void send(RuntimeMessageTypes.StartCapture).catch(reportTransientError);
   window.close();
 });
 
 screenshotButton?.addEventListener('click', () => {
-  screenshotButton.disabled = true;
-  if (startButton) {
-    startButton.disabled = true;
-  }
-  void send(RuntimeMessageTypes.CaptureScreenshot).catch(reportTransientError);
+  disableActions();
+  void send(RuntimeMessageTypes.CaptureScreenshot).catch(reportError);
   window.close();
 });
 
 stopButton?.addEventListener('click', () => {
   stopButton.disabled = true;
-  void send(RuntimeMessageTypes.StopCapture).catch(reportTransientError);
+  void send(RuntimeMessageTypes.StopCapture).catch(reportError);
   window.close();
 });
 
@@ -48,39 +58,134 @@ redactSensitiveDataToggle?.addEventListener('change', () => {
   void updateRedactionSetting(redactSensitiveDataToggle.checked);
 });
 
+window.addEventListener('beforeunload', () => {
+  if (durationInterval !== undefined) {
+    window.clearInterval(durationInterval);
+  }
+});
+
 async function refresh() {
-  const response = await send<{ state: RecorderState }>(RuntimeMessageTypes.GetStatus);
-  render(response.state);
+  try {
+    const response = await send<{ state: RecorderState }>(RuntimeMessageTypes.GetStatus);
+    render(response.state);
+  } catch (error) {
+    renderFatalError(getErrorMessage(error));
+  }
 }
 
 function render(state: RecorderState) {
-  if (!statusElement || !startButton || !stopButton || !screenshotButton) {
+  if (!statusElement || !startButton || !stopButton || !screenshotButton || !recordButtonVisual) {
     return;
   }
 
-  startButton.disabled = state.isRecording;
-  screenshotButton.disabled = state.isRecording;
-  stopButton.disabled = !state.isRecording;
-  recordButtonVisual?.classList.toggle('recording', state.isRecording);
-  if (videoStatusElement) {
-    videoStatusElement.textContent = state.isRecording ? 'Recording' : 'Ready';
+  const isRecording = state.isRecording;
+  document.body.classList.toggle('is-recording', isRecording);
+  recordButtonVisual.classList.toggle('recording', isRecording);
+  recordButtonVisual.setAttribute('aria-label', isRecording ? 'Stop recording' : 'Start recording');
+
+  startButton.disabled = isRecording;
+  screenshotButton.disabled = isRecording;
+  stopButton.disabled = !isRecording;
+
+  if (recordTagLabel) {
+    recordTagLabel.textContent = isRecording ? 'recording' : 'armed';
   }
-  if (telemetryStatusElement) {
-    telemetryStatusElement.textContent = state.isRecording ? 'Live' : 'Armed';
+
+  if (videoStatusElement && videoMeter) {
+    videoStatusElement.textContent = isRecording ? 'recording' : 'ready';
+    videoMeter.dataset.state = isRecording ? 'live' : 'armed';
   }
-  statusElement.innerHTML = state.isRecording
-    ? `<strong>Recording this tab</strong><span>${escapeHtml(state.title ?? 'Current tab')}</span><em>${escapeHtml(state.pageUrl ?? '')}</em>`
-    : `<strong>Ready to capture</strong><span>Recording, actions, console, network, errors, performance, and DOM context.</span>`;
+  if (telemetryStatusElement && telemetryMeter) {
+    telemetryStatusElement.textContent = isRecording ? 'streaming' : 'armed';
+    telemetryMeter.dataset.state = isRecording ? 'live' : 'armed';
+  }
+
+  const escapedTitle = state.title ? escapeHtml(state.title) : 'Current tab';
+  const escapedUrl = state.pageUrl ? escapeHtml(state.pageUrl) : '';
+  statusElement.innerHTML = isRecording
+    ? `<strong>Recording this tab</strong><span>${escapedTitle}</span><em>${escapedUrl}</em>`
+    : `<strong>Ready to capture</strong><span>Records video, console, network, actions, errors, perf, DOM.</span>`;
 
   if (state.lastError) {
-    statusElement.innerHTML += `<br /><span style="color: var(--danger)">${escapeHtml(state.lastError)}</span>`;
+    const errorEl = document.createElement('div');
+    errorEl.className = 'status-error';
+    errorEl.textContent = state.lastError;
+    statusElement.appendChild(errorEl);
+  }
+
+  if (isRecording && state.startedAt) {
+    recordingStartedAtMs = new Date(state.startedAt).getTime();
+    if (!Number.isFinite(recordingStartedAtMs)) {
+      recordingStartedAtMs = Date.now();
+    }
+    startDurationTimer();
+  } else {
+    recordingStartedAtMs = null;
+    stopDurationTimer();
+    if (durationDisplay) durationDisplay.textContent = '0:00';
   }
 }
 
+function renderFatalError(message: string) {
+  if (!statusElement) return;
+  statusElement.innerHTML = `<strong>Extension unavailable</strong>`;
+  const errorEl = document.createElement('div');
+  errorEl.className = 'status-error';
+  errorEl.textContent = message;
+  statusElement.appendChild(errorEl);
+  startButton?.setAttribute('disabled', 'true');
+  screenshotButton?.setAttribute('disabled', 'true');
+  stopButton?.setAttribute('disabled', 'true');
+}
+
+function startDurationTimer() {
+  stopDurationTimer();
+  if (!durationDisplay || recordingStartedAtMs === null) return;
+  const update = () => {
+    if (recordingStartedAtMs === null) return;
+    const elapsed = Math.max(0, Date.now() - recordingStartedAtMs);
+    durationDisplay.textContent = formatDuration(elapsed);
+  };
+  update();
+  durationInterval = window.setInterval(update, 250);
+}
+
+function stopDurationTimer() {
+  if (durationInterval !== undefined) {
+    window.clearInterval(durationInterval);
+    durationInterval = undefined;
+  }
+}
+
+function formatDuration(ms: number) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds - minutes * 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function disableActions() {
+  startButton?.setAttribute('disabled', 'true');
+  screenshotButton?.setAttribute('disabled', 'true');
+  stopButton?.setAttribute('disabled', 'true');
+}
+
 async function refreshSettings() {
-  const settings = await getSettings();
-  if (redactSensitiveDataToggle) {
-    redactSensitiveDataToggle.checked = settings.redactSensitiveData;
+  try {
+    const settings = await getSettings();
+    if (redactSensitiveDataToggle) {
+      redactSensitiveDataToggle.checked = settings.redactSensitiveData;
+    }
+    if (openDashboardLink && settings.apiBaseUrl) {
+      try {
+        const url = new URL(settings.apiBaseUrl);
+        openDashboardLink.href = `${url.protocol}//${url.host.replace(/:\d+$/, ':3000')}`;
+      } catch {
+        // Keep default href on parse error
+      }
+    }
+  } catch {
+    // Settings load failure is non-fatal
   }
 }
 
@@ -101,8 +206,13 @@ async function send<TPayload = unknown>(type: string, payload?: unknown) {
   return response as TPayload & { ok: true };
 }
 
-function reportTransientError(error: unknown) {
-  console.error(error);
+function reportError(error: unknown) {
+  console.error('[Weevil popup]', error);
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  return String(error);
 }
 
 function escapeHtml(value: string) {

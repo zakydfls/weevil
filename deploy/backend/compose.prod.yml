@@ -1,0 +1,75 @@
+name: weevil
+
+services:
+  api:
+    image: ${WEEVIL_BACKEND_IMAGE}
+    container_name: weevil-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      API_PORT: 4000
+    ports:
+      - "${API_BIND:-127.0.0.1}:${API_PORT:-4000}:4000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:4000/v1/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  worker:
+    image: ${WEEVIL_BACKEND_IMAGE}
+    container_name: weevil-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    command: ["node", "dist/apps/worker/apps/worker/src/main.js"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      api:
+        condition: service_started
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  migrate:
+    image: ${WEEVIL_BACKEND_IMAGE}
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    command: ["pnpm", "prisma:migrate:deploy"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    profiles:
+      - tools
+
+  seed:
+    image: ${WEEVIL_BACKEND_IMAGE}
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    command: ["pnpm", "prisma:seed:prod"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    profiles:
+      - tools

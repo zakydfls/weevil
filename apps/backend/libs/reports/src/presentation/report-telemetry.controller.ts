@@ -10,8 +10,12 @@ import {
   AttachRuntimeErrorsDto,
   RouteParams,
 } from '@weevil/contracts';
+import { Public } from '@weevil/auth';
 import { TelemetryService } from '../application/telemetry.service';
 
+// Telemetry ingest is called by the extension on a tight loop. Leave Public until
+// the extension is migrated to API tokens.
+@Public()
 @Controller()
 export class ReportTelemetryController {
   constructor(private readonly telemetryService: TelemetryService) {}
@@ -57,10 +61,7 @@ export class ReportTelemetryController {
   }
 
   @Post(ApiRoutes.ReportDomEvents)
-  attachDomEvents(
-    @Param(RouteParams.ReportId) reportId: string,
-    @Body() dto: AttachDomEventsDto,
-  ) {
+  attachDomEvents(@Param(RouteParams.ReportId) reportId: string, @Body() dto: AttachDomEventsDto) {
     return this.telemetryService.attachDomEvents(reportId, dto);
   }
 
