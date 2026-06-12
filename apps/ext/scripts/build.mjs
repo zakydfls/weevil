@@ -1,11 +1,29 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { deflateSync } from 'node:zlib';
+import { deflateRawSync, deflateSync } from 'node:zlib';
 import * as esbuild from 'esbuild';
 
 const root = dirname(fileURLToPath(import.meta.url)).replace(/\/scripts$/, '');
 const dist = join(root, 'dist');
+const releases = join(root, 'releases');
+const packageJson = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+const isProduction = process.argv.includes('--production') || process.argv.includes('--prod');
+const mode = isProduction ? 'production' : 'development';
+const defaultApiBaseUrl = isProduction ? 'https://api-weevil.centurycode.id/v1' : 'http://localhost:4000/v1';
+const defaultWebBaseUrl = isProduction ? 'https://weevil.centurycode.id' : 'http://localhost:3000';
+const apiBaseUrl = normalizeApiBaseUrl(
+  readArgValue('--api-base-url') ||
+    process.env.WEEVIL_EXTENSION_API_BASE_URL ||
+    process.env.EXTENSION_API_BASE_URL ||
+    defaultApiBaseUrl
+);
+const webBaseUrl = normalizeUrl(
+  readArgValue('--web-base-url') ||
+    process.env.WEEVIL_EXTENSION_WEB_BASE_URL ||
+    process.env.EXTENSION_WEB_BASE_URL ||
+    defaultWebBaseUrl
+);
 
 const entryPoints = [
   ['src/background/service-worker.ts', 'background/service-worker.js'],
@@ -27,24 +45,72 @@ await Promise.all(
       bundle: true,
       format: 'esm',
       target: 'chrome116',
-      sourcemap: true,
-      minify: false,
-      legalComments: 'none'
+      sourcemap: !isProduction,
+      minify: isProduction,
+      legalComments: 'none',
+      define: {
+        __WEEVIL_EXTENSION_DEFAULT_API_BASE_URL__: JSON.stringify(apiBaseUrl),
+        __WEEVIL_EXTENSION_DEFAULT_WEB_BASE_URL__: JSON.stringify(webBaseUrl)
+      }
     })
   )
 );
 
-await copyText('manifest.template.json', 'manifest.json');
+await writeManifest();
 await copyText('src/offscreen/offscreen.html', 'offscreen/offscreen.html');
 await copyText('src/popup/popup.html', 'popup/popup.html');
 await copyText('src/options/options.html', 'options/options.html');
 await copyText('src/shared/styles.css', 'shared/styles.css');
 await writeIcons();
 
+if (isProduction) {
+  const zipPath = join(releases, `weevil-extension-${packageJson.version}.zip`);
+  await rm(zipPath, { force: true });
+  await mkdir(releases, { recursive: true });
+  await writeZip(dist, zipPath);
+  console.log(`Built ${mode} extension for API ${apiBaseUrl}`);
+  console.log(`Dashboard URL: ${webBaseUrl}`);
+  console.log(`Chrome Web Store ZIP: ${zipPath}`);
+} else {
+  console.log(`Built ${mode} extension for API ${apiBaseUrl}`);
+  console.log(`Dashboard URL: ${webBaseUrl}`);
+}
+
+function readArgValue(name) {
+  const prefix = `${name}=`;
+  const value = process.argv.find((arg) => arg.startsWith(prefix));
+  return value ? value.slice(prefix.length) : '';
+}
+
+function normalizeApiBaseUrl(value) {
+  return normalizeUrl(value);
+}
+
+function normalizeUrl(value) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new Error('Extension URL cannot be empty.');
+  }
+
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  return withProtocol.replace(/\/+$/, '');
+}
+
 async function copyText(source, target) {
   const targetPath = join(dist, target);
   await mkdir(dirname(targetPath), { recursive: true });
   await writeFile(targetPath, await readFile(join(root, source), 'utf8'));
+}
+
+async function writeManifest() {
+  const manifest = JSON.parse(await readFile(join(root, 'manifest.template.json'), 'utf8'));
+  manifest.version = packageJson.version;
+
+  if (isProduction) {
+    manifest.host_permissions = ['<all_urls>'];
+  }
+
+  await writeFile(join(dist, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 }
 
 async function writeIcons() {
@@ -113,6 +179,99 @@ function encodePng(width, height, rgba) {
   ]);
 }
 
+async function writeZip(sourceDir, targetPath) {
+  const files = await listFiles(sourceDir);
+  const localChunks = [];
+  const centralChunks = [];
+  const { date, time } = dosDateTime(new Date('2024-01-01T00:00:00Z'));
+  let offset = 0;
+
+  for (const filePath of files) {
+    const name = filePath.slice(sourceDir.length + 1).replaceAll('\\', '/');
+    const nameBuffer = Buffer.from(name);
+    const data = await readFile(filePath);
+    const compressed = deflateRawSync(data, { level: 9 });
+    const crc = crc32(data);
+    const flags = 0x0800;
+    const method = 8;
+    const madeBy = 20;
+    const needed = 20;
+
+    const localHeader = Buffer.concat([
+      uint32le(0x04034b50),
+      uint16le(needed),
+      uint16le(flags),
+      uint16le(method),
+      uint16le(time),
+      uint16le(date),
+      uint32le(crc),
+      uint32le(compressed.length),
+      uint32le(data.length),
+      uint16le(nameBuffer.length),
+      uint16le(0),
+      nameBuffer
+    ]);
+
+    localChunks.push(localHeader, compressed);
+
+    centralChunks.push(
+      Buffer.concat([
+        uint32le(0x02014b50),
+        uint16le(madeBy),
+        uint16le(needed),
+        uint16le(flags),
+        uint16le(method),
+        uint16le(time),
+        uint16le(date),
+        uint32le(crc),
+        uint32le(compressed.length),
+        uint32le(data.length),
+        uint16le(nameBuffer.length),
+        uint16le(0),
+        uint16le(0),
+        uint16le(0),
+        uint16le(0),
+        uint32le(0),
+        uint32le(offset),
+        nameBuffer
+      ])
+    );
+
+    offset += localHeader.length + compressed.length;
+  }
+
+  const centralDirectory = Buffer.concat(centralChunks);
+  const end = Buffer.concat([
+    uint32le(0x06054b50),
+    uint16le(0),
+    uint16le(0),
+    uint16le(files.length),
+    uint16le(files.length),
+    uint32le(centralDirectory.length),
+    uint32le(offset),
+    uint16le(0)
+  ]);
+
+  await writeFile(targetPath, Buffer.concat([...localChunks, centralDirectory, end]));
+}
+
+async function listFiles(dir) {
+  const entries = await readdir(dir);
+  const files = [];
+
+  for (const entry of entries.sort()) {
+    const path = join(dir, entry);
+    const info = await stat(path);
+    if (info.isDirectory()) {
+      files.push(...(await listFiles(path)));
+    } else if (info.isFile()) {
+      files.push(path);
+    }
+  }
+
+  return files;
+}
+
 function pngChunk(type, data) {
   const typeBuffer = Buffer.from(type);
   return Buffer.concat([uint32(data.length), typeBuffer, data, uint32(crc32(Buffer.concat([typeBuffer, data])))]);
@@ -122,6 +281,32 @@ function uint32(value) {
   const buffer = Buffer.alloc(4);
   buffer.writeUInt32BE(value >>> 0);
   return buffer;
+}
+
+function uint16le(value) {
+  const buffer = Buffer.alloc(2);
+  buffer.writeUInt16LE(value >>> 0);
+  return buffer;
+}
+
+function uint32le(value) {
+  const buffer = Buffer.alloc(4);
+  buffer.writeUInt32LE(value >>> 0);
+  return buffer;
+}
+
+function dosDateTime(value) {
+  const year = Math.max(1980, value.getUTCFullYear());
+  const month = value.getUTCMonth() + 1;
+  const day = value.getUTCDate();
+  const hours = value.getUTCHours();
+  const minutes = value.getUTCMinutes();
+  const seconds = Math.floor(value.getUTCSeconds() / 2);
+
+  return {
+    date: ((year - 1980) << 9) | (month << 5) | day,
+    time: (hours << 11) | (minutes << 5) | seconds
+  };
 }
 
 function crc32(buffer) {

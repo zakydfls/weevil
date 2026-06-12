@@ -34,6 +34,7 @@ Thumbs.db
 
 # Extension artifacts
 apps/ext/dist/
+apps/ext/releases/
 
 # Playwright / test artifacts
 output/

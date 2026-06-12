@@ -1,6 +1,10 @@
 export const EXTENSION_NAME = 'Weevil';
 
-export const DEFAULT_API_BASE_URL = 'http://localhost:4000/v1';
+declare const __WEEVIL_EXTENSION_DEFAULT_API_BASE_URL__: string;
+declare const __WEEVIL_EXTENSION_DEFAULT_WEB_BASE_URL__: string;
+
+export const DEFAULT_API_BASE_URL = __WEEVIL_EXTENSION_DEFAULT_API_BASE_URL__;
+export const DEFAULT_WEB_BASE_URL = __WEEVIL_EXTENSION_DEFAULT_WEB_BASE_URL__;
 export const DEFAULT_FLUSH_INTERVAL_MS = 5_000;
 export const DEFAULT_MAX_BATCH_SIZE = 50;
 export const DEFAULT_MAX_BODY_CHARS = 100_000;

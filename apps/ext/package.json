@@ -5,6 +5,7 @@
   "description": "Weevil browser extension",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "build:prod": "node scripts/build.mjs --production",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.ts\"",
     "clean": "rm -rf dist"

@@ -1231,6 +1231,13 @@ function createOverlayMarkup() {
         all: initial;
       }
 
+      .weevil-root,
+      .weevil-root *,
+      .weevil-root *::before,
+      .weevil-root *::after {
+        box-sizing: border-box;
+      }
+
       .weevil-root {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", Inter, ui-sans-serif, system-ui, sans-serif;
         --w-bg: oklch(0.992 0.003 110);
@@ -1834,6 +1841,7 @@ function createOverlayMarkup() {
         display: grid;
         grid-template-rows: auto 1fr auto;
         min-width: 0;
+        overflow: hidden;
         padding: 20px;
       }
 
@@ -1889,6 +1897,7 @@ function createOverlayMarkup() {
         gap: 12px;
         align-content: start;
         padding-top: 18px;
+        padding-right: 1px;
         min-height: 0;
         overflow-y: auto;
       }
@@ -1901,6 +1910,8 @@ function createOverlayMarkup() {
         border-radius: 8px;
         color: var(--w-ink);
         font: inherit;
+        max-width: 100%;
+        min-width: 0;
         outline: none;
         padding: 10px 12px;
         width: 100%;

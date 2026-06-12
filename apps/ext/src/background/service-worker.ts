@@ -2,6 +2,7 @@ import { WeevilApiClient } from '../shared/api-client';
 import {
   BackendTraceStatus,
   DEFAULT_MAX_BATCH_SIZE,
+  DEFAULT_WEB_BASE_URL,
   PerformanceEntryKind,
   ReportSource,
   RECORDING_UPLOAD_CONTENT_TYPE,
@@ -317,7 +318,6 @@ async function stopCapture() {
   await detachConsoleDebugger(state.tabId);
   await flushTelemetry();
   const recording = await stopOffscreenRecording();
-  const settings = await getSettings();
   const endedAt = new Date();
   const durationMs = state.startedAt ? endedAt.getTime() - new Date(state.startedAt).getTime() : undefined;
   chrome.alarms.clear(flushAlarmName);
@@ -330,7 +330,7 @@ async function stopCapture() {
     title: state.title ?? 'Untitled capture',
     description: 'Recording captured from the Weevil browser extension.',
     pageUrl: state.pageUrl,
-    dashboardUrl: buildDashboardUrl(settings.apiBaseUrl, state.reportId),
+    dashboardUrl: buildDashboardUrl(state.reportId),
     dataUrl: recording?.dataUrl,
     contentType: recording?.contentType ?? RECORDING_UPLOAD_CONTENT_TYPE,
     byteSize: recording?.byteSize,
@@ -407,7 +407,7 @@ async function captureScreenshot(tab: chrome.tabs.Tab) {
     title,
     description: 'Screenshot captured from the Weevil browser extension.',
     pageUrl,
-    dashboardUrl: buildDashboardUrl(settings.apiBaseUrl, report.id),
+    dashboardUrl: buildDashboardUrl(report.id),
     dataUrl,
     contentType: screenshotBlob.type || 'image/png',
     durationMs: 0,
@@ -1203,18 +1203,16 @@ async function dataUrlToBlob(dataUrl: string) {
   return response.blob();
 }
 
-function buildDashboardUrl(apiBaseUrl: string, reportId: string) {
+function buildDashboardUrl(reportId: string) {
   try {
-    const url = new URL(apiBaseUrl);
-    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-      url.port = '3000';
-    }
+    const url = new URL(DEFAULT_WEB_BASE_URL);
     url.pathname = '/';
     url.search = `capture=${encodeURIComponent(reportId)}`;
     url.hash = '';
     return url.toString();
   } catch {
-    return `http://localhost:3000/?capture=${encodeURIComponent(reportId)}`;
+    const base = DEFAULT_WEB_BASE_URL.replace(/\/+$/, '');
+    return `${base}/?capture=${encodeURIComponent(reportId)}`;
   }
 }
 

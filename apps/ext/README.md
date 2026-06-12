@@ -6,7 +6,7 @@ Chrome/Chromium Manifest V3 extension for capturing Weevil bug reports.
 
 ```bash
 pnpm install
-pnpm build
+pnpm --filter @weevil/extension build
 ```
 
 Load `dist/` as an unpacked extension:
@@ -14,9 +14,33 @@ Load `dist/` as an unpacked extension:
 1. Open `chrome://extensions`.
 2. Enable Developer Mode.
 3. Click Load unpacked.
-4. Select `/Users/zakydfls/personal/weevil/weevil-ext/dist`.
+4. Select `/Users/zakydfls/personal/weevil/apps/ext/dist`.
 
 The default backend target is `http://localhost:4000/v1`. Change it from the extension settings page when needed.
+
+## Production Build
+
+```bash
+pnpm --filter @weevil/extension build:prod
+```
+
+The production build:
+
+- injects `https://api-weevil.centurycode.id/v1` as the default API base URL
+- injects `https://weevil.centurycode.id` as the dashboard URL
+- minifies JavaScript bundles
+- disables source maps
+- writes Chrome Web Store ZIP output to `apps/ext/releases/weevil-extension-<version>.zip`
+
+Override the production API target when needed:
+
+```bash
+pnpm --filter @weevil/extension build:prod -- \
+  --api-base-url=https://api.example.com/v1 \
+  --web-base-url=https://app.example.com
+```
+
+Upload the ZIP from `apps/ext/releases/` to the Chrome Web Store Developer Dashboard.
 
 ## Captured Data
 

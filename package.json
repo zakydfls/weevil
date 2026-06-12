@@ -10,6 +10,7 @@
     "build:backend": "pnpm --filter @weevil/backend build",
     "build:web": "pnpm --filter @weevil/web build",
     "build:ext": "pnpm --filter @weevil/extension build",
+    "build:ext:prod": "pnpm --filter @weevil/extension build:prod",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "prisma:generate": "pnpm --filter @weevil/backend prisma:generate",

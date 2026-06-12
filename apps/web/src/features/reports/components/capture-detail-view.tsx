@@ -2272,12 +2272,10 @@ function clamp(value: number, min: number, max: number) {
 const TIMELINE_KIND_META: { kind: string; label: string; color: string }[] = [
   { kind: 'CONSOLE', label: 'console', color: 'var(--tl-console)' },
   { kind: 'NETWORK', label: 'network', color: 'var(--tl-network)' },
-  { kind: 'ACTION', label: 'action', color: 'var(--tl-action)' },
   { kind: 'ERROR', label: 'error', color: 'var(--tl-error)' },
-  { kind: 'BACKEND', label: 'backend', color: 'var(--tl-backend)' },
-  { kind: 'PERFORMANCE', label: 'perf', color: 'var(--tl-performance)' },
-  { kind: 'DOM', label: 'dom', color: 'var(--ink-faint)' },
 ];
+
+const VISIBLE_TIMELINE_KINDS = new Set(TIMELINE_KIND_META.map((meta) => meta.kind));
 
 const timelineEventColors: Record<string, string> = {
   ...Object.fromEntries(TIMELINE_KIND_META.map((meta) => [meta.kind, meta.color])),
@@ -2300,12 +2298,13 @@ function TimelineScrubber({
 }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const progressPct = durationMs > 0 ? clamp((currentMs / durationMs) * 100, 0, 100) : 0;
+  const visibleEntries = entries.filter((entry) => VISIBLE_TIMELINE_KINDS.has(entry.type));
 
   // Only show legend chips for kinds that actually have positioned dots, so the
   // legend mirrors the track exactly (no phantom "network" when none recorded,
   // no missing kinds when they are).
   const legendKinds = TIMELINE_KIND_META.filter((meta) =>
-    entries.some((entry) => entry.type === meta.kind && entry.offsetMs != null),
+    visibleEntries.some((entry) => entry.type === meta.kind && entry.offsetMs != null),
   );
 
   function seekFromClientX(clientX: number) {
@@ -2350,7 +2349,7 @@ function TimelineScrubber({
         />
         {/* Dots are inset 0.6%→99.4% so events at t=0 or t=duration don't half-
             overflow the rounded track edges. */}
-        {entries.map((entry) => {
+        {visibleEntries.map((entry) => {
           if (entry.offsetMs == null || durationMs <= 0) return null;
           const pct = 0.6 + clamp((entry.offsetMs / durationMs) * 100, 0, 100) * 0.988;
           const color = timelineEventColors[entry.type] ?? 'var(--ink-faint)';

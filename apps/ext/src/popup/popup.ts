@@ -1,4 +1,4 @@
-import { RuntimeMessageTypes } from '../shared/constants';
+import { DEFAULT_WEB_BASE_URL, RuntimeMessageTypes } from '../shared/constants';
 import { getSettings, saveSettings } from '../shared/config';
 import type { RecorderState, RuntimeMessage } from '../shared/types';
 
@@ -176,13 +176,8 @@ async function refreshSettings() {
     if (redactSensitiveDataToggle) {
       redactSensitiveDataToggle.checked = settings.redactSensitiveData;
     }
-    if (openDashboardLink && settings.apiBaseUrl) {
-      try {
-        const url = new URL(settings.apiBaseUrl);
-        openDashboardLink.href = `${url.protocol}//${url.host.replace(/:\d+$/, ':3000')}`;
-      } catch {
-        // Keep default href on parse error
-      }
+    if (openDashboardLink) {
+      openDashboardLink.href = DEFAULT_WEB_BASE_URL;
     }
   } catch {
     // Settings load failure is non-fatal

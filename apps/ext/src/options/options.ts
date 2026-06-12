@@ -1,3 +1,4 @@
+import { DEFAULT_API_BASE_URL } from '../shared/constants';
 import { getSettings, saveSettings } from '../shared/config';
 import type { ExtensionSettings } from '../shared/types';
 
@@ -14,6 +15,10 @@ let saveTimer: number | undefined;
 let lastSaveStatusTimer: number | undefined;
 
 void load();
+
+if (apiBaseUrlInput) {
+  apiBaseUrlInput.placeholder = DEFAULT_API_BASE_URL;
+}
 
 // Auto-save on any change. Inputs debounce (300ms) so typing in a URL field doesn't thrash storage.
 apiBaseUrlInput?.addEventListener('input', () => queueSave(300));

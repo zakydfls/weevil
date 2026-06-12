@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { WeevilMark } from '@/components/brand/weevil-mark';
 import { Button } from '@/components/ui/button';
+import { Input, Textarea } from '@/components/ui/input';
 import type { ReportStatus, ReportSummary } from '@/lib/api/types';
 import { StatusBadge } from './status-badge';
 
@@ -101,6 +102,7 @@ const DEFAULT_COLUMNS: BoardColumn[] = [
 ];
 
 const FALLBACK_COLUMN_ID = 'backlog';
+const NEW_COLUMN_DESCRIPTION = 'Describe when a capture belongs here.';
 
 /**
  * What lives in localStorage: only what the user has explicitly customized.
@@ -217,6 +219,7 @@ function deriveState(reports: ReportSummary[], persisted: PersistedBoard): Board
 export function KanbanBoard({ reports, isLoading, onOpenReport, onMoveReport }: KanbanBoardProps) {
   // Persisted user customizations — the SINGLE source of truth across reloads.
   const [persisted, setPersisted] = useState<PersistedBoard>(loadPersisted);
+  const [isAddingColumn, setIsAddingColumn] = useState(false);
 
   // Derived state — recomputed whenever reports or persisted change.
   const state = useMemo<BoardState>(() => deriveState(reports, persisted), [reports, persisted]);
@@ -282,6 +285,27 @@ export function KanbanBoard({ reports, isLoading, onOpenReport, onMoveReport }: 
     });
   }, []);
 
+  const createColumn = useCallback(
+    (title: string, description: string) => {
+      const trimmedTitle = title.trim();
+      if (!trimmedTitle) return;
+      const trimmedDescription = description.trim();
+      updateColumns((columns) => [
+        ...columns,
+        {
+          id: `col-${Date.now()}`,
+          title: trimmedTitle,
+          statuses: [],
+          accent: 'var(--ink-muted)',
+          iconKey: 'default',
+          description: trimmedDescription || NEW_COLUMN_DESCRIPTION,
+        },
+      ]);
+      setIsAddingColumn(false);
+    },
+    [updateColumns],
+  );
+
   const totalReports = reports.length;
   const totalErrors = useMemo(
     () => reports.reduce((total, report) => total + (report.runtimeErrorCount ?? 0), 0),
@@ -297,19 +321,7 @@ export function KanbanBoard({ reports, isLoading, onOpenReport, onMoveReport }: 
       <BoardHeader
         totalReports={totalReports}
         totalErrors={totalErrors}
-        onAddColumn={() => {
-          updateColumns((columns) => [
-            ...columns,
-            {
-              id: `col-${Date.now()}`,
-              title: 'New column',
-              statuses: [],
-              accent: 'var(--ink-muted)',
-              iconKey: 'default',
-              description: '',
-            },
-          ]);
-        }}
+        onAddColumn={() => setIsAddingColumn(true)}
         onReset={() => {
           if (typeof window !== 'undefined') {
             window.localStorage.removeItem(STORAGE_KEY);
@@ -340,21 +352,14 @@ export function KanbanBoard({ reports, isLoading, onOpenReport, onMoveReport }: 
             canDelete={state.columns.length > 1}
           />
         ))}
-        <AddColumnTile
-          onClick={() => {
-            updateColumns((columns) => [
-              ...columns,
-              {
-                id: `col-${Date.now()}`,
-                title: 'New column',
-                statuses: [],
-                accent: 'var(--ink-muted)',
-                iconKey: 'default',
-                description: '',
-              },
-            ]);
-          }}
-        />
+        {isAddingColumn ? (
+          <AddColumnForm
+            onSubmit={createColumn}
+            onCancel={() => setIsAddingColumn(false)}
+          />
+        ) : (
+          <AddColumnTile onClick={() => setIsAddingColumn(true)} />
+        )}
       </div>
     </div>
   );
@@ -428,6 +433,7 @@ function BoardColumnView({
   const Icon = resolveIcon(column.iconKey);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(column.title);
+  const [descriptionDraft, setDescriptionDraft] = useState(column.description);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [dropIndicatorIndex, setDropIndicatorIndex] = useState<number | null>(null);
@@ -437,6 +443,10 @@ function BoardColumnView({
   useEffect(() => {
     setTitleDraft(column.title);
   }, [column.title]);
+
+  useEffect(() => {
+    setDescriptionDraft(column.description);
+  }, [column.description]);
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -457,6 +467,19 @@ function BoardColumnView({
       setTitleDraft(column.title);
     }
     setIsEditingTitle(false);
+  }
+
+  function commitDetails() {
+    const nextTitle = titleDraft.trim() || column.title;
+    const nextDescription = descriptionDraft.trim();
+    onUpdateColumn({
+      title: nextTitle,
+      description: nextDescription,
+    });
+    setTitleDraft(nextTitle);
+    setDescriptionDraft(nextDescription);
+    setIsEditingTitle(false);
+    setIsMenuOpen(false);
   }
 
   function handleDragOver(event: React.DragEvent<HTMLDivElement>) {
@@ -497,7 +520,7 @@ function BoardColumnView({
 
   return (
     <div
-      className={`weevil-panel-in flex min-h-0 w-[19rem] shrink-0 flex-col overflow-hidden rounded-xl border bg-[var(--bg)] transition-colors ${
+      className={`weevil-panel-in flex min-h-0 w-[20rem] shrink-0 flex-col overflow-hidden rounded-xl border bg-[var(--surface-elevated)] transition-colors ${
         isDraggingOver ? 'border-[var(--primary)]' : 'border-[var(--border)]'
       }`}
       onDragOver={handleDragOver}
@@ -505,7 +528,7 @@ function BoardColumnView({
       onDrop={handleDrop}
     >
       <div
-        className="flex items-start gap-2.5 border-b border-[var(--border)] p-3"
+        className="flex items-start gap-2.5 border-b border-[var(--border)] bg-[var(--surface-elevated)] p-3"
         style={{ boxShadow: `inset 0 3px 0 0 ${column.accent}` }}
       >
         <div
@@ -546,7 +569,15 @@ function BoardColumnView({
             <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-[var(--ink-muted)]">
               {column.description}
             </p>
-          ) : null}
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsMenuOpen(true)}
+              className="mt-1 rounded-md text-left text-xs text-[var(--primary)] hover:underline"
+            >
+              Add description
+            </button>
+          )}
         </div>
         <span className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 font-mono text-xs font-semibold text-[var(--ink-muted)]">
           {renderedReports.length}
@@ -561,22 +592,61 @@ function BoardColumnView({
             <MoreHorizontal className="h-4 w-4" aria-hidden />
           </button>
           {isMenuOpen ? (
-            <div className="absolute right-0 top-9 z-[var(--z-dropdown)] w-44 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg)] p-1 shadow-[0_8px_24px_-12px_rgba(26,29,18,0.18)]">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsEditingTitle(true);
-                  setIsMenuOpen(false);
+            <div className="absolute right-0 top-9 z-[var(--z-dropdown)] w-72 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3 shadow-[0_18px_46px_-24px_rgba(26,29,18,0.42)]">
+              <form
+                className="space-y-2.5"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  commitDetails();
                 }}
-                className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs text-[var(--ink)] hover:bg-[var(--surface)]"
               >
-                Rename
-              </button>
+                <div className="space-y-1">
+                  <label htmlFor={`column-title-${column.id}`} className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+                    Title
+                  </label>
+                  <Input
+                    id={`column-title-${column.id}`}
+                    value={titleDraft}
+                    onChange={(event) => setTitleDraft(event.target.value)}
+                    className="h-8 text-xs"
+                    maxLength={42}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor={`column-description-${column.id}`} className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+                    Description
+                  </label>
+                  <Textarea
+                    id={`column-description-${column.id}`}
+                    value={descriptionDraft}
+                    onChange={(event) => setDescriptionDraft(event.target.value)}
+                    className="min-h-20 resize-none text-xs leading-5"
+                    maxLength={160}
+                    placeholder="What belongs in this lane?"
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <Button type="submit" variant="primary" size="sm" className="h-8">
+                    Save details
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTitleDraft(column.title);
+                      setDescriptionDraft(column.description);
+                      setIsMenuOpen(false);
+                    }}
+                    className="rounded-md px-2 py-1 text-xs text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+              <div className="my-2 border-t border-[var(--border)]" />
               <ColorPicker
                 value={column.accent}
                 onChange={(accent) => {
                   onUpdateColumn({ accent });
-                  setIsMenuOpen(false);
                 }}
               />
               {canDelete ? (
@@ -708,6 +778,11 @@ function KanbanCard({
               <p className="mt-1.5 truncate font-mono text-[11px] text-[var(--ink-faint)]">
                 {report.pageUrl ?? report.id}
               </p>
+              {report.description ? (
+                <p className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--ink-muted)]">
+                  {report.description}
+                </p>
+              ) : null}
             </div>
             <StatusBadge status={report.status} />
           </div>
@@ -780,12 +855,89 @@ function ColumnEmptyState({ title }: { title: string }) {
   );
 }
 
+function AddColumnForm({
+  onSubmit,
+  onCancel,
+}: {
+  onSubmit: (title: string, description: string) => void;
+  onCancel: () => void;
+}) {
+  const [title, setTitle] = useState('New column');
+  const [description, setDescription] = useState('');
+  const canSubmit = title.trim().length > 0;
+
+  return (
+    <form
+      className="weevil-panel-in flex w-[20rem] shrink-0 flex-col rounded-xl border border-[var(--primary)] bg-[var(--surface-elevated)] p-3 shadow-[0_18px_46px_-28px_rgba(26,29,18,0.5)]"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (canSubmit) {
+          onSubmit(title, description);
+        }
+      }}
+    >
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-[var(--ink)]">New column</h2>
+          <p className="mt-0.5 text-xs text-[var(--ink-muted)]">Name the lane and define what belongs here.</p>
+        </div>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-[var(--ink-faint)] hover:bg-[var(--surface)] hover:text-[var(--ink)]"
+          aria-label="Cancel new column"
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
+
+      <div className="space-y-2.5">
+        <div className="space-y-1">
+          <label htmlFor="new-column-title" className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+            Title
+          </label>
+          <Input
+            id="new-column-title"
+            autoFocus
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            maxLength={42}
+          />
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="new-column-description" className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+            Description
+          </label>
+          <Textarea
+            id="new-column-description"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            className="min-h-24 resize-none"
+            maxLength={160}
+            placeholder="Example: awaiting QA confirmation, ready for release, blocked by backend."
+          />
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-center justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" variant="primary" size="sm" disabled={!canSubmit}>
+          <Plus className="h-3.5 w-3.5" aria-hidden />
+          Add column
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 function AddColumnTile({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="weevil-panel-in grid w-[14rem] shrink-0 place-items-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] text-[var(--ink-muted)] transition-colors hover:border-[var(--primary)] hover:text-[var(--ink)]"
+      className="weevil-panel-in grid w-[14rem] shrink-0 place-items-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] text-[var(--ink-muted)] transition-colors hover:border-[var(--primary)] hover:bg-[var(--primary-subtle)] hover:text-[var(--ink)]"
     >
       <div className="flex flex-col items-center gap-2 px-6 py-8">
         <Plus className="h-5 w-5" aria-hidden />
@@ -817,6 +969,3 @@ function formatBoardDate(value: string) {
     day: 'numeric',
   }).format(new Date(value));
 }
-
-// Suppress unused imports reserved for future filter chips.
-void X;
