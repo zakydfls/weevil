@@ -21,20 +21,21 @@ export default function LoginPage() {
   const auth = useAuth();
   const [email, setEmail] = useState(devSeedEmail);
   const [password, setPassword] = useState(devSeedPassword);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitPhase, setSubmitPhase] = useState<'idle' | 'checking' | 'redirecting'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const isSubmitting = submitPhase !== 'idle';
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setIsSubmitting(true);
+    setSubmitPhase('checking');
     setError(null);
     try {
       await auth.login(email.trim(), password);
+      setSubmitPhase('redirecting');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed.';
       setError(message.includes('401') ? 'Invalid email or password.' : message);
-    } finally {
-      setIsSubmitting(false);
+      setSubmitPhase('idle');
     }
   }
 
@@ -61,6 +62,7 @@ export default function LoginPage() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled={isSubmitting}
             required
             autoComplete="email"
             placeholder="you@example.com"
@@ -75,6 +77,7 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={isSubmitting}
             required
             autoComplete="current-password"
             placeholder="••••••••"
@@ -87,8 +90,23 @@ export default function LoginPage() {
         ) : null}
         <Button type="submit" className="h-10 w-full" disabled={isSubmitting}>
           {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Sign in
+          {submitPhase === 'checking'
+            ? 'Checking credentials'
+            : submitPhase === 'redirecting'
+              ? 'Opening dashboard'
+              : 'Sign in'}
         </Button>
+        {isSubmitting ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-center font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]"
+          >
+            {submitPhase === 'redirecting'
+              ? 'Workspace loaded. Redirecting...'
+              : 'Securing your workspace session...'}
+          </div>
+        ) : null}
         {showDevSeedHint ? (
           <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
             dev login:{' '}

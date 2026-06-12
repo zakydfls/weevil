@@ -28,6 +28,7 @@ export const RuntimeMessageTypes = {
   PageTelemetry: 'WEevil_PAGE_TELEMETRY',
   CapturePreparing: 'WEevil_CAPTURE_PREPARING',
   CaptureStarted: 'WEevil_CAPTURE_STARTED',
+  CaptureFailed: 'WEevil_CAPTURE_FAILED',
   CaptureStopped: 'WEevil_CAPTURE_STOPPED',
   CaptureCompleted: 'WEevil_CAPTURE_COMPLETED',
   UpdateSettings: 'WEevil_UPDATE_SETTINGS',

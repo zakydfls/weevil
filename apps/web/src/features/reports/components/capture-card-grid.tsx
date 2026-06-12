@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Play } from 'lucide-react';
+import { WeevilMark } from '@/components/brand/weevil-mark';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StatusBadge } from './status-badge';
 import type { ReportSummary } from '@/lib/api/types';
@@ -16,13 +17,24 @@ interface CaptureCardGridProps {
 export function CaptureCardGrid({ reports, isLoading, onSelect }: CaptureCardGridProps) {
   if (isLoading) {
     return (
-      <div className="grid gap-6 sm:grid-cols-2 2xl:grid-cols-3">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <div
-            key={index}
-            className="h-72 animate-pulse rounded-xl border border-[var(--border)] bg-[var(--surface)]"
-          />
-        ))}
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex min-h-72 flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center sm:p-10"
+      >
+        <div className="rounded-xl bg-[var(--primary-subtle)] p-2">
+          <WeevilMark size={44} tone="primary" className="weevil-mascot" />
+        </div>
+        <div className="max-w-sm">
+          <h2 className="text-base font-semibold text-[var(--ink)]">Checking captures</h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--ink-muted)]">
+            Looking through this workspace before we show the capture grid.
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+          <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--primary)]" />
+          loading workspace captures
+        </div>
       </div>
     );
   }

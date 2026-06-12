@@ -68,13 +68,14 @@ let activePointerId: number | null = null;
 let completedCapture: CaptureCompletedPayload | null = null;
 let reviewTitleDraft = '';
 let reviewDescriptionDraft = '';
+let startFailureMessage = '';
 let isSubmittingReview = false;
 const actionBuffer: PageActionTelemetryEntry[] = [];
 const domBuffer: DomEventTelemetryEntry[] = [];
 const pendingPageTelemetry: PageTelemetryMessage[] = [];
 const maxPendingPageTelemetry = 300;
 
-type OverlayMode = 'idle' | 'preparing' | 'recording' | 'stopping' | 'done';
+type OverlayMode = 'idle' | 'preparing' | 'recording' | 'stopping' | 'done' | 'failed';
 
 if (!window[contentInstalledFlag]) {
   window[contentInstalledFlag] = true;
@@ -105,6 +106,13 @@ function connectRuntime() {
         consoleCaptureMode?: 'debugger' | 'page';
       };
       startLocalRecording(payload.sessionId, payload.startedAt, payload.reportId, payload.consoleCaptureMode);
+      sendResponse({ ok: true });
+      return true;
+    }
+
+    if (message.type === RuntimeMessageTypes.CaptureFailed) {
+      const payload = message.payload as { error?: string } | undefined;
+      showFailedOverlay(payload?.error);
       sendResponse({ ok: true });
       return true;
     }
@@ -283,6 +291,7 @@ function startPreparingOverlay(countdownMs: number, title: string | undefined) {
   stoppedSessionId = undefined;
   overlayMode = 'preparing';
   completedCapture = null;
+  startFailureMessage = '';
   preparingTotalMs = Math.max(1, countdownMs);
   preparingEndsAt = Date.now() + countdownMs;
   mountRecorderOverlay();
@@ -336,6 +345,7 @@ function startLocalRecording(
   stoppedSessionId = undefined;
   overlayMode = 'recording';
   completedCapture = null;
+  startFailureMessage = '';
   isRecording = true;
   sessionId = nextSessionId;
   reportId = nextReportId;
@@ -366,6 +376,7 @@ async function stopLocalRecording() {
   sessionId = undefined;
   recordingStartedAt = null;
   overlayMode = 'stopping';
+  startFailureMessage = '';
   isAnnotating = false;
   updateOverlay();
   stopFlushTimer();
@@ -387,6 +398,7 @@ function beginStoppingOverlay() {
   sessionId = undefined;
   recordingStartedAt = null;
   overlayMode = 'stopping';
+  startFailureMessage = '';
   isAnnotating = false;
   activePointerId = null;
   stopFlushTimer();
@@ -401,6 +413,7 @@ function showCompletedOverlay(payload: CaptureCompletedPayload) {
   stopRequested = false;
   stoppedSessionId = undefined;
   completedCapture = payload;
+  startFailureMessage = '';
   reviewTitleDraft = payload.title ?? document.title ?? 'Untitled capture';
   reviewDescriptionDraft = payload.description ?? (
     payload.artifactKind === 'screenshot'
@@ -413,6 +426,26 @@ function showCompletedOverlay(payload: CaptureCompletedPayload) {
   sessionId = undefined;
   recordingStartedAt = null;
   overlayMode = 'done';
+  isAnnotating = false;
+  activePointerId = null;
+  stopFlushTimer();
+  stopStateSyncTimer();
+  mountRecorderOverlay();
+  setPageConsolePatchEnabled(false);
+  updateOverlay();
+}
+
+function showFailedOverlay(error: string | undefined) {
+  stopRequested = false;
+  stoppedSessionId = undefined;
+  completedCapture = null;
+  startFailureMessage = error?.trim() || 'Recorder could not start. Check your dashboard session and API connection, then try again.';
+  isSubmittingReview = false;
+  reportId = undefined;
+  isRecording = false;
+  sessionId = undefined;
+  recordingStartedAt = null;
+  overlayMode = 'failed';
   isAnnotating = false;
   activePointerId = null;
   stopFlushTimer();
@@ -769,16 +802,19 @@ function mountRecorderOverlay() {
   });
 
   escKeyHandler = (event: KeyboardEvent) => {
-    if (event.key !== 'Escape') return;
-    if (overlayMode === 'recording' && !isAnnotating) {
-      event.preventDefault();
-      requestStop();
-    } else if (overlayMode === 'recording' && isAnnotating) {
-      event.preventDefault();
-      isAnnotating = false;
-      updateOverlay();
-    }
-  };
+	    if (event.key !== 'Escape') return;
+	    if (overlayMode === 'recording' && !isAnnotating) {
+	      event.preventDefault();
+	      requestStop();
+	    } else if (overlayMode === 'recording' && isAnnotating) {
+	      event.preventDefault();
+	      isAnnotating = false;
+	      updateOverlay();
+	    } else if (overlayMode === 'failed') {
+	      event.preventDefault();
+	      void stopLocalRecording();
+	    }
+	  };
   window.addEventListener('keydown', escKeyHandler, true);
   overlayRoot.querySelectorAll('[data-weevil-color]').forEach((button) => {
     button.addEventListener('click', (event) => {
@@ -879,6 +915,7 @@ function updateOverlay() {
   const status = overlayRoot?.getElementById('weevil-status');
   const modalTitle = overlayRoot?.getElementById('weevil-modal-title');
   const modalCopy = overlayRoot?.getElementById('weevil-modal-copy');
+  const modalHint = overlayRoot?.getElementById('weevil-modal-hint');
   const annotate = overlayRoot?.getElementById('weevil-annotate');
   const canvas = overlayRoot?.getElementById('weevil-annotation-canvas') as HTMLCanvasElement | null | undefined;
   const reviewPreview = overlayRoot?.getElementById('weevil-review-preview') as HTMLImageElement | null | undefined;
@@ -901,6 +938,8 @@ function updateOverlay() {
   root?.toggleAttribute('data-minimized', isOverlayMinimized);
   annotate?.toggleAttribute('data-active', isAnnotating);
   canvas?.toggleAttribute('data-active', isAnnotating);
+  const preparingRemainingMs = preparingEndsAt - Date.now();
+  const isPreparingOvertime = overlayMode === 'preparing' && preparingRemainingMs <= 0;
 
   // Update live counters
   const countConsole = overlayRoot?.getElementById('weevil-count-console');
@@ -917,8 +956,8 @@ function updateOverlay() {
 
   if (elapsed) {
     if (overlayMode === 'preparing') {
-      const remainingSeconds = Math.max(1, Math.ceil((preparingEndsAt - Date.now()) / 1_000));
-      elapsed.textContent = `in ${remainingSeconds}`;
+      const remainingSeconds = Math.max(1, Math.ceil(preparingRemainingMs / 1_000));
+      elapsed.textContent = isPreparingOvertime ? 'starting' : `in ${remainingSeconds}`;
     } else {
       elapsed.textContent = formatElapsed(offsetFrom(recordingStartedAt) ?? 0);
     }
@@ -928,33 +967,55 @@ function updateOverlay() {
   }
   if (countdown) {
     // CSS handles visibility per overlayMode; just update the number.
-    countdown.textContent = String(Math.max(1, Math.ceil((preparingEndsAt - Date.now()) / 1_000)));
+    countdown.textContent = isPreparingOvertime
+      ? '…'
+      : String(Math.max(1, Math.ceil(preparingRemainingMs / 1_000)));
   }
   if (modalTitle) {
     modalTitle.textContent =
       overlayMode === 'stopping'
         ? 'Preparing preview'
-        : overlayMode === 'done'
-          ? 'Capture ready'
-          : 'Preparing to record';
+        : overlayMode === 'failed'
+          ? 'Recorder could not start'
+          : overlayMode === 'done'
+            ? 'Capture ready'
+            : isPreparingOvertime
+              ? 'Starting recorder'
+              : 'Preparing to record';
   }
   if (modalCopy) {
     modalCopy.textContent =
       overlayMode === 'stopping'
-        ? 'Preparing your preview. Review it before saving to the dashboard.'
-        : overlayMode === 'done'
-          ? completedCapture?.isSaved && reportId
-            ? `Your report is ready in the dashboard: ${reportId}`
-            : 'Review your capture, then save it to the dashboard.'
-          : 'Your capture will start in a moment. Keep this tab visible.';
+        ? 'Building a local preview so you can review it before saving.'
+        : overlayMode === 'failed'
+          ? startFailureMessage
+          : overlayMode === 'done'
+            ? completedCapture?.isSaved && reportId
+              ? `Your report is ready in the dashboard: ${reportId}`
+              : 'Review your capture, then save it to the dashboard.'
+            : isPreparingOvertime
+              ? 'Opening the capture session. This can take a moment on production.'
+              : 'Your capture will start in a moment. Keep this tab visible.';
+  }
+  if (modalHint) {
+    modalHint.innerHTML =
+      overlayMode === 'stopping'
+        ? 'compressing recording data'
+        : overlayMode === 'failed'
+          ? 'press <kbd>esc</kbd> to close'
+          : 'keep this tab visible';
   }
   if (status) {
     status.textContent =
       overlayMode === 'preparing'
-        ? 'Preparing recorder...'
+        ? isPreparingOvertime
+          ? 'Starting recorder...'
+          : 'Preparing recorder...'
         : overlayMode === 'stopping'
           ? 'Preparing preview...'
-          : overlayMode === 'done'
+          : overlayMode === 'failed'
+            ? 'Start failed'
+            : overlayMode === 'done'
             ? completedCapture?.isSaved
               ? 'Capture saved'
               : 'Review ready'
@@ -1270,11 +1331,12 @@ function createOverlayMarkup() {
         z-index: 10;
       }
 
-      .weevil-root[data-mode="preparing"] .weevil-backdrop,
-      .weevil-root[data-mode="stopping"] .weevil-backdrop,
-      .weevil-root[data-mode="done"] .weevil-backdrop {
-        opacity: 1;
-      }
+	      .weevil-root[data-mode="preparing"] .weevil-backdrop,
+	      .weevil-root[data-mode="stopping"] .weevil-backdrop,
+	      .weevil-root[data-mode="failed"] .weevil-backdrop,
+	      .weevil-root[data-mode="done"] .weevil-backdrop {
+	        opacity: 1;
+	      }
 
       /* ── Preparing modal: circular ring countdown ─────────────────── */
 
@@ -1297,11 +1359,12 @@ function createOverlayMarkup() {
         min-width: 320px;
       }
 
-      .weevil-root[data-mode="preparing"] .weevil-modal,
-      .weevil-root[data-mode="stopping"] .weevil-modal {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-      }
+	      .weevil-root[data-mode="preparing"] .weevil-modal,
+	      .weevil-root[data-mode="stopping"] .weevil-modal,
+	      .weevil-root[data-mode="failed"] .weevil-modal {
+	        opacity: 1;
+	        transform: translate(-50%, -50%) scale(1);
+	      }
 
       .weevil-ring {
         display: block;
@@ -1332,19 +1395,77 @@ function createOverlayMarkup() {
       /* SVG <text> aligns by glyph geometry (dominant-baseline:central +
          text-anchor:middle), so the digit lands on the ring's exact center
          regardless of font line-box quirks. */
-      .weevil-countdown {
-        font-family: var(--w-mono);
-        font-size: 36px;
+	      .weevil-countdown {
+	        font-family: var(--w-mono);
+	        font-size: 36px;
         font-weight: 600;
         fill: var(--w-ink);
-        font-variant-numeric: tabular-nums;
-      }
+	        font-variant-numeric: tabular-nums;
+	      }
 
-      .weevil-root[data-mode="stopping"] .weevil-countdown,
-      .weevil-root[data-mode="stopping"] .weevil-ring-fill,
-      .weevil-root[data-mode="stopping"] .weevil-ring-track {
-        display: none;
-      }
+	      .weevil-modal-mark {
+	        align-items: center;
+	        background: var(--w-primary);
+	        border-radius: 15px;
+	        color: #ffffff;
+	        display: none;
+	        font-size: 18px;
+	        font-weight: 700;
+	        height: 54px;
+	        justify-content: center;
+	        letter-spacing: -0.03em;
+	        margin: 0 auto 18px;
+	        position: relative;
+	        width: 54px;
+	      }
+
+	      .weevil-modal-mark::before {
+	        content: "W";
+	      }
+
+	      .weevil-modal-mark::after {
+	        animation: weevil-modal-spin 900ms linear infinite;
+	        border: 1.5px solid var(--w-primary-soft);
+	        border-top-color: var(--w-primary);
+	        border-radius: 18px;
+	        content: "";
+	        inset: -6px;
+	        position: absolute;
+	      }
+
+	      .weevil-root[data-mode="stopping"] .weevil-modal-mark,
+	      .weevil-root[data-mode="failed"] .weevil-modal-mark {
+	        display: inline-flex;
+	      }
+
+	      .weevil-root[data-mode="failed"] .weevil-modal-mark {
+	        background: var(--w-danger);
+	      }
+
+	      .weevil-root[data-mode="failed"] .weevil-modal-mark::before {
+	        content: "!";
+	      }
+
+	      .weevil-root[data-mode="failed"] .weevil-modal-mark::after {
+	        display: none;
+	      }
+
+	      @keyframes weevil-modal-spin {
+	        to {
+	          transform: rotate(360deg);
+	        }
+	      }
+
+	      .weevil-root[data-mode="stopping"] .weevil-ring,
+	      .weevil-root[data-mode="stopping"] .weevil-countdown,
+	      .weevil-root[data-mode="stopping"] .weevil-ring-fill,
+	      .weevil-root[data-mode="stopping"] .weevil-ring-track,
+	      .weevil-root[data-mode="failed"] .weevil-ring,
+	      .weevil-root[data-mode="failed"] .weevil-countdown,
+	      .weevil-root[data-mode="failed"] .weevil-ring-fill,
+	      .weevil-root[data-mode="failed"] .weevil-ring-track {
+	        display: none;
+	      }
 
       .weevil-modal-title {
         font-size: 16px;
@@ -1389,11 +1510,11 @@ function createOverlayMarkup() {
         letter-spacing: 0;
       }
 
-      .weevil-root[data-mode="recording"] .weevil-modal,
-      .weevil-root[data-mode="recording"] .weevil-backdrop,
-      .weevil-root[data-mode="done"] .weevil-modal {
-        display: none;
-      }
+	      .weevil-root[data-mode="recording"] .weevil-modal,
+	      .weevil-root[data-mode="recording"] .weevil-backdrop,
+	      .weevil-root[data-mode="done"] .weevil-modal {
+	        display: none;
+	      }
 
       /* ── Recording shell — workshop bar bottom right ──────────────── */
 
@@ -1642,10 +1763,11 @@ function createOverlayMarkup() {
         border-color: #ffffff;
       }
 
-      .weevil-root[data-mode="stopping"] .weevil-shell,
-      .weevil-root[data-mode="done"] .weevil-shell {
-        display: none;
-      }
+	      .weevil-root[data-mode="stopping"] .weevil-shell,
+	      .weevil-root[data-mode="failed"] .weevil-shell,
+	      .weevil-root[data-mode="done"] .weevil-shell {
+	        display: none;
+	      }
 
       /* Annotation overlays */
       .weevil-annotation-canvas {
@@ -2083,14 +2205,15 @@ function createOverlayMarkup() {
             y="48"
             text-anchor="middle"
             dominant-baseline="central"
-          >3</text>
-        </svg>
-        <div class="weevil-modal-title" id="weevil-modal-title">Recording starts in…</div>
-        <div class="weevil-modal-copy" id="weevil-modal-copy">keep this tab visible</div>
-        <div class="weevil-modal-hint">
-          press <kbd>esc</kbd> any time to stop
-        </div>
-      </div>
+	          >3</text>
+	        </svg>
+	        <div class="weevil-modal-mark" aria-hidden="true"></div>
+	        <div class="weevil-modal-title" id="weevil-modal-title">Recording starts in…</div>
+	        <div class="weevil-modal-copy" id="weevil-modal-copy">keep this tab visible</div>
+	        <div class="weevil-modal-hint" id="weevil-modal-hint">
+	          keep this tab visible
+	        </div>
+	      </div>
 
       <div class="weevil-review" role="dialog" aria-modal="true" aria-label="Capture review">
         <div class="weevil-review-stage">

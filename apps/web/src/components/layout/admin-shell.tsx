@@ -50,9 +50,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   if (auth.status === 'loading') {
     return (
       <main className="grid min-h-screen place-items-center bg-[var(--bg)]">
-        <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-pulse rounded-md bg-[var(--primary)]" />
-          <div className="mt-3 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+        <div
+          role="status"
+          aria-live="polite"
+          className="weevil-soft-rise flex flex-col items-center text-center"
+        >
+          <div className="weevil-mascot rounded-xl bg-[var(--primary-subtle)] p-2 shadow-[0_16px_36px_-26px_rgba(26,29,18,0.42)]">
+            <WeevilLogo size={42} />
+          </div>
+          <div className="mt-3 text-sm font-semibold tracking-tight text-[var(--ink)]">Weevil</div>
+          <div className="mt-1 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
             loading workspace
           </div>
         </div>

@@ -232,79 +232,107 @@ async function startCapture(tab: chrome.tabs.Tab, captureSettings?: ExtensionSet
 
   const settings = captureSettings ?? await getSettings();
   const api = new WeevilApiClient(settings.apiBaseUrl);
-  const startedAt = new Date();
   const manifest = chrome.runtime.getManifest();
   const pageUrl = tab.url;
   const title = tab.title || pageUrl || 'Weevil capture';
-  const report = await api.createReport({
-    title,
-    description: 'Captured from the Weevil browser extension.',
-    source: ReportSource.Extension,
-    pageUrl,
-    browserName: 'Chrome',
-    metadata: {
-      tabId: tab.id,
-      windowId: tab.windowId,
-      extensionVersion: manifest.version,
-      redactSensitiveData: settings.redactSensitiveData,
-    },
-  });
-  const session = await api.createCaptureSession(report.id, {
-    startedAt: startedAt.toISOString(),
-    recordingStartedAt: startedAt.toISOString(),
-    pageUrl,
-    title,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    locale: navigator.language,
-    userAgent: navigator.userAgent,
-    browserName: 'Chrome',
-    extensionVersion: manifest.version,
-    manifestVersion: String(manifest.manifest_version),
-    tabId: String(tab.id),
-    windowId: String(tab.windowId),
-    metadata: {
-      source: 'extension',
-      redactSensitiveData: settings.redactSensitiveData,
-    },
-  });
-  const state: RecorderState = {
-    isRecording: true,
-    tabId: tab.id,
-    windowId: tab.windowId,
-    reportId: report.id,
-    shareToken: report.shareToken,
-    sessionId: session.id,
-    startedAt: startedAt.toISOString(),
-    pageUrl: pageUrl ?? null,
-    title: title ?? null,
-    lastError: null,
-  };
 
   clearBuffers();
   await injectContentScript(tab.id);
   await injectPageBridge(tab.id);
-  await notifyTab(tab.id, {
-    type: RuntimeMessageTypes.CapturePreparing,
-    payload: { countdownMs: preparingCountdownMs, title },
-  });
-  await delay(preparingCountdownMs);
-  await saveRecorderState(state);
-  const isDebuggerConsoleEnabled = await attachConsoleDebugger(tab.id);
-  await notifyTab(tab.id, {
-    type: RuntimeMessageTypes.CaptureStarted,
-    payload: {
+
+  let preparingOverlayShown = false;
+  let offscreenStarted = false;
+
+  try {
+    await notifyTab(tab.id, {
+      type: RuntimeMessageTypes.CapturePreparing,
+      payload: { countdownMs: preparingCountdownMs, title },
+    });
+    preparingOverlayShown = true;
+
+    const reportPromise = api.createReport({
+      title,
+      description: 'Captured from the Weevil browser extension.',
+      source: ReportSource.Extension,
+      pageUrl,
+      browserName: 'Chrome',
+      metadata: {
+        tabId: tab.id,
+        windowId: tab.windowId,
+        extensionVersion: manifest.version,
+        redactSensitiveData: settings.redactSensitiveData,
+      },
+    });
+
+    await delay(preparingCountdownMs);
+
+    const report = await reportPromise;
+    const sessionStartedAt = new Date();
+    const session = await api.createCaptureSession(report.id, {
+      startedAt: sessionStartedAt.toISOString(),
+      recordingStartedAt: sessionStartedAt.toISOString(),
+      pageUrl,
+      title,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      locale: navigator.language,
+      userAgent: navigator.userAgent,
+      browserName: 'Chrome',
+      extensionVersion: manifest.version,
+      manifestVersion: String(manifest.manifest_version),
+      tabId: String(tab.id),
+      windowId: String(tab.windowId),
+      metadata: {
+        source: 'extension',
+        redactSensitiveData: settings.redactSensitiveData,
+      },
+    });
+
+    await startOffscreenRecording(tab.id);
+    offscreenStarted = true;
+
+    const startedAt = new Date();
+    const state: RecorderState = {
+      isRecording: true,
+      tabId: tab.id,
+      windowId: tab.windowId,
+      reportId: report.id,
+      shareToken: report.shareToken,
       sessionId: session.id,
       startedAt: startedAt.toISOString(),
-      reportId: report.id,
-      consoleCaptureMode: isDebuggerConsoleEnabled ? 'debugger' : 'page',
-    },
-  });
-  await startOffscreenRecording(tab.id);
-  chrome.alarms.create(flushAlarmName, { periodInMinutes: Math.max(0.1, settings.flushIntervalMs / 60_000) });
-  await chrome.action.setBadgeText({ tabId: tab.id, text: 'REC' });
-  await chrome.action.setBadgeBackgroundColor({ tabId: tab.id, color: '#0f766e' });
+      pageUrl: pageUrl ?? null,
+      title: title ?? null,
+      lastError: null,
+    };
 
-  return state;
+    await saveRecorderState(state);
+    const isDebuggerConsoleEnabled = await attachConsoleDebugger(tab.id);
+    await notifyTab(tab.id, {
+      type: RuntimeMessageTypes.CaptureStarted,
+      payload: {
+        sessionId: session.id,
+        startedAt: startedAt.toISOString(),
+        reportId: report.id,
+        consoleCaptureMode: isDebuggerConsoleEnabled ? 'debugger' : 'page',
+      },
+    });
+    chrome.alarms.create(flushAlarmName, { periodInMinutes: Math.max(0.1, settings.flushIntervalMs / 60_000) });
+    await chrome.action.setBadgeText({ tabId: tab.id, text: 'REC' });
+    await chrome.action.setBadgeBackgroundColor({ tabId: tab.id, color: '#0f766e' });
+
+    return state;
+  } catch (error) {
+    if (offscreenStarted) {
+      await stopOffscreenRecording();
+    }
+    await resetRecorderState();
+    if (preparingOverlayShown) {
+      await notifyTab(tab.id, {
+        type: RuntimeMessageTypes.CaptureFailed,
+        payload: { error: getErrorMessage(error) },
+      }).catch(() => undefined);
+    }
+    throw error;
+  }
 }
 
 async function stopCapture() {
@@ -319,7 +347,9 @@ async function stopCapture() {
   await flushTelemetry();
   const recording = await stopOffscreenRecording();
   const endedAt = new Date();
-  const durationMs = state.startedAt ? endedAt.getTime() - new Date(state.startedAt).getTime() : undefined;
+  const durationMs = recording?.durationMs ?? (
+    state.startedAt ? endedAt.getTime() - new Date(state.startedAt).getTime() : undefined
+  );
   chrome.alarms.clear(flushAlarmName);
   const review: PendingCaptureReview = {
     artifactKind: 'recording',
