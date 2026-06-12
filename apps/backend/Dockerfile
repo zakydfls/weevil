@@ -25,8 +25,10 @@ FROM deps AS build
 
 COPY apps/backend apps/backend
 
-RUN pnpm --filter @weevil/backend prisma:generate
-RUN pnpm --filter @weevil/backend build
+RUN DATABASE_URL="postgresql://weevil:weevil@localhost:5432/weevil?schema=public" \
+  pnpm --filter @weevil/backend prisma:generate
+RUN DATABASE_URL="postgresql://weevil:weevil@localhost:5432/weevil?schema=public" \
+  pnpm --filter @weevil/backend build
 
 FROM base AS runtime
 
