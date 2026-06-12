@@ -34,7 +34,16 @@ export class ApiError extends Error {
 }
 
 export function getApiBaseUrl() {
-  return process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+  const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  if (!configured) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('NEXT_PUBLIC_API_BASE_URL is required in production.');
+    }
+    return DEFAULT_API_BASE_URL;
+  }
+
+  const withProtocol = /^https?:\/\//i.test(configured) ? configured : `https://${configured}`;
+  return withProtocol.replace(/\/+$/, '');
 }
 
 /**

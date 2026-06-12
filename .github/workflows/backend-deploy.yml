@@ -26,7 +26,7 @@ env:
   DEPLOY_PATH: ${{ vars.BACKEND_DEPLOY_PATH || 'weevil' }}
   API_BIND: ${{ vars.BACKEND_API_BIND || '127.0.0.1' }}
   API_PORT: ${{ vars.BACKEND_API_PORT || '4000' }}
-  RUN_PROD_SEED: ${{ vars.RUN_PROD_SEED || 'false' }}
+  RUN_PROD_SEED: ${{ vars.RUN_PROD_SEED }}
 
 jobs:
   quality:

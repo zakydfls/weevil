@@ -36,9 +36,6 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
             </p>
           </div>
         </div>
-        <div className="font-mono text-[11px] text-[var(--ink-faint)]">
-          weevil v0.1 · forensic-workbench
-        </div>
       </aside>
       <section className="flex flex-col justify-center px-6 py-12 sm:px-10">
         <div className="mx-auto w-full max-w-sm">

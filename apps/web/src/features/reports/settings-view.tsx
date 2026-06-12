@@ -173,7 +173,7 @@ export function SettingsView() {
                 <WeevilMark size={48} tone="brand" />
                 <div>
                   <h2 className="text-base font-semibold text-[var(--ink)]">Weevil</h2>
-                  <p className="font-mono text-xs text-[var(--ink-faint)]">0.1.0 · forensic-workbench</p>
+                  <p className="font-mono text-xs text-[var(--ink-faint)]">Version 0.1.0</p>
                 </div>
               </div>
               <p className="mt-4 max-w-md text-sm leading-6 text-[var(--ink-muted)]">

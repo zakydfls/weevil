@@ -53,7 +53,7 @@ Actions -> Variables if the defaults do not match your server:
 BACKEND_DEPLOY_PATH=weevil
 BACKEND_API_BIND=127.0.0.1
 BACKEND_API_PORT=4000
-RUN_PROD_SEED=false
+RUN_PROD_SEED=
 ```
 
 `BACKEND_DEPLOY_PATH` may be a path relative to the SSH user's home directory
@@ -64,10 +64,9 @@ Keep `BACKEND_API_BIND=127.0.0.1` when a reverse proxy or Cloudflare Tunnel on
 the same server forwards traffic to the API. Use `0.0.0.0` only when the Docker
 port should be reachable from the network.
 
-`RUN_PROD_SEED=true` runs `pnpm prisma:seed:prod` during deploy after
-migrations. Use it for the first production bootstrap, then set it back to
-`false`. The prod seeder is idempotent for workspace/project/member creation,
-but it intentionally rotates the admin password to `SEED_ADMIN_PASSWORD`.
+`RUN_PROD_SEED` may be set here to override the server env. When this GitHub
+variable is empty or unset, the deploy script reads `RUN_PROD_SEED` from
+`~/weevil/.env`.
 
 ### First-time homeserver setup
 
@@ -95,11 +94,39 @@ MINIO_ENDPOINT=...
 WEB_ORIGIN=https://your-vercel-domain.vercel.app,https://your-custom-domain.com
 COOKIE_SAMESITE=none
 COOKIE_SECURE=true
+RUN_PROD_SEED=true
+SEED_ADMIN_EMAIL=...
 SEED_ADMIN_PASSWORD=...
 ```
 
 If Postgres, Redis, RabbitMQ, or MinIO run on the host instead of in a Docker
 network, point the backend containers to `host.docker.internal`.
+
+`RUN_PROD_SEED=true` runs `pnpm prisma:seed:prod` during deploy after
+migrations. Use it for the first production bootstrap, then set it back to
+`false`. The prod seeder is idempotent for workspace/project/member creation,
+but it intentionally rotates the admin password to `SEED_ADMIN_PASSWORD`.
+
+### Supabase database URLs
+
+If production uses Supabase and migration fails with:
+
+```text
+P1001: Can't reach database server at db.<project-ref>.supabase.co:5432
+```
+
+your server/container probably cannot reach Supabase's direct database endpoint.
+Supabase direct database URLs are IPv6 by default unless the project has the
+IPv4 add-on. For IPv4-only hosts, use the Supabase **Session Pooler** URL from
+Dashboard -> Connect:
+
+```text
+DATABASE_URL=postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require&connect_timeout=30
+```
+
+Prefer session mode on port `5432` for this persistent backend. Transaction mode
+on port `6543` is mainly for serverless/edge traffic and may require additional
+Prisma pooler options.
 
 ### Manual deploy
 

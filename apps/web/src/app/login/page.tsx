@@ -8,10 +8,14 @@ import { Input } from '@/components/ui/input';
 import { AuthShell } from '@/features/auth/auth-shell';
 import { useAuth } from '@/features/auth/auth-context';
 
+const devSeedEmail = process.env.NODE_ENV === 'development' ? (process.env.NEXT_PUBLIC_DEV_LOGIN_EMAIL ?? '') : '';
+const devSeedPassword = process.env.NODE_ENV === 'development' ? (process.env.NEXT_PUBLIC_DEV_LOGIN_PASSWORD ?? '') : '';
+const showDevSeedHint = Boolean(devSeedEmail && devSeedPassword);
+
 export default function LoginPage() {
   const auth = useAuth();
-  const [email, setEmail] = useState('zaky@triquetra.cc');
-  const [password, setPassword] = useState('weevil1234');
+  const [email, setEmail] = useState(devSeedEmail);
+  const [password, setPassword] = useState(devSeedPassword);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -80,9 +84,14 @@ export default function LoginPage() {
           {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
           Sign in
         </Button>
-        <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
-          seed: <span className="normal-case tracking-normal text-[var(--ink-muted)]">zaky@triquetra.cc / weevil1234</span>
-        </div>
+        {showDevSeedHint ? (
+          <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+            dev login:{' '}
+            <span className="normal-case tracking-normal text-[var(--ink-muted)]">
+              {devSeedEmail} / {devSeedPassword}
+            </span>
+          </div>
+        ) : null}
       </form>
     </AuthShell>
   );
