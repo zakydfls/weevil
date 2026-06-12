@@ -7,9 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AuthShell } from '@/features/auth/auth-shell';
 import { useAuth } from '@/features/auth/auth-context';
+import { appEnv, readPublicEnv } from '@/lib/env';
 
-const devSeedEmail = process.env.NODE_ENV === 'development' ? (process.env.NEXT_PUBLIC_DEV_LOGIN_EMAIL ?? '') : '';
-const devSeedPassword = process.env.NODE_ENV === 'development' ? (process.env.NEXT_PUBLIC_DEV_LOGIN_PASSWORD ?? '') : '';
+const devSeedEmail = appEnv.canShowDevOnlyUi
+  ? readPublicEnv(process.env.NEXT_PUBLIC_DEV_LOGIN_EMAIL)
+  : '';
+const devSeedPassword = appEnv.canShowDevOnlyUi
+  ? readPublicEnv(process.env.NEXT_PUBLIC_DEV_LOGIN_PASSWORD)
+  : '';
 const showDevSeedHint = Boolean(devSeedEmail && devSeedPassword);
 
 export default function LoginPage() {

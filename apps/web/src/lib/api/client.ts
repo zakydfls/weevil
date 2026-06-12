@@ -20,6 +20,7 @@ import type {
   RuntimeErrorEntry,
   TimelineEntry,
 } from './types';
+import { appEnv, readPublicEnv } from '@/lib/env';
 
 const DEFAULT_API_BASE_URL = 'http://localhost:4000/v1';
 
@@ -34,9 +35,9 @@ export class ApiError extends Error {
 }
 
 export function getApiBaseUrl() {
-  const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  const configured = readPublicEnv(process.env.NEXT_PUBLIC_API_BASE_URL);
   if (!configured) {
-    if (process.env.NODE_ENV === 'production') {
+    if (appEnv.isProduction) {
       throw new Error('NEXT_PUBLIC_API_BASE_URL is required in production.');
     }
     return DEFAULT_API_BASE_URL;
