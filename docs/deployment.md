@@ -3,7 +3,7 @@
 This repo deploys as two separate production surfaces:
 
 - `apps/web` -> Vercel.
-- `apps/backend` -> Docker on a homeserver through GitHub Actions.
+- `apps/backend` -> Docker on a VPS through GitHub Actions, exposed by Nginx.
 
 ## Backend CI/CD
 
@@ -16,7 +16,7 @@ On push to `main` when backend/deploy files change, it:
 3. Pushes the image to GitHub Container Registry as:
    - `ghcr.io/<owner>/<repo>/backend:sha-<commit>`
    - `ghcr.io/<owner>/<repo>/backend:main`
-4. SSHes into the homeserver.
+4. SSHes into the VPS.
 5. Uploads `deploy/backend/compose.prod.yml` and `deploy/backend/deploy.sh`.
 6. Pulls the exact commit image.
 7. Runs Prisma migrations.
@@ -32,17 +32,22 @@ SSH_HOST=
 SSH_USER=
 SSH_PRIVATE_KEY=
 GH_TOKEN=
+```
+
+Optional only when SSH is protected by Cloudflare Access:
+
+```text
 CF_ACCESS_CLIENT_ID=
 CF_ACCESS_CLIENT_SECRET=
 ```
 
-`GH_TOKEN` is used by the homeserver to pull the private GHCR image. Use a
+`GH_TOKEN` is used by the VPS to pull the private GHCR image. Use a
 classic PAT or fine-grained token that can read packages for this repository.
 
-`CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET` are optional only if the SSH
-host is directly reachable. When the homeserver SSH endpoint is protected by
-Cloudflare Access, set both values and make sure the Access policy allows
-Service Auth for that service token.
+`CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET` are optional legacy support
+for Cloudflare Access-protected SSH. For a normal VPS with direct SSH, leave
+them unset. Even if these secrets exist, the workflow ignores them unless
+`BACKEND_SSH_USE_CF_ACCESS=true`.
 
 ### Optional GitHub variables
 
@@ -53,6 +58,8 @@ Actions -> Variables if the defaults do not match your server:
 BACKEND_DEPLOY_PATH=weevil
 BACKEND_API_BIND=127.0.0.1
 BACKEND_API_PORT=4000
+BACKEND_SSH_PORT=22
+BACKEND_SSH_USE_CF_ACCESS=false
 RUN_PROD_SEED=
 ```
 
@@ -60,22 +67,30 @@ RUN_PROD_SEED=
 (`weevil`) or an absolute path (`/opt/weevil`). Do not use `~/weevil` here; the
 workflow intentionally rejects `~` to avoid shell expansion ambiguity.
 
-Keep `BACKEND_API_BIND=127.0.0.1` when a reverse proxy or Cloudflare Tunnel on
-the same server forwards traffic to the API. Use `0.0.0.0` only when the Docker
-port should be reachable from the network.
+For VPS + Nginx, keep `BACKEND_API_BIND=127.0.0.1`. The API container is then
+reachable only from the VPS itself, and Nginx exposes HTTPS publicly. Use
+`0.0.0.0` only when the Docker port should be reachable directly from the
+network.
+
+Set `BACKEND_SSH_PORT` if the VPS SSH daemon uses a non-standard port.
+
+Keep `BACKEND_SSH_USE_CF_ACCESS=false` for normal VPS direct SSH. Set it to
+`true` only when SSH is intentionally protected by Cloudflare Access.
 
 `RUN_PROD_SEED` may be set here to override the server env. When this GitHub
-variable is empty or unset, the deploy script reads `RUN_PROD_SEED` from
-`~/weevil/.env`.
+variable is empty or unset, the deploy script reads `RUN_PROD_SEED` from the
+VPS `.env` inside `BACKEND_DEPLOY_PATH`.
 
-### First-time homeserver setup
+### First-time VPS setup
 
 The deploy user needs:
 
 - Docker Engine with the `docker compose` plugin.
 - Permission to run Docker.
 - SSH access using the public key that matches `SSH_PRIVATE_KEY`.
-- A production env file at `~/weevil/.env` or your custom `BACKEND_DEPLOY_PATH`.
+- Nginx and HTTPS for the public API domain.
+- A production env file at `~/weevil/.env` or your custom `BACKEND_DEPLOY_PATH`
+  such as `/opt/weevil/.env`.
 
 Create the env file from:
 
@@ -101,6 +116,33 @@ SEED_ADMIN_PASSWORD=...
 
 If Postgres, Redis, RabbitMQ, or MinIO run on the host instead of in a Docker
 network, point the backend containers to `host.docker.internal`.
+
+### Nginx reverse proxy
+
+With the default `BACKEND_API_BIND=127.0.0.1` and `BACKEND_API_PORT=4000`,
+Nginx should proxy the public API domain to the local Docker port:
+
+```nginx
+server {
+  server_name api-weevil.example.com;
+
+  location / {
+    proxy_pass http://127.0.0.1:4000;
+    proxy_http_version 1.1;
+
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+```
+
+Then issue HTTPS certificates, for example:
+
+```bash
+sudo certbot --nginx -d api-weevil.example.com
+```
 
 `RUN_PROD_SEED=true` runs `pnpm prisma:seed:prod` during deploy after
 migrations. Use it for the first production bootstrap, then set it back to
@@ -132,10 +174,10 @@ Prisma pooler options.
 
 You can run the workflow from GitHub Actions with `workflow_dispatch`.
 
-On the server, useful checks:
+On the VPS, useful checks:
 
 ```bash
-cd ~/weevil
+cd /opt/weevil
 docker compose --env-file .deploy.env -f compose.prod.yml ps
 docker logs -f weevil-api
 docker logs -f weevil-worker
@@ -164,4 +206,4 @@ Vercel can deploy `apps/web` directly as a monorepo project. The important
 manual setting is the root directory.
 
 Remember to mirror the Vercel production/preview domains in backend `WEB_ORIGIN`
-so CORS allows the dashboard to call the homeserver API.
+so CORS allows the dashboard to call the VPS API.
