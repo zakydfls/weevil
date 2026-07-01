@@ -108,13 +108,18 @@ export class WeevilApiClient {
   }
 
   async uploadBlob(putUrl: string, bytes: Blob | ArrayBuffer, contentType: string) {
-    const response = await fetch(putUrl, {
-      method: 'PUT',
-      headers: {
-        'content-type': contentType,
-      },
-      body: bytes,
-    });
+    let response: Response;
+    try {
+      response = await fetch(putUrl, {
+        method: 'PUT',
+        headers: {
+          'content-type': contentType,
+        },
+        body: bytes,
+      });
+    } catch (error) {
+      throw new ApiError(networkErrorMessage('object storage upload URL', error), 0, null);
+    }
 
     if (!response.ok) {
       throw new ApiError('Failed to upload recording artifact', response.status, await response.text());
@@ -149,11 +154,17 @@ export class WeevilApiClient {
     // backend's `credentials: true` CORS + the extension's host_permission
     // for the API origin, the session is recognized by the AuthGuard and
     // captures land in the user's workspace (instead of the dev tenant).
-    const response = await fetch(`${this.apiBaseUrl}${path}`, {
-      ...init,
-      credentials: 'include',
-      headers,
-    });
+    const url = `${this.apiBaseUrl.replace(/\/+$/, '')}${path}`;
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        ...init,
+        credentials: 'include',
+        headers,
+      });
+    } catch (error) {
+      throw new ApiError(networkErrorMessage(url, error), 0, null);
+    }
     const text = await response.text();
     const payload = text ? safeJsonParse(text) : null;
 
@@ -163,6 +174,11 @@ export class WeevilApiClient {
 
     return payload as T;
   }
+}
+
+function networkErrorMessage(url: string, error: unknown) {
+  const detail = error instanceof Error ? error.message : String(error);
+  return `Cannot reach Weevil API at ${url}. Make sure the backend is running and the extension API URL is correct. ${detail}`;
 }
 
 function safeJsonParse(value: string) {

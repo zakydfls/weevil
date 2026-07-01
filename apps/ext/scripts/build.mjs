@@ -10,8 +10,12 @@ const releases = join(root, 'releases');
 const packageJson = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
 const isProduction = process.argv.includes('--production') || process.argv.includes('--prod');
 const mode = isProduction ? 'production' : 'development';
-const defaultApiBaseUrl = isProduction ? 'https://api-weevil.centurycode.id/v1' : 'http://localhost:4000/v1';
-const defaultWebBaseUrl = isProduction ? 'https://weevil.centurycode.id' : 'http://localhost:3000';
+const localApiBaseUrl = 'http://localhost:4000/v1';
+const productionApiBaseUrl = 'https://api-weevil.centurycode.id/v1';
+const localWebBaseUrl = 'http://localhost:3000';
+const productionWebBaseUrl = 'https://weevil.centurycode.id';
+const defaultApiBaseUrl = isProduction ? productionApiBaseUrl : localApiBaseUrl;
+const defaultWebBaseUrl = isProduction ? productionWebBaseUrl : localWebBaseUrl;
 const apiBaseUrl = normalizeApiBaseUrl(
   readArgValue('--api-base-url') ||
     process.env.WEEVIL_EXTENSION_API_BASE_URL ||
@@ -49,8 +53,13 @@ await Promise.all(
       minify: isProduction,
       legalComments: 'none',
       define: {
+        __WEEVIL_EXTENSION_BUILD_MODE__: JSON.stringify(mode),
         __WEEVIL_EXTENSION_DEFAULT_API_BASE_URL__: JSON.stringify(apiBaseUrl),
-        __WEEVIL_EXTENSION_DEFAULT_WEB_BASE_URL__: JSON.stringify(webBaseUrl)
+        __WEEVIL_EXTENSION_DEFAULT_WEB_BASE_URL__: JSON.stringify(webBaseUrl),
+        __WEEVIL_EXTENSION_LOCAL_API_BASE_URL__: JSON.stringify(localApiBaseUrl),
+        __WEEVIL_EXTENSION_PRODUCTION_API_BASE_URL__: JSON.stringify(productionApiBaseUrl),
+        __WEEVIL_EXTENSION_LOCAL_WEB_BASE_URL__: JSON.stringify(localWebBaseUrl),
+        __WEEVIL_EXTENSION_PRODUCTION_WEB_BASE_URL__: JSON.stringify(productionWebBaseUrl)
       }
     })
   )
@@ -92,8 +101,22 @@ function normalizeUrl(value) {
     throw new Error('Extension URL cannot be empty.');
   }
 
-  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  const withProtocol = /^https?:\/\//i.test(trimmed)
+    ? trimmed
+    : isLocalUrl(trimmed)
+      ? `http://${trimmed}`
+      : `https://${trimmed}`;
   return withProtocol.replace(/\/+$/, '');
+}
+
+function isLocalUrl(value) {
+  const lowerValue = value.toLowerCase();
+  return (
+    lowerValue.startsWith('localhost') ||
+    lowerValue.startsWith('127.0.0.1') ||
+    lowerValue.startsWith('[::1]') ||
+    lowerValue.startsWith('0.0.0.0')
+  );
 }
 
 async function copyText(source, target) {

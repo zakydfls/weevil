@@ -17,6 +17,10 @@ apps/ext/releases/weevil-extension-0.1.0.zip
 Use this ZIP for Chrome Web Store upload. It contains `manifest.json` at the ZIP
 root, minified bundles, generated icons, and no source maps.
 
+The default production API base URL is `https://api-weevil.centurycode.id/v1`.
+Previously stored local/prod default URLs are migrated to the current build's
+default when the extension runs; custom API URLs from the settings page are kept.
+
 Override the API base URL if production changes:
 
 ```bash

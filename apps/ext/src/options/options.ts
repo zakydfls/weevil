@@ -1,5 +1,5 @@
 import { DEFAULT_API_BASE_URL } from '../shared/constants';
-import { getSettings, saveSettings } from '../shared/config';
+import { getSettings, normalizeApiBaseUrl, saveSettings } from '../shared/config';
 import type { ExtensionSettings } from '../shared/types';
 
 const apiBaseUrlInput = document.getElementById('apiBaseUrl') as HTMLInputElement | null;
@@ -95,8 +95,9 @@ async function save() {
   }
 
   try {
+    const apiBaseUrl = normalizeApiBaseUrl(apiBaseUrlInput.value || DEFAULT_API_BASE_URL);
     await saveSettings({
-      apiBaseUrl: apiBaseUrlInput.value.trim().replace(/\/$/, ''),
+      apiBaseUrl,
       flushIntervalMs,
       maxBatchSize,
       captureNetworkBodies: captureNetworkBodiesInput.checked,
@@ -104,6 +105,7 @@ async function save() {
       capturePerformance: capturePerformanceInput.checked,
       redactSensitiveData: redactSensitiveDataInput.checked,
     });
+    apiBaseUrlInput.value = apiBaseUrl;
     setStatus('Saved.', 'ok');
   } catch (error) {
     setStatus(getErrorMessage(error), 'error');
