@@ -75,14 +75,7 @@ export class AuthService {
       let workspaceId: string | null = null;
 
       if (input.inviteToken) {
-        const invite = await tx.workspaceInvite.findUnique({ where: { token: input.inviteToken } });
-        if (
-          !invite ||
-          invite.status !== MembershipStatus.INVITED ||
-          invite.expiresAt < new Date()
-        ) {
-          throw new UnauthorizedException('Invite is invalid or expired.');
-        }
+        const invite = await this.findPendingInvite(tx, input.inviteToken);
         if (invite.email.toLowerCase() !== normalizedEmail) {
           throw new UnauthorizedException('Invite was issued to a different email.');
         }
@@ -132,6 +125,84 @@ export class AuthService {
 
       const session = await this.issueSessionInTx(tx, user.id, workspaceId, undefined, undefined);
       return { session, userId: user.id, workspaceId };
+    });
+  }
+
+  async getInvitePreview(rawToken: string) {
+    const invite = await this.findPendingInvite(this.prisma, rawToken);
+    return {
+      email: invite.email,
+      role: invite.role,
+      expiresAt: invite.expiresAt.toISOString(),
+      workspace: {
+        slug: invite.workspace.slug,
+        name: invite.workspace.name,
+      },
+      invitedBy: invite.createdBy
+        ? {
+            email: invite.createdBy.email,
+            displayName: invite.createdBy.displayName,
+          }
+        : null,
+    };
+  }
+
+  async acceptInvite(input: {
+    userId: string;
+    email: string;
+    sessionId: string;
+    inviteToken: string;
+  }) {
+    const normalizedEmail = input.email.trim().toLowerCase();
+    return this.prisma.$transaction(async (tx) => {
+      const invite = await this.findPendingInvite(tx, input.inviteToken);
+      if (invite.email.toLowerCase() !== normalizedEmail) {
+        throw new UnauthorizedException('Invite was issued to a different email.');
+      }
+
+      await tx.workspaceMember.upsert({
+        where: {
+          workspaceId_userId: {
+            workspaceId: invite.workspaceId,
+            userId: input.userId,
+          },
+        },
+        create: {
+          workspaceId: invite.workspaceId,
+          userId: input.userId,
+          role: invite.role,
+          status: MembershipStatus.ACTIVE,
+          invitedById: invite.createdById,
+          joinedAt: new Date(),
+        },
+        update: {
+          role: invite.role,
+          status: MembershipStatus.ACTIVE,
+          invitedById: invite.createdById,
+          joinedAt: new Date(),
+        },
+      });
+      await tx.workspaceInvite.update({
+        where: { id: invite.id },
+        data: { status: MembershipStatus.ACTIVE, acceptedAt: new Date() },
+      });
+      await tx.user.update({
+        where: { id: input.userId },
+        data: { defaultWorkspaceId: invite.workspaceId },
+      });
+      await tx.authSession.update({
+        where: { id: input.sessionId },
+        data: { workspaceId: invite.workspaceId },
+      });
+
+      return {
+        workspace: {
+          id: invite.workspace.id,
+          slug: invite.workspace.slug,
+          name: invite.workspace.name,
+        },
+        role: invite.role,
+      };
     });
   }
 
@@ -224,6 +295,24 @@ export class AuthService {
       },
     });
     return { token: raw, sessionId: created.id, expiresAt: created.expiresAt };
+  }
+
+  private async findPendingInvite(tx: TxClient | PrismaService, rawToken: string) {
+    const trimmedToken = rawToken.trim();
+    if (!trimmedToken) {
+      throw new UnauthorizedException('Invite is invalid or expired.');
+    }
+    const invite = await tx.workspaceInvite.findUnique({
+      where: { token: this.tokenService.hash(trimmedToken) },
+      include: {
+        workspace: true,
+        createdBy: { select: { email: true, displayName: true } },
+      },
+    });
+    if (!invite || invite.status !== MembershipStatus.INVITED || invite.expiresAt < new Date()) {
+      throw new UnauthorizedException('Invite is invalid or expired.');
+    }
+    return invite;
   }
 }
 

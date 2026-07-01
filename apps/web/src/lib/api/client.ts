@@ -55,7 +55,7 @@ interface AuthState {
   token: string | null;
   workspaceSlug: string | null;
 }
-let authState: AuthState = { token: null, workspaceSlug: null };
+const authState: AuthState = { token: null, workspaceSlug: null };
 let onUnauthorized: (() => void) | null = null;
 
 export function setAuthToken(token: string | null) {
@@ -98,7 +98,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    throw new ApiError(`API request failed with status ${response.status}`, response.status, payload);
+    throw new ApiError(
+      `API request failed with status ${response.status}`,
+      response.status,
+      payload,
+    );
   }
 
   return payload as T;
@@ -150,10 +154,7 @@ export const apiClient = {
       body: JSON.stringify(input),
     }),
 
-  attachConsoleLogs: (
-    reportId: string,
-    input: AttachTelemetryInput<Partial<ConsoleLogEntry>>,
-  ) =>
+  attachConsoleLogs: (reportId: string, input: AttachTelemetryInput<Partial<ConsoleLogEntry>>) =>
     request<number>(`/reports/${reportId}/telemetry/console`, {
       method: 'POST',
       body: JSON.stringify(input),
@@ -242,11 +243,31 @@ export const apiClient = {
       expiresAt: string;
     }>('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
 
+  getInvitePreview: (inviteToken: string) =>
+    request<{
+      email: string;
+      role: string;
+      expiresAt: string;
+      workspace: { slug: string; name: string };
+      invitedBy: { email: string; displayName: string | null } | null;
+    }>(`/auth/invites/${encodeURIComponent(inviteToken)}`),
+
+  acceptInvite: (body: { inviteToken: string }) =>
+    request<{
+      workspace: { id: string; slug: string; name: string };
+      role: string;
+    }>('/auth/invites/accept', { method: 'POST', body: JSON.stringify(body) }),
+
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
 
   me: () =>
     request<{
-      user: { id: string; email: string; displayName: string | null; platformRole: string };
+      user: {
+        id: string;
+        email: string;
+        displayName: string | null;
+        platformRole: string;
+      };
       workspace: {
         id: string;
         slug: string;
@@ -293,10 +314,19 @@ export const apiClient = {
     >('/workspaces/current/members'),
 
   inviteMember: (body: { email: string; role: string }) =>
-    request<{ id: string; email: string; role: string; token: string; expiresAt: string }>(
-      '/workspaces/current/members/invite',
-      { method: 'POST', body: JSON.stringify(body) },
-    ),
+    request<{
+      id: string;
+      email: string;
+      role: string;
+      token: string;
+      expiresAt: string;
+      inviteUrl: string;
+      emailSent: boolean;
+      notificationId: string | null;
+    }>('/workspaces/current/members/invite', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 
   changeMemberRole: (memberId: string, role: string) =>
     request<unknown>(`/workspaces/current/members/${memberId}/role`, {
@@ -305,7 +335,9 @@ export const apiClient = {
     }),
 
   removeMember: (memberId: string) =>
-    request<void>(`/workspaces/current/members/${memberId}`, { method: 'DELETE' }),
+    request<void>(`/workspaces/current/members/${memberId}`, {
+      method: 'DELETE',
+    }),
 
   // ── Platform admin (PLATFORM_ADMIN role only) ──────────────────────────────
   platformOverview: () =>
@@ -317,7 +349,11 @@ export const apiClient = {
         reports: { total: number; last30Days: number; prev30Days: number };
         activeSessionsLast30Days: number;
       };
-      growth: { newWorkspaces30: number; newUsers30: number; reportGrowthPct: number | null };
+      growth: {
+        newWorkspaces30: number;
+        newUsers30: number;
+        reportGrowthPct: number | null;
+      };
       timeline: { capturesByDay: Array<{ day: string; count: number }> };
     }>('/platform/overview'),
 
@@ -365,7 +401,12 @@ export const apiClient = {
         platformRole: string;
         createdAt: string;
         sessionCount: number;
-        workspaces: Array<{ id: string; slug: string; name: string; role: string }>;
+        workspaces: Array<{
+          id: string;
+          slug: string;
+          name: string;
+          role: string;
+        }>;
       }>
     >(`/platform/users${search ? `?search=${encodeURIComponent(search)}` : ''}`),
 
@@ -389,7 +430,11 @@ export async function uploadBlobToPresignedUrl(putUrl: string, blob: Blob) {
   });
 
   if (!response.ok) {
-    throw new ApiError('Failed to upload artifact to object storage', response.status, await response.text());
+    throw new ApiError(
+      'Failed to upload artifact to object storage',
+      response.status,
+      await response.text(),
+    );
   }
 }
 

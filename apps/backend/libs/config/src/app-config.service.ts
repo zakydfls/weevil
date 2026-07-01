@@ -10,6 +10,10 @@ export class AppConfigService {
     return this.configService.get('NODE_ENV', { infer: true });
   }
 
+  get appName(): string {
+    return this.configService.get('APP_NAME', { infer: true });
+  }
+
   get apiPort(): number {
     return this.configService.get('API_PORT', { infer: true });
   }
@@ -73,5 +77,21 @@ export class AppConfigService {
 
   get cookieDomain(): string | undefined {
     return this.configService.get('COOKIE_DOMAIN', { infer: true }) || undefined;
+  }
+
+  get webAppUrl(): string | undefined {
+    return this.configService.get('WEB_APP_URL', { infer: true }) || undefined;
+  }
+
+  get notificationGatewayUrl(): string | undefined {
+    return this.configService.get('NOTIFICATION_GATEWAY_URL', { infer: true }) || undefined;
+  }
+
+  get notificationGatewayApiKey(): string | undefined {
+    return this.configService.get('NOTIFICATION_GATEWAY_API_KEY', { infer: true }) || undefined;
+  }
+
+  get notificationGatewayTimeoutMs(): number {
+    return this.configService.get('NOTIFICATION_GATEWAY_TIMEOUT_MS', { infer: true });
   }
 }

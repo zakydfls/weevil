@@ -10,12 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import {
-  apiClient,
-  onAuthError,
-  setActiveWorkspaceSlug,
-  setAuthToken,
-} from '@/lib/api/client';
+import { apiClient, onAuthError, setActiveWorkspaceSlug, setAuthToken } from '@/lib/api/client';
 
 interface AuthUser {
   id: string;
@@ -45,7 +40,7 @@ interface AuthContextValue {
   workspace: ActiveWorkspace | null;
   workspaces: WorkspaceSummary[];
   can: (permission: string) => boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, options?: { inviteToken?: string }) => Promise<void>;
   signup: (input: {
     email: string;
     password: string;
@@ -68,7 +63,9 @@ const PUBLIC_PATHS = new Set(['/login', '/signup', '/accept-invite']);
 
 function isPublicPath(pathname: string | null): boolean {
   if (!pathname) return false;
-  return Array.from(PUBLIC_PATHS).some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  return Array.from(PUBLIC_PATHS).some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
 }
 
 function loadToken(): string | null {
@@ -114,14 +111,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         apiClient.listMyWorkspaces().catch(() => []),
       ]);
       setUser(meResponse.user);
-      const wsList = workspacesResponse.map((w) => ({ id: w.id, slug: w.slug, name: w.name, role: w.role }));
+      const wsList = workspacesResponse.map((w) => ({
+        id: w.id,
+        slug: w.slug,
+        name: w.name,
+        role: w.role,
+      }));
       setWorkspaces(wsList);
       setWorkspace(
         meResponse.workspace
           ? {
               id: meResponse.workspace.id,
               slug: meResponse.workspace.slug,
-              name: wsList.find((w) => w.id === meResponse.workspace!.id)?.name ?? meResponse.workspace.slug,
+              name:
+                wsList.find((w) => w.id === meResponse.workspace!.id)?.name ??
+                meResponse.workspace.slug,
               role: meResponse.workspace.role,
               permissions: new Set(meResponse.workspace.permissions),
             }
@@ -176,10 +180,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, options?: { inviteToken?: string }) => {
       const result = await apiClient.login({ email, password });
       saveToken(result.token);
       setAuthToken(result.token);
+      if (options?.inviteToken) {
+        try {
+          await apiClient.acceptInvite({ inviteToken: options.inviteToken });
+        } catch (err) {
+          await refresh().catch(() => undefined);
+          throw err;
+        }
+      }
       await refresh();
       router.push('/');
     },
@@ -228,7 +240,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, workspace, workspaces, can, login, signup, logout, switchWorkspace, refresh }),
+    () => ({
+      status,
+      user,
+      workspace,
+      workspaces,
+      can,
+      login,
+      signup,
+      logout,
+      switchWorkspace,
+      refresh,
+    }),
     [status, user, workspace, workspaces, can, login, signup, logout, switchWorkspace, refresh],
   );
 

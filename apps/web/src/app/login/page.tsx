@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,18 +19,27 @@ const showDevSeedHint = Boolean(devSeedEmail && devSeedPassword);
 
 export default function LoginPage() {
   const auth = useAuth();
+  const [inviteToken, setInviteToken] = useState('');
+  const signupHref = inviteToken
+    ? `/signup?inviteToken=${encodeURIComponent(inviteToken)}`
+    : '/signup';
   const [email, setEmail] = useState(devSeedEmail);
   const [password, setPassword] = useState(devSeedPassword);
   const [submitPhase, setSubmitPhase] = useState<'idle' | 'checking' | 'redirecting'>('idle');
   const [error, setError] = useState<string | null>(null);
   const isSubmitting = submitPhase !== 'idle';
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setInviteToken(params.get('inviteToken') ?? params.get('invite') ?? '');
+  }, []);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitPhase('checking');
     setError(null);
     try {
-      await auth.login(email.trim(), password);
+      await auth.login(email.trim(), password, inviteToken ? { inviteToken } : undefined);
       setSubmitPhase('redirecting');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed.';
@@ -46,7 +55,7 @@ export default function LoginPage() {
       footer={
         <span>
           New to Weevil?{' '}
-          <Link href="/signup" className="font-medium text-[var(--primary)] hover:underline">
+          <Link href={signupHref} className="font-medium text-[var(--primary)] hover:underline">
             Create an account
           </Link>
         </span>
@@ -54,7 +63,10 @@ export default function LoginPage() {
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-1.5">
-          <label htmlFor="email" className="block text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)] font-mono">
+          <label
+            htmlFor="email"
+            className="block text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)] font-mono"
+          >
             Email
           </label>
           <Input
@@ -69,7 +81,10 @@ export default function LoginPage() {
           />
         </div>
         <div className="space-y-1.5">
-          <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)] font-mono">
+          <label
+            htmlFor="password"
+            className="block text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)] font-mono"
+          >
             Password
           </label>
           <Input

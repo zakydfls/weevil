@@ -15,6 +15,7 @@ import {
 import { resolveEffectivePermissions } from '../domain/permissions';
 import { PermissionService } from './permission.service';
 import { TokenService } from './token.service';
+import { WorkspaceInviteNotificationService } from './workspace-invite-notification.service';
 
 @Injectable()
 export class WorkspaceService {
@@ -22,6 +23,7 @@ export class WorkspaceService {
     private readonly prisma: PrismaService,
     private readonly permissionService: PermissionService,
     private readonly tokenService: TokenService,
+    private readonly workspaceInviteNotification: WorkspaceInviteNotificationService,
   ) {}
 
   /** All workspaces the user is an active member of. */
@@ -100,6 +102,14 @@ export class WorkspaceService {
   async invite(workspaceId: string, invitedById: string, email: string, role: WorkspaceRole) {
     const cleanEmail = email.trim().toLowerCase();
     const ttl = 7 * 24 * 60 * 60 * 1_000;
+    const [workspace, inviter] = await Promise.all([
+      this.prisma.workspace.findUnique({ where: { id: workspaceId } }),
+      this.prisma.user.findUnique({
+        where: { id: invitedById },
+        select: { email: true, displayName: true },
+      }),
+    ]);
+    if (!workspace) throw new NotFoundException('Workspace not found.');
 
     // Reject if already a member
     const existingUser = await this.prisma.user.findUnique({ where: { email: cleanEmail } });
@@ -131,11 +141,23 @@ export class WorkspaceService {
         acceptedAt: null,
       },
     });
+    const delivery = await this.workspaceInviteNotification.sendInvite({
+      invitedEmail: invite.email,
+      inviteToken: raw,
+      workspaceName: workspace.name,
+      workspaceSlug: workspace.slug,
+      role: invite.role,
+      inviter,
+      expiresAt: invite.expiresAt,
+    });
     return {
       id: invite.id,
       email: invite.email,
       role: invite.role,
       expiresAt: invite.expiresAt.toISOString(),
+      inviteUrl: delivery.inviteUrl,
+      emailSent: delivery.sent,
+      notificationId: delivery.notificationId,
       /** Raw token — return ONCE to the caller, never expose again. */
       token: raw,
     };

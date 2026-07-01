@@ -102,13 +102,17 @@ Important production values:
 
 ```text
 NODE_ENV=production
+APP_NAME=weevil
 DATABASE_URL=...
 REDIS_URL=...
 RABBITMQ_URL=...
 MINIO_ENDPOINT=...
 WEB_ORIGIN=https://your-vercel-domain.vercel.app,https://your-custom-domain.com
+WEB_APP_URL=https://your-custom-domain.com
 COOKIE_SAMESITE=none
 COOKIE_SECURE=true
+NOTIFICATION_GATEWAY_URL=https://your-notification-gateway-domain.com
+NOTIFICATION_GATEWAY_API_KEY=...
 RUN_PROD_SEED=true
 SEED_ADMIN_EMAIL=...
 SEED_ADMIN_PASSWORD=...
@@ -206,4 +210,6 @@ Vercel can deploy `apps/web` directly as a monorepo project. The important
 manual setting is the root directory.
 
 Remember to mirror the Vercel production/preview domains in backend `WEB_ORIGIN`
-so CORS allows the dashboard to call the VPS API.
+so CORS allows the dashboard to call the VPS API. Set backend `WEB_APP_URL` to
+the canonical dashboard URL; workspace invitation emails use it to generate
+accept-invite links.

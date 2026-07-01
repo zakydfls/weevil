@@ -3,6 +3,7 @@ export * from './application/auth.service';
 export * from './application/password.service';
 export * from './application/permission.service';
 export * from './application/token.service';
+export * from './application/workspace-invite-notification.service';
 export * from './application/workspace.service';
 export * from './application/platform-admin.service';
 export * from './decorators/platform-role.decorator';

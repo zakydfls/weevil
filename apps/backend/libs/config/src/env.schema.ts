@@ -14,6 +14,7 @@ const booleanFromString = z.preprocess((value) => {
 
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  APP_NAME: z.string().min(1).default('weevil'),
   API_PORT: z.coerce.number().int().positive().default(4000),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
@@ -37,6 +38,14 @@ export const envSchema = z.object({
   COOKIE_SECURE: booleanFromString.default(false),
   // e.g. ".centurycode.id" to share the cookie across api.* and app.* subdomains.
   COOKIE_DOMAIN: z.string().optional().default(''),
+
+  // ── Outbound links / notification gateway ────────────────────────────────
+  // Absolute frontend URL used for links in emails, e.g. https://weevil.example.com.
+  WEB_APP_URL: z.string().optional().default(''),
+  // Century Notification Gateway REST base URL, e.g. http://localhost:9111.
+  NOTIFICATION_GATEWAY_URL: z.string().optional().default(''),
+  NOTIFICATION_GATEWAY_API_KEY: z.string().optional().default(''),
+  NOTIFICATION_GATEWAY_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -29,6 +29,8 @@
       "@weevil/database/*": ["libs/database/src/*"],
       "@weevil/observability": ["libs/observability/src"],
       "@weevil/observability/*": ["libs/observability/src/*"],
+      "@weevil/notifications": ["libs/notifications/src"],
+      "@weevil/notifications/*": ["libs/notifications/src/*"],
       "@weevil/prisma-client": ["libs/database/src/generated/prisma/client"],
       "@weevil/queue": ["libs/queue/src"],
       "@weevil/queue/*": ["libs/queue/src/*"],

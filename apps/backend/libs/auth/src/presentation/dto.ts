@@ -38,3 +38,10 @@ export class LoginDto {
   @MaxLength(128)
   password: string;
 }
+
+export class AcceptInviteDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(256)
+  inviteToken: string;
+}

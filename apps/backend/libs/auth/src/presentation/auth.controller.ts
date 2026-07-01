@@ -1,11 +1,11 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Req, Res } from '@nestjs/common';
 import type { CookieOptions, Request, Response } from 'express';
 import { AppConfigService } from '@weevil/config';
 import { AuthService } from '../application/auth.service';
 import { CurrentAuth } from '../decorators/current-auth.decorator';
 import { Public } from '../decorators/public.decorator';
 import type { AuthContext } from '../domain/auth-context';
-import { LoginDto, SignupDto } from './dto';
+import { AcceptInviteDto, LoginDto, SignupDto } from './dto';
 
 const SESSION_COOKIE = 'wv_session';
 
@@ -33,6 +33,23 @@ export class AuthController {
       workspaceId: result.workspaceId,
       expiresAt: result.session.expiresAt.toISOString(),
     };
+  }
+
+  @Public()
+  @Get('invites/:token')
+  getInvitePreview(@Param('token') token: string) {
+    return this.authService.getInvitePreview(token);
+  }
+
+  @Post('invites/accept')
+  @HttpCode(HttpStatus.OK)
+  acceptInvite(@CurrentAuth() auth: AuthContext, @Body() body: AcceptInviteDto) {
+    return this.authService.acceptInvite({
+      userId: auth.user.id,
+      email: auth.user.email,
+      sessionId: auth.session.id,
+      inviteToken: body.inviteToken,
+    });
   }
 
   @Public()
@@ -65,8 +82,7 @@ export class AuthController {
     await this.authService.revokeSession(auth.session.id);
     // Clear with the SAME attributes the cookie was set with, or the browser
     // won't match and remove it (cross-site cookies especially).
-    const { expires: _expires, ...clearOptions } = this.cookieOptions();
-    res.clearCookie(SESSION_COOKIE, clearOptions);
+    res.clearCookie(SESSION_COOKIE, this.cookieOptions());
   }
 
   @Post('me')

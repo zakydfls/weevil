@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Check, Copy, Loader2, MoreHorizontal, Trash2, UserPlus } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useDialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -17,6 +18,14 @@ interface Member {
   status: string;
 }
 
+interface InviteResult {
+  email: string;
+  inviteUrl: string;
+  emailSent: boolean;
+  notificationId: string | null;
+  expiresAt: string;
+}
+
 const ROLES = ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'] as const;
 
 export function MembersPanel() {
@@ -28,7 +37,7 @@ export function MembersPanel() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<(typeof ROLES)[number]>('MEMBER');
   const [isInviting, setIsInviting] = useState(false);
-  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [inviteResult, setInviteResult] = useState<InviteResult | null>(null);
   const [copied, setCopied] = useState(false);
 
   const canInvite = auth.can('MEMBER_INVITE');
@@ -57,10 +66,20 @@ export function MembersPanel() {
     if (!inviteEmail.trim()) return;
     setIsInviting(true);
     setError(null);
-    setInviteToken(null);
+    setInviteResult(null);
+    setCopied(false);
     try {
-      const result = await apiClient.inviteMember({ email: inviteEmail.trim(), role: inviteRole });
-      setInviteToken(result.token);
+      const result = await apiClient.inviteMember({
+        email: inviteEmail.trim(),
+        role: inviteRole,
+      });
+      setInviteResult({
+        email: result.email,
+        inviteUrl: result.inviteUrl,
+        emailSent: result.emailSent,
+        notificationId: result.notificationId,
+        expiresAt: result.expiresAt,
+      });
       setInviteEmail('');
       await refresh();
     } catch (err) {
@@ -101,8 +120,8 @@ export function MembersPanel() {
   }
 
   async function handleCopyInvite() {
-    if (!inviteToken) return;
-    await navigator.clipboard.writeText(inviteToken);
+    if (!inviteResult) return;
+    await navigator.clipboard.writeText(inviteResult.inviteUrl);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1400);
   }
@@ -146,23 +165,35 @@ export function MembersPanel() {
               Send invite
             </Button>
           </form>
-          {inviteToken ? (
+          {inviteResult ? (
             <div className="mt-3 rounded-md border border-[var(--border)] bg-[var(--bg)] p-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
-                  Invite token — share this once
-                </span>
-                <Button type="button" variant="ghost" size="sm" onClick={() => void handleCopyInvite()}>
+                <div className="flex min-w-0 items-center gap-2">
+                  <Badge tone={inviteResult.emailSent ? 'success' : 'warning'}>
+                    {inviteResult.emailSent ? 'Email queued' : 'Email skipped'}
+                  </Badge>
+                  <span className="truncate font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+                    {inviteResult.email}
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void handleCopyInvite()}
+                >
                   {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied ? 'Copied' : 'Copy'}
+                  {copied ? 'Copied' : 'Copy link'}
                 </Button>
               </div>
               <code className="mt-2 block break-all font-mono text-[11px] text-[var(--ink)]">
-                {inviteToken}
+                {inviteResult.inviteUrl}
               </code>
-              <p className="mt-2 font-mono text-[10px] text-[var(--ink-faint)]">
-                Have the invitee sign up at /signup with this token in the inviteToken field.
-              </p>
+              {inviteResult.notificationId ? (
+                <p className="mt-2 font-mono text-[10px] text-[var(--ink-faint)]">
+                  notification {inviteResult.notificationId}
+                </p>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -242,7 +273,9 @@ function MemberRow({
               </span>
             ) : null}
           </div>
-          <div className="truncate font-mono text-[11px] text-[var(--ink-faint)]">{member.email}</div>
+          <div className="truncate font-mono text-[11px] text-[var(--ink-faint)]">
+            {member.email}
+          </div>
         </div>
       </div>
       <div className="flex items-center justify-end gap-2">
