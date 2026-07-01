@@ -1,12 +1,26 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Check, ChevronDown, KanbanSquare, LayoutGrid, LogOut, Plus, Search, Settings, ShieldCheck } from 'lucide-react';
+import {
+  Building2,
+  Check,
+  ChevronDown,
+  KanbanSquare,
+  LayoutGrid,
+  Loader2,
+  LogOut,
+  Plus,
+  Search,
+  Settings,
+  ShieldCheck,
+  X,
+} from 'lucide-react';
 import { WeevilLogo } from '@/components/brand/weevil-mark';
 import { Button } from '@/components/ui/button';
 import { useDialog } from '@/components/ui/dialog';
 import { Tooltip } from '@/components/ui/tooltip';
+import { ApiError } from '@/lib/api/client';
 import { useExtensionInstalled } from '@/lib/use-extension-installed';
 import { useAuth } from '@/features/auth/auth-context';
 
@@ -270,7 +284,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 function WorkspaceSwitcher() {
   const auth = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const ref = useRef<HTMLDivElement | null>(null);
+  const filteredWorkspaces = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return auth.workspaces;
+    return auth.workspaces.filter((ws) =>
+      `${ws.name} ${ws.slug} ${ws.role}`.toLowerCase().includes(needle),
+    );
+  }, [auth.workspaces, query]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -290,52 +313,343 @@ function WorkspaceSwitcher() {
       <button
         type="button"
         onClick={() => setIsOpen((open) => !open)}
+        aria-expanded={isOpen}
         className="inline-flex h-9 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-sm font-medium text-[var(--ink)] transition-colors hover:border-[var(--border-strong)]"
       >
-        <span className="grid h-5 w-5 place-items-center rounded bg-[var(--ink)] font-mono text-[10px] font-semibold text-white">
-          {auth.workspace.name.slice(0, 1).toUpperCase()}
-        </span>
+        <WorkspaceAvatar name={auth.workspace.name} size="sm" />
         <span className="hidden max-w-[8rem] truncate sm:inline">{auth.workspace.name}</span>
         <ChevronDown className="h-3.5 w-3.5 text-[var(--ink-muted)]" aria-hidden />
       </button>
       {isOpen ? (
-        <div className="absolute left-0 top-11 z-[var(--z-dropdown)] w-72 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg)] p-1.5 shadow-[0_8px_24px_-12px_rgba(26,29,18,0.18)]">
-          <div className="px-2 pb-1 pt-1 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
-            workspaces
+        <div
+          className="absolute left-0 top-11 z-[var(--z-dropdown)] w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg)] shadow-[0_8px_8px_-8px_rgba(26,29,18,0.24)] weevil-panel-in"
+        >
+          <div className="border-b border-[var(--divider)] bg-[var(--surface)] px-3 py-2.5">
+            <div className="flex min-w-0 items-center gap-2">
+              <WorkspaceAvatar name={auth.workspace.name} />
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-[var(--ink)]">
+                  {auth.workspace.name}
+                </div>
+                <div className="truncate font-mono text-[10px] text-[var(--ink-faint)]">
+                  {auth.workspace.slug} · {auth.workspace.role.toLowerCase()}
+                </div>
+              </div>
+            </div>
           </div>
-          {auth.workspaces.map((ws) => {
-            const isActive = auth.workspace?.id === ws.id;
-            return (
-              <button
-                key={ws.id}
-                type="button"
-                onClick={async () => {
-                  setIsOpen(false);
-                  if (!isActive) await auth.switchWorkspace(ws.slug);
-                }}
-                className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors ${
-                  isActive ? 'bg-[var(--primary-subtle)]' : 'hover:bg-[var(--surface)]'
-                }`}
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className="grid h-6 w-6 place-items-center rounded bg-[var(--ink)] font-mono text-[10px] font-semibold text-white">
-                    {ws.name.slice(0, 1).toUpperCase()}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-[var(--ink)]">{ws.name}</span>
-                    <span className="block truncate font-mono text-[10px] text-[var(--ink-faint)]">
-                      {ws.slug} · {ws.role.toLowerCase()}
+          <div className="border-b border-[var(--divider)] p-1.5">
+            <label className="relative block">
+              <Search
+                className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--ink-faint)]"
+                aria-hidden
+              />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Find workspace"
+                className="h-8 w-full rounded-md border border-transparent bg-[var(--surface)] pl-8 pr-2 text-sm text-[var(--ink)] outline-none transition-colors placeholder:text-[var(--ink-muted)] focus:border-[var(--primary)] focus:bg-[var(--bg)]"
+              />
+            </label>
+          </div>
+          <div className="max-h-72 overflow-y-auto p-1.5 thin-scrollbar">
+            {filteredWorkspaces.length > 0 ? (
+              filteredWorkspaces.map((ws) => {
+                const isActive = auth.workspace?.id === ws.id;
+                return (
+                  <button
+                    key={ws.id}
+                    type="button"
+                    onClick={async () => {
+                      setIsOpen(false);
+                      setQuery('');
+                      if (!isActive) await auth.switchWorkspace(ws.slug);
+                    }}
+                    className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors ${
+                      isActive ? 'bg-[var(--primary-subtle)]' : 'hover:bg-[var(--surface)]'
+                    }`}
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <WorkspaceAvatar name={ws.name} active={isActive} />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-[var(--ink)]">
+                          {ws.name}
+                        </span>
+                        <span className="block truncate font-mono text-[10px] text-[var(--ink-faint)]">
+                          {ws.slug} · {ws.role.toLowerCase()}
+                        </span>
+                      </span>
                     </span>
-                  </span>
-                </span>
-                {isActive ? <Check className="h-3.5 w-3.5 text-[var(--primary)]" aria-hidden /> : null}
-              </button>
-            );
-          })}
+                    {isActive ? (
+                      <Check className="h-3.5 w-3.5 text-[var(--primary)]" aria-hidden />
+                    ) : null}
+                  </button>
+                );
+              })
+            ) : (
+              <div className="px-3 py-5 text-center text-sm text-[var(--ink-muted)]">
+                No matching workspace.
+              </div>
+            )}
+          </div>
+          <div className="border-t border-[var(--divider)] bg-[var(--surface)] p-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                setQuery('');
+                setIsCreateOpen(true);
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm font-medium text-[var(--primary)] transition-colors hover:bg-[var(--primary-subtle)]"
+            >
+              <span className="grid h-7 w-7 place-items-center rounded-md bg-[var(--primary-subtle)] text-[var(--primary)]">
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+              </span>
+              New workspace
+            </button>
+          </div>
         </div>
       ) : null}
+      <CreateWorkspaceModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
     </div>
   );
+}
+
+function WorkspaceAvatar({
+  name,
+  active = false,
+  size = 'md',
+}: {
+  name: string;
+  active?: boolean;
+  size?: 'sm' | 'md';
+}) {
+  return (
+    <span
+      className={`grid shrink-0 place-items-center rounded-md font-mono font-semibold ${
+        size === 'sm' ? 'h-5 w-5 text-[10px]' : 'h-7 w-7 text-[11px]'
+      } ${active ? 'bg-[var(--primary)] text-white' : 'bg-[var(--ink)] text-white'}`}
+      aria-hidden
+    >
+      {workspaceInitial(name)}
+    </span>
+  );
+}
+
+function CreateWorkspaceModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const auth = useAuth();
+  const nameRef = useRef<HTMLInputElement | null>(null);
+  const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [slugTouched, setSlugTouched] = useState(false);
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const cleanName = name.trim();
+  const cleanSlug = slug.trim().toLowerCase();
+  const nameError =
+    cleanName.length > 0 && cleanName.length < 2 ? 'Workspace name must be at least 2 characters.' : '';
+  const slugError =
+    cleanSlug.length > 0 && !isValidWorkspaceSlug(cleanSlug)
+      ? 'Slug must be 2-40 lowercase letters, numbers, or hyphens.'
+      : '';
+  const canSubmit =
+    cleanName.length >= 2 && isValidWorkspaceSlug(cleanSlug) && !isSubmitting && !nameError && !slugError;
+
+  useEffect(() => {
+    if (!open) return;
+    setName('');
+    setSlug('');
+    setSlugTouched(false);
+    setError('');
+    setIsSubmitting(false);
+    const focusTimer = window.setTimeout(() => nameRef.current?.focus(), 40);
+    return () => window.clearTimeout(focusTimer);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !isSubmitting) {
+        event.preventDefault();
+        onClose();
+      }
+    }
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isSubmitting, onClose, open]);
+
+  if (!open) return null;
+
+  function handleNameChange(value: string) {
+    setName(value);
+    if (!slugTouched) {
+      setSlug(slugify(value));
+    }
+  }
+
+  function handleSlugChange(value: string) {
+    setSlugTouched(true);
+    setSlug(slugify(value));
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const workspaceName = cleanName;
+    const workspaceSlug = cleanSlug;
+
+    if (workspaceName.length < 2) {
+      setError('Workspace name must be at least 2 characters.');
+      return;
+    }
+    if (!isValidWorkspaceSlug(workspaceSlug)) {
+      setError('Slug must be 2-40 lowercase letters, numbers, or hyphens.');
+      return;
+    }
+
+    setError('');
+    setIsSubmitting(true);
+    try {
+      await auth.createWorkspace({ name: workspaceName, slug: workspaceSlug });
+      onClose();
+    } catch (err) {
+      setError(formatCreateWorkspaceError(err, workspaceSlug));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[var(--z-modal)] grid place-items-center bg-[var(--ink-strong)]/40 px-4 py-8 backdrop-blur-sm weevil-fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="create-workspace-title"
+      onClick={() => {
+        if (!isSubmitting) onClose();
+      }}
+    >
+      <form
+        onSubmit={handleSubmit}
+        className="weevil-soft-rise w-full max-w-lg overflow-hidden rounded-xl border border-[var(--border-strong)] bg-[var(--bg)] shadow-[0_8px_8px_-8px_rgba(26,29,18,0.24)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="grid grid-cols-[auto_1fr_auto] items-start gap-3 border-b border-[var(--divider)] px-5 py-4">
+          <span className="grid h-9 w-9 place-items-center rounded-md bg-[var(--primary-subtle)] text-[var(--primary)]">
+            <Building2 className="h-4 w-4" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h2
+              id="create-workspace-title"
+              className="text-base font-semibold tracking-[-0.01em] text-[var(--ink)]"
+            >
+              New workspace
+            </h2>
+            <div className="mt-1 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+              owner access
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="grid h-7 w-7 place-items-center rounded-md text-[var(--ink-faint)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--ink)] disabled:pointer-events-none disabled:opacity-50"
+            aria-label="Close"
+          >
+            <X className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </div>
+
+        <div className="grid gap-4 px-5 py-5">
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--ink)]">
+            <span>Workspace name</span>
+            <input
+              ref={nameRef}
+              value={name}
+              onChange={(event) => handleNameChange(event.target.value)}
+              aria-invalid={Boolean(nameError)}
+              className="h-10 rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] px-3 text-sm text-[var(--ink)] outline-none transition-colors placeholder:text-[var(--ink-muted)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary-subtle)]"
+              placeholder="Acme QA"
+              disabled={isSubmitting}
+            />
+            {nameError ? <span className="text-xs font-medium text-[var(--danger)]">{nameError}</span> : null}
+          </label>
+
+          <label className="grid gap-1.5 text-sm font-medium text-[var(--ink)]">
+            <span>Slug</span>
+            <input
+              value={slug}
+              onChange={(event) => handleSlugChange(event.target.value)}
+              aria-invalid={Boolean(slugError)}
+              className="h-10 rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] px-3 font-mono text-sm text-[var(--ink)] outline-none transition-colors placeholder:text-[var(--ink-muted)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary-subtle)]"
+              placeholder="acme-qa"
+              disabled={isSubmitting}
+            />
+            {slugError ? <span className="text-xs font-medium text-[var(--danger)]">{slugError}</span> : null}
+          </label>
+
+          <div className="flex items-center gap-3 rounded-md bg-[var(--surface)] px-3 py-2.5">
+            <WorkspaceAvatar name={cleanName || 'Workspace'} active />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-semibold text-[var(--ink)]">
+                {cleanName || 'Workspace name'}
+              </div>
+              <div className="truncate font-mono text-[10px] text-[var(--ink-faint)]">
+                {cleanSlug || 'workspace-slug'} · owner
+              </div>
+            </div>
+            <Check className="h-3.5 w-3.5 text-[var(--primary)]" aria-hidden />
+          </div>
+
+          {error ? (
+            <div className="rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3 py-2 text-sm font-medium text-[var(--danger-strong)]">
+              {error}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-[var(--divider)] bg-[var(--surface)] px-5 py-3">
+          <Button type="button" variant="secondary" size="sm" onClick={onClose} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button type="submit" size="sm" disabled={!canSubmit}>
+            {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
+            Create workspace
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function workspaceInitial(name: string): string {
+  return (name.trim() || 'W').slice(0, 1).toUpperCase();
+}
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40)
+    .replace(/^-+|-+$/g, '');
+}
+
+function isValidWorkspaceSlug(value: string): boolean {
+  return /^[a-z0-9-]{2,40}$/.test(value);
+}
+
+function formatCreateWorkspaceError(error: unknown, slug: string): string {
+  if (error instanceof ApiError) {
+    if (error.status === 409) {
+      return `Workspace slug "${slug}" is already taken. Try another slug.`;
+    }
+    if (error.status === 400) {
+      return error.message || 'Check the workspace name and slug.';
+    }
+    return error.message;
+  }
+  return error instanceof Error ? error.message : 'Could not create workspace. Try again.';
 }
 
 function UserMenu() {

@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { NotificationGatewayClient } from './notification-gateway.client';
 
+const DEFAULT_FROM_NAME = 'Weevil';
+
 export interface SendEmailInput {
   to: string;
   subject: string;
@@ -46,7 +48,7 @@ export class MailerService {
           subject: input.subject,
           content_type: input.html ? 'text/html' : 'text/plain',
           from_address: input.fromAddress,
-          from_name: input.fromName,
+          from_name: input.fromName ?? DEFAULT_FROM_NAME,
           reply_to: input.replyTo,
           cc: input.cc,
           bcc: input.bcc,

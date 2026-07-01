@@ -28,6 +28,7 @@ import type {
   ReportEvent,
   ReportUpload,
   RuntimeErrorEntry,
+  User,
 } from '@weevil/prisma-client';
 import { RedactionService } from '@weevil/redaction';
 
@@ -45,10 +46,12 @@ type ReportCountShape = {
 
 type ReportSummaryModel = BugReport & {
   uploads?: ReportUpload[];
+  createdBy?: ReportReporterModel | null;
   _count?: ReportCountShape;
 };
 
 type ReportDetailModel = BugReport & {
+  createdBy?: ReportReporterModel | null;
   uploads: ReportUpload[];
   events: ReportEvent[];
   consoleLogs: ConsoleLogEntry[];
@@ -62,6 +65,8 @@ type ReportDetailModel = BugReport & {
   comments: ReportComment[];
   _count?: ReportCountShape;
 };
+
+type ReportReporterModel = Pick<User, 'id' | 'email' | 'displayName' | 'avatarUrl'>;
 
 @Injectable()
 export class ReportMapper {
@@ -91,6 +96,7 @@ export class ReportMapper {
       performanceEntryCount: report._count?.performanceEntries,
       domEventCount: report._count?.domEvents,
       backendTraceCount: report._count?.backendTraces,
+      reporter: this.toReporter(report.createdBy),
       primaryRecording: this.findPrimaryRecording(report.uploads),
       createdAt: report.createdAt.toISOString(),
       updatedAt: report.updatedAt.toISOString(),
@@ -142,6 +148,19 @@ export class ReportMapper {
   private findPrimaryRecording(uploads: ReportUpload[] | undefined): ReportUploadResponse | null {
     const recording = uploads?.find((upload) => upload.kind === 'SCREEN_RECORDING');
     return recording ? this.toUpload(recording) : null;
+  }
+
+  private toReporter(reporter: ReportReporterModel | null | undefined) {
+    if (!reporter) {
+      return null;
+    }
+
+    return {
+      id: reporter.id,
+      email: reporter.email,
+      displayName: reporter.displayName,
+      avatarUrl: reporter.avatarUrl,
+    };
   }
 
   private toEvent(event: ReportEvent): ReportEventResponse {

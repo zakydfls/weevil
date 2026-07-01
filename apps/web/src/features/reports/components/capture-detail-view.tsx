@@ -1,10 +1,12 @@
 'use client';
 
-import { type CSSProperties, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
   AlertTriangle,
+  Apple,
+  AppWindow,
   ArrowLeft,
   Check,
   Clock,
@@ -16,12 +18,14 @@ import {
   Link2,
   ListTree,
   Loader2,
+  Monitor,
   MousePointer2,
   Play,
   RefreshCcw,
   Search,
   Send,
   Server,
+  Smartphone,
   Terminal,
   Wifi,
   X,
@@ -32,7 +36,13 @@ import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/ui/error-state';
 import { Textarea } from '@/components/ui/input';
 import { Input } from '@/components/ui/input';
-import type { BackendTraceEntry, NetworkRequestEntry, ReportDetail, TimelineEntry } from '@/lib/api/types';
+import type {
+  BackendTraceEntry,
+  NetworkRequestEntry,
+  PageActionEntry,
+  ReportDetail,
+  TimelineEntry,
+} from '@/lib/api/types';
 import { apiClient } from '@/lib/api/client';
 import { formatBytes, formatDate } from '@/lib/utils';
 import { reportKeys } from '../queries';
@@ -305,7 +315,7 @@ export function CaptureDetailView({
         <div className="thin-scrollbar min-h-0 overflow-auto">
           <div className={isDevToolsOpen ? '' : 'mx-auto max-w-[108rem]'}>
             <div className="sticky top-0 z-[var(--z-sticky)] border-b border-[var(--border)] bg-[var(--bg)]/95 px-4 pb-3 pt-4 backdrop-blur lg:px-6">
-              <div className="mx-auto max-w-3xl">
+              <div className="mx-auto w-full max-w-[74rem]">
                 <RecordingHero
                   report={report}
                   seekTargetMs={seekTargetMs}
@@ -324,7 +334,7 @@ export function CaptureDetailView({
               </div>
             </div>
 
-            <div className="mx-auto max-w-3xl px-4 py-7 lg:px-6">
+            <div className="mx-auto w-full max-w-[74rem] px-4 py-7 lg:px-6">
               <CaptureStats report={report} />
 
               <div className="mt-8">
@@ -889,7 +899,7 @@ function RecordingHero({
           {!isPlayerOpen && !isScreenshot ? (
             <>
               <div
-                className={`absolute inset-0 bg-[linear-gradient(135deg,#5d6b1f,#c64a1f_48%,#fafbf6)] transition-opacity ${
+                className={`absolute inset-0 bg-[linear-gradient(135deg,#be4400,#c64a1f_48%,#fafbf6)] transition-opacity ${
                   hasLoadedThumbnail ? 'opacity-0' : 'opacity-100'
                 }`}
               />
@@ -933,7 +943,7 @@ function RecordingHero({
         </>
       ) : (
         <>
-          <div className="absolute inset-0 bg-[linear-gradient(135deg,#5d6b1f,#c64a1f_48%,#fafbf6)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(135deg,#be4400,#c64a1f_48%,#fafbf6)]" />
           <div className="absolute inset-0 bg-black/42" />
           <button
             type="button"
@@ -1007,24 +1017,25 @@ function DevToolsPanel({
   if (activeTab === 'Info') {
     const session = report.captureSessions?.[0];
     const pageUrl = report.pageUrl ?? session?.pageUrl ?? '—';
+    const userAgent = report.userAgent ?? session?.userAgent ?? '—';
+    const browserName = report.browserName ?? session?.browserName ?? inferBrowserName(userAgent);
     const browser = [
-      report.browserName ?? session?.browserName,
+      browserName,
       report.browserVersion ?? session?.browserVersion,
     ].filter(Boolean).join(' ') || '—';
-    const osName = report.osName ?? session?.osName ?? '—';
+    const osName = report.osName ?? session?.osName ?? inferOsName(userAgent) ?? '—';
     const viewportWidth = report.viewportWidth ?? session?.viewportWidth;
     const viewportHeight = report.viewportHeight ?? session?.viewportHeight;
     const screenSize = session?.screenWidth && session?.screenHeight
       ? `${session.screenWidth} × ${session.screenHeight}${session.devicePixelRatio ? ` @${session.devicePixelRatio}x` : ''}`
       : '—';
-    const userAgent = report.userAgent ?? session?.userAgent ?? '—';
 
     return (
       <div className="thin-scrollbar h-full min-h-0 overflow-auto bg-[var(--bg)]">
         <SectionTitle title="Page" />
         <KeyValue label="URL" value={pageUrl} />
-        <KeyValue label="Browser" value={browser} />
-        <KeyValue label="OS" value={osName} />
+        <KeyValue label="Browser" value={<InfoValueWithIcon icon={<BrowserGlyph value={browser} />} value={browser} />} />
+        <KeyValue label="OS" value={<InfoValueWithIcon icon={<OsGlyph value={osName} />} value={osName} />} />
         <KeyValue
           label="Viewport"
           value={viewportWidth && viewportHeight ? `${viewportWidth} × ${viewportHeight}` : '—'}
@@ -1060,20 +1071,12 @@ function DevToolsPanel({
         {report.pageActions.map((entry) => (
           <TelemetryCard
             key={entry.id}
-            title={entry.kind}
-            subtitle={entry.label ?? entry.selector ?? entry.textPreview ?? 'Action'}
+            title={formatActionKind(entry.kind)}
+            subtitle={formatActionSubtitle(entry)}
             tone="info"
             timestamp={entry.occurredAt}
             offsetMs={entry.offsetMs}
-            rows={[
-              ['Selector', entry.selector ?? 'n/a'],
-              ['Node path', entry.nodePath ?? 'n/a'],
-              ['Tag', entry.tagName ?? 'n/a'],
-              ['Text', entry.textPreview ?? 'n/a'],
-              ['Value', entry.valuePreview ?? 'n/a'],
-              ['Position', typeof entry.x === 'number' && typeof entry.y === 'number' ? `${entry.x}, ${entry.y}` : 'n/a'],
-              ['Page URL', entry.pageUrl ?? 'n/a'],
-            ]}
+            rows={actionRows(entry)}
           />
         ))}
       </div>
@@ -1177,6 +1180,87 @@ function DevToolsPanel({
   );
 }
 
+function formatActionKind(kind: string): string {
+  return kind.replace(/_/g, ' ');
+}
+
+function formatActionSubtitle(entry: PageActionEntry): string {
+  if (entry.kind === 'SCROLL') {
+    return entry.label ?? formatScrollPosition(entry) ?? 'Scroll';
+  }
+
+  if (entry.kind === 'NAVIGATION') {
+    return entry.label ? `Navigation: ${entry.label}` : entry.pageUrl ?? 'Navigation';
+  }
+
+  if (entry.kind === 'KEY_PRESS') {
+    return entry.label ? `Key ${entry.label}` : entry.selector ?? 'Key press';
+  }
+
+  return entry.label ?? entry.textPreview ?? entry.valuePreview ?? entry.selector ?? formatActionKind(entry.kind);
+}
+
+function actionRows(entry: PageActionEntry): Array<[string, string]> {
+  const rows: Array<[string, string]> = [];
+
+  if (entry.kind === 'SCROLL') {
+    pushActionRow(rows, 'Scroll', formatScrollPosition(entry));
+    pushActionRow(rows, 'Target', entry.label === 'Window scroll' ? undefined : entry.label);
+    pushActionRow(rows, 'Selector', entry.selector);
+    pushActionRow(rows, 'Node path', entry.nodePath);
+    pushActionRow(rows, 'Page URL', entry.pageUrl);
+    return rows.length > 0 ? rows : [['Details', 'Scroll position was not captured']];
+  }
+
+  if (entry.kind === 'NAVIGATION') {
+    pushActionRow(rows, 'Trigger', entry.label);
+    pushActionRow(rows, 'Page URL', entry.pageUrl);
+    return rows.length > 0 ? rows : [['Details', 'Navigation details were not captured']];
+  }
+
+  if (entry.kind === 'KEY_PRESS') {
+    pushActionRow(rows, 'Key', entry.label);
+    pushActionRow(rows, 'Selector', entry.selector);
+    pushActionRow(rows, 'Node path', entry.nodePath);
+    pushActionRow(rows, 'Tag', entry.tagName);
+    pushActionRow(rows, 'Page URL', entry.pageUrl);
+    return rows.length > 0 ? rows : [['Details', 'Key press details were not captured']];
+  }
+
+  pushActionRow(rows, 'Selector', entry.selector);
+  pushActionRow(rows, 'Node path', entry.nodePath);
+  pushActionRow(rows, 'Tag', entry.tagName);
+  pushActionRow(rows, 'Text', entry.textPreview);
+  pushActionRow(rows, 'Value', entry.valuePreview);
+  pushActionRow(rows, 'Position', formatPointerPosition(entry));
+  pushActionRow(rows, 'Scroll', formatScrollPosition(entry));
+  pushActionRow(rows, 'Page URL', entry.pageUrl);
+
+  return rows.length > 0 ? rows : [['Details', 'No additional details captured']];
+}
+
+function pushActionRow(rows: Array<[string, string]>, label: string, value?: string | null) {
+  const normalized = value?.trim();
+  if (!normalized) {
+    return;
+  }
+  rows.push([label, normalized]);
+}
+
+function formatPointerPosition(entry: PageActionEntry): string | null {
+  if (typeof entry.x !== 'number' || typeof entry.y !== 'number') {
+    return null;
+  }
+  return `x ${entry.x}, y ${entry.y}`;
+}
+
+function formatScrollPosition(entry: PageActionEntry): string | null {
+  if (typeof entry.scrollX !== 'number' && typeof entry.scrollY !== 'number') {
+    return null;
+  }
+  return `x ${entry.scrollX ?? 0}, y ${entry.scrollY ?? 0}`;
+}
+
 function BackendPanel({ traces }: { traces: BackendTraceEntry[] }) {
   const [query, setQuery] = useState('');
   const [selectedTraceId, setSelectedTraceId] = useState<string | null>(traces[0]?.id ?? null);
@@ -1278,7 +1362,7 @@ function BackendPanel({ traces }: { traces: BackendTraceEntry[] }) {
                       {selectedTrace.operationName}
                     </h3>
                   </div>
-                  <Server className="h-5 w-5 shrink-0 text-[#5d6b1f]" aria-hidden />
+                  <Server className="h-5 w-5 shrink-0 text-[var(--primary)]" aria-hidden />
                 </div>
                 <div className="mt-3 rounded-lg border border-[#dad7c8] bg-white px-3 py-2 font-mono text-[11px] leading-5 text-[#27291d]">
                   <span className="break-all">{selectedTrace.url ?? selectedTrace.serviceName ?? 'n/a'}</span>
@@ -1773,12 +1857,10 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
                   setSelectedRequestId(null);
                 }}
                 className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors ${
-                  active
-                    ? 'bg-[var(--primary)] text-white'
-                    : 'text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]'
+                  networkFilterButtonClass(item, active)
                 }`}
               >
-                <NetworkTypeIcon category={item} className="h-3 w-3" />
+                <NetworkTypeIcon category={item} className={`h-3.5 w-3.5 ${networkTypeIconClass(item, active)}`} />
                 {item}
               </button>
             );
@@ -1796,6 +1878,7 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
           />
           {filteredRequests.map((request, index) => {
             const isSelected = selected?.id === request.id;
+            const category = classifyNetworkRequest(request);
             return (
               <button
                 key={request.id}
@@ -1803,8 +1886,8 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
                 onClick={() => setSelectedRequestId(request.id)}
                 className={`grid w-full grid-cols-[1.75rem_minmax(0,1fr)_auto] items-start gap-1.5 border-b border-[var(--divider)] border-l-2 px-2 py-2 text-left transition-colors ${
                   isSelected
-                    ? 'border-l-[var(--primary)] bg-[var(--primary-subtle)]'
-                    : 'border-l-transparent hover:bg-[var(--surface)]'
+                    ? `${networkRowAccentClass(category)} bg-[var(--primary-subtle)]`
+                    : `${networkRowAccentClass(category, true)} hover:bg-[var(--surface)]`
                 }`}
               >
                 <span className="pt-0.5 text-right font-mono text-[10px] tabular-nums text-[var(--ink-faint)]">
@@ -1818,11 +1901,11 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
                     </span>
                   </span>
                   <span className="mt-1 flex min-w-0 items-center gap-1.5 overflow-hidden font-mono text-[10px] leading-3">
-                    <span className="shrink-0 rounded bg-[var(--surface)] px-1 py-px font-semibold text-[var(--ink-muted)]">
+                    <span className={`shrink-0 rounded px-1 py-px font-semibold ${networkMethodBadgeClass(request.method)}`}>
                       {request.method}
                     </span>
                     <span
-                      className={`shrink-0 font-semibold ${networkStatusTextClass(request.statusCode, request.error)}`}
+                      className={`shrink-0 rounded px-1 py-px font-semibold ${networkStatusBadgeClass(request.statusCode, request.error)}`}
                     >
                       {request.statusCode ?? 'ERR'}
                     </span>
@@ -1989,14 +2072,20 @@ function NetworkRequestIcon({ request }: { request: NetworkRequestEntry }) {
     return (
       <span
         title="Next.js RSC / Flight"
-        className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded bg-[#1a1d12] text-[8px] font-bold leading-none text-white"
+        className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-[#1a1d12] text-[9px] font-bold leading-none text-white ring-1 ring-black/10"
       >
         N
       </span>
     );
   }
 
-  return <NetworkTypeIcon category={classifyNetworkRequest(request)} className="h-3 w-3 shrink-0" />;
+  const category = classifyNetworkRequest(request);
+
+  return (
+    <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-md ring-1 ${networkIconFrameClass(category)}`}>
+      <NetworkTypeIcon category={category} className={`h-3.5 w-3.5 ${networkTypeIconClass(category, true)}`} />
+    </span>
+  );
 }
 
 function NetworkTypeIcon({ category, className }: { category: NetworkFilter; className?: string }) {
@@ -2020,16 +2109,158 @@ function NetworkTypeIcon({ category, className }: { category: NetworkFilter; cla
   return <Icon className={className} aria-hidden />;
 }
 
-function networkStatusTextClass(statusCode: number | null | undefined, error?: string | null) {
+function networkFilterButtonClass(category: NetworkFilter, active: boolean) {
+  if (active) {
+    switch (category) {
+      case 'Fetch/XHR':
+        return 'border border-[var(--primary)] bg-[var(--primary)] text-white';
+      case 'WS':
+        return 'border border-[var(--accent-cool)] bg-[var(--accent-cool)] text-white';
+      case 'JS':
+        return 'border border-[#b7791f] bg-[#b7791f] text-white';
+      case 'CSS':
+        return 'border border-[#7c3aed] bg-[#7c3aed] text-white';
+      case 'Media':
+        return 'border border-[var(--success)] bg-[var(--success)] text-white';
+      case 'Font':
+        return 'border border-[#4f46e5] bg-[#4f46e5] text-white';
+      case 'Doc':
+        return 'border border-[var(--ink-muted)] bg-[var(--ink-muted)] text-white';
+      case 'Other':
+        return 'border border-[#64748b] bg-[#64748b] text-white';
+      case 'All':
+      default:
+        return 'border border-[var(--primary)] bg-[var(--primary)] text-white';
+    }
+  }
+
+  switch (category) {
+    case 'Fetch/XHR':
+      return 'border border-transparent text-[var(--primary)] hover:border-[var(--primary-soft)] hover:bg-[var(--primary-subtle)]';
+    case 'WS':
+      return 'border border-transparent text-[var(--accent-cool)] hover:border-[var(--accent-cool-soft)] hover:bg-[var(--accent-cool-soft)]';
+    case 'JS':
+      return 'border border-transparent text-[#9a5b00] hover:border-[#f2d38a] hover:bg-[#fff4d6]';
+    case 'CSS':
+      return 'border border-transparent text-[#6d28d9] hover:border-[#ddd6fe] hover:bg-[#f3e8ff]';
+    case 'Media':
+      return 'border border-transparent text-[var(--success)] hover:border-[#b7e4c4] hover:bg-[var(--success-bg)]';
+    case 'Font':
+      return 'border border-transparent text-[#4338ca] hover:border-[#c7d2fe] hover:bg-[#eef2ff]';
+    case 'Doc':
+      return 'border border-transparent text-[var(--ink-muted)] hover:border-[var(--border)] hover:bg-[var(--surface)] hover:text-[var(--ink)]';
+    case 'Other':
+      return 'border border-transparent text-[#64748b] hover:border-[#cbd5e1] hover:bg-[#f1f5f9]';
+    case 'All':
+    default:
+      return 'border border-transparent text-[var(--ink-muted)] hover:border-[var(--primary-soft)] hover:bg-[var(--primary-subtle)] hover:text-[var(--primary)]';
+  }
+}
+
+function networkTypeIconClass(category: NetworkFilter, active = false) {
+  if (active) {
+    return 'text-current';
+  }
+
+  switch (category) {
+    case 'Fetch/XHR':
+      return 'text-[var(--primary)]';
+    case 'WS':
+      return 'text-[var(--accent-cool)]';
+    case 'JS':
+      return 'text-[#b7791f]';
+    case 'CSS':
+      return 'text-[#7c3aed]';
+    case 'Media':
+      return 'text-[var(--success)]';
+    case 'Font':
+      return 'text-[#4f46e5]';
+    case 'Doc':
+      return 'text-[var(--ink-muted)]';
+    case 'Other':
+      return 'text-[#64748b]';
+    case 'All':
+    default:
+      return 'text-[var(--primary)]';
+  }
+}
+
+function networkIconFrameClass(category: NetworkFilter) {
+  switch (category) {
+    case 'Fetch/XHR':
+      return 'bg-[var(--primary-subtle)] text-[var(--primary)] ring-[var(--primary-soft)]';
+    case 'WS':
+      return 'bg-[var(--accent-cool-soft)] text-[var(--accent-cool)] ring-[var(--border-cool)]';
+    case 'JS':
+      return 'bg-[#fff4d6] text-[#9a5b00] ring-[#f2d38a]';
+    case 'CSS':
+      return 'bg-[#f3e8ff] text-[#6d28d9] ring-[#ddd6fe]';
+    case 'Media':
+      return 'bg-[var(--success-bg)] text-[var(--success)] ring-[#b7e4c4]';
+    case 'Font':
+      return 'bg-[#eef2ff] text-[#4338ca] ring-[#c7d2fe]';
+    case 'Doc':
+      return 'bg-[var(--surface)] text-[var(--ink-muted)] ring-[var(--border)]';
+    case 'Other':
+    case 'All':
+    default:
+      return 'bg-[#f1f5f9] text-[#64748b] ring-[#cbd5e1]';
+  }
+}
+
+function networkRowAccentClass(category: NetworkFilter, inactive = false) {
+  if (inactive) {
+    return 'border-l-transparent';
+  }
+
+  switch (category) {
+    case 'Fetch/XHR':
+      return 'border-l-[var(--primary)]';
+    case 'WS':
+      return 'border-l-[var(--accent-cool)]';
+    case 'JS':
+      return 'border-l-[#b7791f]';
+    case 'CSS':
+      return 'border-l-[#7c3aed]';
+    case 'Media':
+      return 'border-l-[var(--success)]';
+    case 'Font':
+      return 'border-l-[#4f46e5]';
+    case 'Doc':
+      return 'border-l-[var(--ink-muted)]';
+    case 'Other':
+    case 'All':
+    default:
+      return 'border-l-[#64748b]';
+  }
+}
+
+function networkMethodBadgeClass(method: string) {
+  switch (method.toUpperCase()) {
+    case 'GET':
+      return 'bg-[var(--success-bg)] text-[#2f6b38]';
+    case 'POST':
+      return 'bg-[var(--primary-subtle)] text-[var(--primary)]';
+    case 'PUT':
+    case 'PATCH':
+      return 'bg-[#fff4d6] text-[#8a5200]';
+    case 'DELETE':
+      return 'bg-[var(--danger-bg)] text-[var(--danger)]';
+    default:
+      return 'bg-[var(--surface)] text-[var(--ink-muted)]';
+  }
+}
+
+function networkStatusBadgeClass(statusCode: number | null | undefined, error?: string | null) {
   if (error || (statusCode ?? 0) >= 400) {
-    return 'text-[#be123c]';
+    return 'bg-[var(--danger-bg)] text-[var(--danger)]';
   }
 
   if ((statusCode ?? 0) >= 300) {
-    return 'text-[#a13c19]';
+    return 'bg-[#fff4d6] text-[#8a5200]';
   }
 
-  return 'text-[#3a5419]';
+  return 'bg-[var(--success-bg)] text-[#2f6b38]';
 }
 
 function KeyValueList({
@@ -2054,7 +2285,116 @@ function SectionTitle({ title }: { title: string }) {
   );
 }
 
-function KeyValue({ label, value }: { label: string; value: string }) {
+function InfoValueWithIcon({ icon, value }: { icon: ReactNode; value: string }) {
+  return (
+    <span className="inline-flex min-w-0 items-center gap-2">
+      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-[var(--surface)] ring-1 ring-[var(--border)]">
+        {icon}
+      </span>
+      <span className="min-w-0 break-all">{value}</span>
+    </span>
+  );
+}
+
+function BrowserGlyph({ value }: { value: string }) {
+  const normalized = value.toLowerCase();
+
+  if (normalized.includes('chrome') || normalized.includes('chromium')) {
+    return <ChromeGlyph />;
+  }
+
+  if (normalized.includes('safari')) {
+    return <Globe className="h-3.5 w-3.5 text-[#2563eb]" aria-hidden />;
+  }
+
+  if (normalized.includes('firefox')) {
+    return <Globe className="h-3.5 w-3.5 text-[#f97316]" aria-hidden />;
+  }
+
+  if (normalized.includes('edge')) {
+    return <AppWindow className="h-3.5 w-3.5 text-[#0f9f9a]" aria-hidden />;
+  }
+
+  if (normalized.includes('arc')) {
+    return <AppWindow className="h-3.5 w-3.5 text-[#111827]" aria-hidden />;
+  }
+
+  return <AppWindow className="h-3.5 w-3.5 text-[var(--ink-muted)]" aria-hidden />;
+}
+
+function OsGlyph({ value }: { value: string }) {
+  const normalized = value.toLowerCase();
+
+  if (normalized.includes('windows')) {
+    return <WindowsGlyph />;
+  }
+
+  if (
+    normalized.includes('mac') ||
+    normalized.includes('ios') ||
+    normalized.includes('iphone') ||
+    normalized.includes('ipad')
+  ) {
+    return <Apple className="h-3.5 w-3.5 text-[#1a1d12]" aria-hidden />;
+  }
+
+  if (normalized.includes('android')) {
+    return <Smartphone className="h-3.5 w-3.5 text-[var(--success)]" aria-hidden />;
+  }
+
+  if (normalized.includes('linux') || normalized.includes('ubuntu')) {
+    return <Terminal className="h-3.5 w-3.5 text-[#b7791f]" aria-hidden />;
+  }
+
+  return <Monitor className="h-3.5 w-3.5 text-[var(--ink-muted)]" aria-hidden />;
+}
+
+function ChromeGlyph() {
+  return (
+    <span
+      className="relative h-3.5 w-3.5 rounded-full ring-1 ring-black/10"
+      style={{
+        background:
+          'conic-gradient(#16a34a 0deg 115deg, #facc15 115deg 235deg, #ef4444 235deg 360deg)',
+      }}
+      aria-hidden
+    >
+      <span className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#2563eb] ring-1 ring-white" />
+    </span>
+  );
+}
+
+function WindowsGlyph() {
+  return (
+    <span className="grid h-3.5 w-3.5 grid-cols-2 gap-[1px]" aria-hidden>
+      <span className="bg-[#0078d4]" />
+      <span className="bg-[#0078d4]" />
+      <span className="bg-[#0078d4]" />
+      <span className="bg-[#0078d4]" />
+    </span>
+  );
+}
+
+function inferBrowserName(userAgent: string) {
+  if (!userAgent || userAgent === '—') return null;
+  if (/edg\//i.test(userAgent)) return 'Edge';
+  if (/firefox\//i.test(userAgent)) return 'Firefox';
+  if (/chrome\//i.test(userAgent) || /chromium\//i.test(userAgent)) return 'Chrome';
+  if (/safari\//i.test(userAgent)) return 'Safari';
+  return null;
+}
+
+function inferOsName(userAgent: string) {
+  if (!userAgent || userAgent === '—') return null;
+  if (/windows nt/i.test(userAgent)) return 'Windows';
+  if (/mac os x/i.test(userAgent)) return 'macOS';
+  if (/iphone|ipad|ipod/i.test(userAgent)) return 'iOS';
+  if (/android/i.test(userAgent)) return 'Android';
+  if (/linux/i.test(userAgent)) return 'Linux';
+  return null;
+}
+
+function KeyValue({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="grid grid-cols-1 border-b border-[var(--divider)] text-xs transition-colors last:border-b-0 hover:bg-[var(--surface)] sm:grid-cols-[8rem_1fr]">
       <div className="px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">{label}</div>
@@ -2173,15 +2513,20 @@ function classifyNetworkRequest(request: NetworkRequestEntry): NetworkFilter {
     return 'WS';
   }
 
-  if (url.endsWith('.js') || contentType.includes('javascript')) {
+  if (/\.m?js(\?|$)/.test(url) || contentType.includes('javascript')) {
     return 'JS';
   }
 
-  if (url.endsWith('.css') || contentType.includes('text/css')) {
+  if (/\.css(\?|$)/.test(url) || contentType.includes('text/css')) {
     return 'CSS';
   }
 
-  if (contentType.includes('image/') || contentType.includes('video/') || contentType.includes('audio/')) {
+  if (
+    contentType.includes('image/') ||
+    contentType.includes('video/') ||
+    contentType.includes('audio/') ||
+    /\.(avif|gif|jpe?g|mp3|mp4|ogg|png|svg|webm|webp)(\?|$)/.test(url)
+  ) {
     return 'Media';
   }
 

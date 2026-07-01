@@ -27,6 +27,13 @@ import { nanoid } from 'nanoid';
 import { ReportMapper } from './report.mapper';
 import { TenantResolverService } from './tenant-resolver.service';
 
+const reportReporterSelect = {
+  id: true,
+  email: true,
+  displayName: true,
+  avatarUrl: true,
+} as const;
+
 @Injectable()
 export class ReportsService {
   constructor(
@@ -72,6 +79,11 @@ export class ReportsService {
           },
         },
       },
+      include: {
+        createdBy: {
+          select: reportReporterSelect,
+        },
+      },
     });
 
     return this.mapper.toSummary(report);
@@ -81,7 +93,14 @@ export class ReportsService {
     reportId: string,
     options: { workspaceId?: string } = {},
   ): Promise<ReportSummaryResponse> {
-    const report = await this.prisma.bugReport.findUnique({ where: { id: reportId } });
+    const report = await this.prisma.bugReport.findUnique({
+      where: { id: reportId },
+      include: {
+        createdBy: {
+          select: reportReporterSelect,
+        },
+      },
+    });
     if (!report) {
       throw new NotFoundException(`Report ${reportId} not found.`);
     }
@@ -106,6 +125,11 @@ export class ReportsService {
         ...(dto.description !== undefined
           ? { description: this.redactText(dto.description, shouldRedact) }
           : {}),
+      },
+      include: {
+        createdBy: {
+          select: reportReporterSelect,
+        },
       },
     });
 
@@ -148,6 +172,9 @@ export class ReportsService {
       this.prisma.bugReport.findMany({
         where,
         include: {
+          createdBy: {
+            select: reportReporterSelect,
+          },
           uploads: {
             where: {
               kind: 'SCREEN_RECORDING',
@@ -207,6 +234,9 @@ export class ReportsService {
     const report = await this.prisma.bugReport.findUniqueOrThrow({
       where: { id: reportId },
       include: {
+        createdBy: {
+          select: reportReporterSelect,
+        },
         captureSessions: {
           orderBy: { startedAt: 'asc' },
           take: 20,

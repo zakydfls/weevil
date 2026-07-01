@@ -50,6 +50,7 @@ interface AuthContextValue {
     inviteToken?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
+  createWorkspace: (input: { name: string; slug: string }) => Promise<void>;
   switchWorkspace: (slug: string) => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -222,6 +223,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.replace('/login');
   }, [router]);
 
+  const createWorkspace = useCallback<AuthContextValue['createWorkspace']>(
+    async (input) => {
+      const workspace = await apiClient.createWorkspace(input);
+      saveWorkspaceSlug(workspace.slug);
+      setActiveWorkspaceSlug(workspace.slug);
+      await refresh();
+    },
+    [refresh],
+  );
+
   const switchWorkspace = useCallback(
     async (slug: string) => {
       saveWorkspaceSlug(slug);
@@ -249,10 +260,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       signup,
       logout,
+      createWorkspace,
       switchWorkspace,
       refresh,
     }),
-    [status, user, workspace, workspaces, can, login, signup, logout, switchWorkspace, refresh],
+    [
+      status,
+      user,
+      workspace,
+      workspaces,
+      can,
+      login,
+      signup,
+      logout,
+      createWorkspace,
+      switchWorkspace,
+      refresh,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

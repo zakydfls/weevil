@@ -74,6 +74,9 @@ const actionBuffer: PageActionTelemetryEntry[] = [];
 const domBuffer: DomEventTelemetryEntry[] = [];
 const pendingPageTelemetry: PageTelemetryMessage[] = [];
 const maxPendingPageTelemetry = 300;
+const scrollActionThrottleMs = 350;
+let lastScrollActionAt = 0;
+let lastScrollActionKey = '';
 
 type OverlayMode = 'idle' | 'preparing' | 'recording' | 'stopping' | 'done' | 'failed';
 
@@ -356,6 +359,8 @@ function startLocalRecording(
   // otherwise clobber user-controlled state (minimize toggle, live counters).
   if (isFreshSession) {
     isOverlayMinimized = false;
+    lastScrollActionAt = 0;
+    lastScrollActionKey = '';
     resetLiveCounts();
   }
 
@@ -498,27 +503,7 @@ function attachActionListeners() {
     });
     flushIfNeeded();
   }, true);
-  document.addEventListener(
-    'scroll',
-    () => {
-      if (!isRecording || !sessionId) {
-        return;
-      }
-
-      liveCounts.action += 1;
-      actionBuffer.push({
-        sessionId,
-        kind: PageActionKind.Scroll,
-        pageUrl: location.href,
-        scrollX: Math.round(window.scrollX),
-        scrollY: Math.round(window.scrollY),
-        offsetMs: offsetFrom(recordingStartedAt),
-        occurredAt: nowIso(),
-      });
-      flushIfNeeded();
-    },
-    { capture: true, passive: true },
-  );
+  document.addEventListener('scroll', captureScrollAction, { capture: true, passive: true });
   window.addEventListener('hashchange', () => captureNavigation('hashchange'));
   window.addEventListener('popstate', () => captureNavigation('popstate'));
 }
@@ -565,6 +550,81 @@ function captureNavigation(trigger: string) {
     occurredAt: nowIso(),
   });
   flushIfNeeded();
+}
+
+function captureScrollAction(event: Event) {
+  if (!isRecording || !sessionId) {
+    return;
+  }
+
+  const target = getScrollActionTarget(event);
+  if (target.element && isWeevilElement(target.element)) {
+    return;
+  }
+
+  const now = Date.now();
+  const pageUrl = location.href;
+  const scrollX = Math.round(target.scrollX);
+  const scrollY = Math.round(target.scrollY);
+  const dedupeKey = `${target.selector ?? 'window'}:${scrollX}:${scrollY}:${pageUrl}`;
+  if (dedupeKey === lastScrollActionKey || now - lastScrollActionAt < scrollActionThrottleMs) {
+    return;
+  }
+
+  lastScrollActionAt = now;
+  lastScrollActionKey = dedupeKey;
+  liveCounts.action += 1;
+  actionBuffer.push({
+    sessionId,
+    kind: PageActionKind.Scroll,
+    selector: target.selector,
+    nodePath: target.nodePath,
+    label: target.label,
+    tagName: target.tagName,
+    pageUrl,
+    scrollX,
+    scrollY,
+    offsetMs: offsetFrom(recordingStartedAt),
+    occurredAt: nowIso(),
+  });
+  flushIfNeeded();
+}
+
+function getScrollActionTarget(event: Event): {
+  element: Element | null;
+  selector?: string;
+  nodePath?: string;
+  label: string;
+  tagName?: string;
+  scrollX: number;
+  scrollY: number;
+} {
+  const eventTarget = event.target;
+  const element = eventTarget instanceof Element ? eventTarget : null;
+  const isPageScroll =
+    !element ||
+    element === document.documentElement ||
+    element === document.body ||
+    eventTarget === document;
+
+  if (isPageScroll) {
+    return {
+      element: null,
+      label: 'Window scroll',
+      scrollX: window.scrollX,
+      scrollY: window.scrollY,
+    };
+  }
+
+  return {
+    element,
+    selector: getCssSelector(element),
+    nodePath: getNodePath(element),
+    label: getElementLabel(element) || `${element.tagName.toLowerCase()} scroll`,
+    tagName: element.tagName.toLowerCase(),
+    scrollX: element.scrollLeft,
+    scrollY: element.scrollTop,
+  };
 }
 
 function attachDomObservers() {
@@ -2341,7 +2401,7 @@ function createOverlayMarkup() {
               </svg>
             </button>
             <div class="weevil-palette" aria-label="Annotation colors">
-              ${['#e11d48', '#c64a1f', '#5d8a3b', '#5d6b1f', '#1a1d12', '#ffffff']
+              ${['#e11d48', '#c64a1f', '#5d8a3b', '#2563eb', '#1a1d12', '#ffffff']
                 .map((color) => `<button class="weevil-swatch" data-weevil-color="${color}" type="button" style="background:${color}" title="${color}"></button>`)
                 .join('')}
             </div>

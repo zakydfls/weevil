@@ -115,7 +115,7 @@ export function WeevilMark({
   );
 }
 
-/** Logomark for nav — weevil inside the olive brand square. */
+/** Logomark for nav — weevil inside the brand square. */
 export function WeevilLogo({ size = 36 }: { size?: number }) {
   return (
     <div

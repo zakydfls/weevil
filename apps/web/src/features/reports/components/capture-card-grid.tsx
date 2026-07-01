@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Play } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
-import { StatusBadge } from './status-badge';
-import type { ReportSummary } from '@/lib/api/types';
+import { StatusBadge, isUserVisibleReportStatus } from './status-badge';
+import type { ReportReporter, ReportSummary } from '@/lib/api/types';
 import { apiClient } from '@/lib/api/client';
 
 interface CaptureCardGridProps {
@@ -71,64 +71,94 @@ export function CaptureCardGrid({ reports, isLoading, isError, onRetry, onSelect
 
   return (
     <div className="grid items-start gap-5 sm:grid-cols-2 xl:grid-cols-3 xl:gap-6">
-      {reports.map((report, index) => (
-        <button
-          key={report.id}
-          type="button"
-          onClick={() => onSelect(report)}
-          className="group weevil-soft-rise weevil-card-hover min-w-0 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] text-left transition-[border-color] duration-150 focus:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary-subtle)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
-          style={{ animationDelay: `${Math.min(index, 8) * 22}ms` }}
-        >
-          <div className="relative aspect-[16/9] overflow-hidden border-b border-[var(--border)] bg-[var(--surface)]">
-            <CaptureThumbnail report={report} />
-            {/* Status sits on its own chip, top-left, with a soft scrim so it
-                reads over any captured content. */}
-            <div className="absolute left-3 top-3 z-10">
-              <StatusBadge status={report.status} />
+      {reports.map((report, index) => {
+        const reporter = reporterMeta(report.reporter);
+        return (
+          <button
+            key={report.id}
+            type="button"
+            onClick={() => onSelect(report)}
+            className="group weevil-soft-rise weevil-card-hover min-w-0 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] text-left transition-[border-color] duration-150 focus:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary-subtle)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
+            style={{ animationDelay: `${Math.min(index, 8) * 22}ms` }}
+          >
+            <div className="relative aspect-[16/9] overflow-hidden border-b border-[var(--border)] bg-[var(--surface)]">
+              <CaptureThumbnail report={report} />
+              {isUserVisibleReportStatus(report.status) ? (
+                <div className="absolute left-3 top-3 z-10">
+                  <StatusBadge status={report.status} />
+                </div>
+              ) : null}
+              {report.primaryRecording ? (
+                /* Centered play only — never collides with widgets baked into the
+                   captured frame's corners (e.g. the recorder HUD). Subtle by
+                   default, lifts to the action color on hover. */
+                <div className="pointer-events-none absolute inset-0 grid place-items-center">
+                  <span className="grid h-12 w-12 place-items-center rounded-full bg-[var(--ink)]/55 text-white opacity-80 backdrop-blur-sm transition-[opacity,transform] duration-200 ease-out group-hover:scale-110 group-hover:bg-[var(--primary)] group-hover:opacity-100">
+                    <Play className="h-5 w-5 translate-x-px fill-white" aria-hidden />
+                  </span>
+                </div>
+              ) : null}
             </div>
-            {report.primaryRecording ? (
-              /* Centered play only — never collides with widgets baked into the
-                 captured frame's corners (e.g. the recorder HUD). Subtle by
-                 default, lifts to the action color on hover. */
-              <div className="pointer-events-none absolute inset-0 grid place-items-center">
-                <span className="grid h-12 w-12 place-items-center rounded-full bg-[var(--ink)]/55 text-white opacity-80 backdrop-blur-sm transition-[opacity,transform] duration-200 ease-out group-hover:scale-110 group-hover:bg-[var(--primary)] group-hover:opacity-100">
-                  <Play className="h-5 w-5 translate-x-px fill-white" aria-hidden />
-                </span>
+            <div className="flex flex-col gap-3 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h2 className="truncate text-base font-semibold text-[var(--ink)]">
+                    {report.title}
+                  </h2>
+                  <p className="mt-1 truncate font-mono text-xs text-[var(--ink-faint)]">
+                    {report.pageUrl ?? report.id}
+                  </p>
+                  <div className="mt-2 flex min-w-0 items-center gap-2">
+                    <span
+                      className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[var(--primary-subtle)] font-mono text-[10px] font-semibold uppercase text-[var(--primary)] ring-1 ring-[var(--border)]"
+                      aria-hidden
+                    >
+                      {reporter.initials}
+                    </span>
+                    <div className="min-w-0 truncate text-xs text-[var(--ink-muted)]">
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+                        Reporter
+                      </span>{' '}
+                      <span className="font-medium text-[var(--ink)]">{reporter.name}</span>
+                    </div>
+                  </div>
+                </div>
+                <time className="shrink-0 font-mono text-xs text-[var(--ink-faint)]">
+                  {shortDate(report.createdAt)}
+                </time>
               </div>
-            ) : null}
-          </div>
-          <div className="flex flex-col gap-3 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <h2 className="truncate text-base font-semibold text-[var(--ink)]">
-                  {report.title}
-                </h2>
-                <p className="mt-1 truncate font-mono text-xs text-[var(--ink-faint)]">
-                  {report.pageUrl ?? report.id}
-                </p>
+              <div className="flex items-center gap-3 border-t border-[var(--divider)] pt-3 font-mono text-[11px] text-[var(--ink-muted)]">
+                <Stat label="cn" value={report.consoleLogCount ?? 0} />
+                <Divider />
+                <Stat label="net" value={report.networkRequestCount ?? 0} />
+                <Divider />
+                <Stat label="act" value={report.actionCount ?? 0} />
+                <Divider />
+                <Stat
+                  label="err"
+                  value={report.runtimeErrorCount ?? 0}
+                  tone={(report.runtimeErrorCount ?? 0) > 0 ? 'danger' : 'default'}
+                />
               </div>
-              <time className="shrink-0 font-mono text-xs text-[var(--ink-faint)]">
-                {shortDate(report.createdAt)}
-              </time>
             </div>
-            <div className="flex items-center gap-3 border-t border-[var(--divider)] pt-3 font-mono text-[11px] text-[var(--ink-muted)]">
-              <Stat label="cn" value={report.consoleLogCount ?? 0} />
-              <Divider />
-              <Stat label="net" value={report.networkRequestCount ?? 0} />
-              <Divider />
-              <Stat label="act" value={report.actionCount ?? 0} />
-              <Divider />
-              <Stat
-                label="err"
-                value={report.runtimeErrorCount ?? 0}
-                tone={(report.runtimeErrorCount ?? 0) > 0 ? 'danger' : 'default'}
-              />
-            </div>
-          </div>
-        </button>
-      ))}
+          </button>
+        );
+      })}
     </div>
   );
+}
+
+function reporterMeta(reporter: ReportReporter | null | undefined) {
+  const name = reporter?.displayName?.trim() || reporter?.email || 'Unknown reporter';
+  const initials = name
+    .split(/[\s@._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase() || '?';
+
+  return { name, initials };
 }
 
 function Stat({

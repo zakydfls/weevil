@@ -3,7 +3,7 @@
 :root {
   /* ══ Quiet & Precise ══════════════════════════════════════════════════
      ONE action color (terracotta) used consistently for every interactive
-     and selected state. Olive is the brand mark only. Color "life" comes from
+     and selected state. Color "life" comes from
      vivid semantic states (rose / green / amber), not from chrome.            */
 
   /* ── Action — terracotta. Buttons, selected rows, active tabs, focus, links.
@@ -99,7 +99,7 @@
   --surface-subtle: var(--surface);
 
   /* Timeline event colors — six distinguishable hues, each paired with a
-     unique icon. No olive: 'action' uses slate-teal so it reads as its own
+     unique icon. 'action' uses slate-teal so it reads as its own
      category, distinct from the terracotta network events. */
   --tl-console: oklch(0.50 0.015 110);
   --tl-network: oklch(0.58 0.16 45);

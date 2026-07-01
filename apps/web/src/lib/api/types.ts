@@ -1,5 +1,12 @@
 export type ReportStatus = 'DRAFT' | 'UPLOADING' | 'PROCESSING' | 'READY' | 'FAILED' | 'ARCHIVED';
 
+export interface ReportReporter {
+  id: string;
+  email: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+}
+
 export interface ReportSummary {
   id: string;
   workspaceId: string;
@@ -21,6 +28,7 @@ export interface ReportSummary {
   performanceEntryCount?: number;
   domEventCount?: number;
   backendTraceCount?: number;
+  reporter?: ReportReporter | null;
   primaryRecording?: ReportUpload | null;
   createdAt: string;
   updatedAt: string;

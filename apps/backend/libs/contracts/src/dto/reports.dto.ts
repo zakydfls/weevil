@@ -119,9 +119,17 @@ export interface ReportSummaryResponse {
   performanceEntryCount?: number;
   domEventCount?: number;
   backendTraceCount?: number;
+  reporter?: ReportReporterResponse | null;
   primaryRecording?: ReportUploadResponse | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ReportReporterResponse {
+  id: string;
+  email: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
 }
 
 export class ListReportsQueryDto {

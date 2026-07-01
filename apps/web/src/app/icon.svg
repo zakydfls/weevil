@@ -1,5 +1,5 @@
 <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-  <rect width="48" height="48" rx="10" fill="#5d6b1f"/>
+  <rect width="48" height="48" rx="10" fill="#be4400"/>
   <g transform="translate(7, 7) scale(0.71)">
     <path d="M11.4 17.6 C 8 16, 6 12.5, 6.5 9.5" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" fill="none"/>
     <path d="M13.5 16.3 C 12.5 13, 13.5 9.5, 16 8" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" fill="none"/>
@@ -8,7 +8,7 @@
     <path d="M12 18.5 L 8 16 C 7 15.4, 7 14, 8 13.6 L 14 16 Z" fill="#ffffff"/>
     <circle cx="16.5" cy="20" r="3.4" fill="#ffffff"/>
     <ellipse cx="29" cy="26" rx="12" ry="9" fill="#ffffff"/>
-    <path d="M29 17 L 29 35" stroke="#5d6b1f" stroke-width="0.7" opacity="0.45"/>
+    <path d="M29 17 L 29 35" stroke="#be4400" stroke-width="0.7" opacity="0.45"/>
     <ellipse cx="20" cy="23" rx="3.2" ry="3.6" fill="#ffffff"/>
     <path d="M22 32 L 21 36" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
     <path d="M27 33 L 27 37" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
