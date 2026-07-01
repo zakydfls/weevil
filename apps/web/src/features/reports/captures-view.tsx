@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, CircleDot, Search, TriangleAlert, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { ReportSummary } from '@/lib/api/types';
@@ -36,6 +36,9 @@ export function CapturesView() {
   const reports = reportsQuery.data?.items ?? [];
   const totalItems = reportsQuery.data?.total ?? 0;
   const totalPages = reportsQuery.data?.totalPages ?? 1;
+  const readyCount = reports.filter((report) => report.status === 'READY').length;
+  const issueCount = reports.filter((report) => (report.runtimeErrorCount ?? 0) > 0).length;
+  const recordingCount = reports.filter((report) => Boolean(report.primaryRecording)).length;
 
   // "Loading" must cover EVERY not-yet-settled state, not just isLoading
   // (which is isPending && isFetching — it goes false in the gap between retries
@@ -81,6 +84,14 @@ export function CapturesView() {
       />
 
       <div className="flex flex-1 flex-col gap-5 px-4 pb-10 sm:px-6">
+        {!reportsQuery.isError && (reports.length > 0 || totalItems > 0) ? (
+          <CaptureInsights
+            totalItems={totalItems}
+            readyCount={readyCount}
+            issueCount={issueCount}
+            recordingCount={recordingCount}
+          />
+        ) : null}
         <CaptureCardGrid
           reports={reports}
           isLoading={isLoadingList}
@@ -100,6 +111,70 @@ export function CapturesView() {
         )}
       </div>
     </div>
+  );
+}
+
+function CaptureInsights({
+  totalItems,
+  readyCount,
+  issueCount,
+  recordingCount,
+}: {
+  totalItems: number;
+  readyCount: number;
+  issueCount: number;
+  recordingCount: number;
+}) {
+  const items = [
+    {
+      label: 'Workspace captures',
+      value: totalItems,
+      icon: CircleDot,
+      tone: 'text-[var(--primary)]',
+      bg: 'bg-[var(--primary-subtle)]',
+    },
+    {
+      label: 'Ready on this page',
+      value: readyCount,
+      icon: CheckCircle2,
+      tone: 'text-[var(--success)]',
+      bg: 'bg-[var(--success-bg)]',
+    },
+    {
+      label: 'With recording',
+      value: recordingCount,
+      icon: Video,
+      tone: 'text-[var(--accent-cool)]',
+      bg: 'bg-[var(--accent-cool-soft)]',
+    },
+    {
+      label: 'Need attention',
+      value: issueCount,
+      icon: TriangleAlert,
+      tone: issueCount > 0 ? 'text-[var(--danger)]' : 'text-[var(--ink-faint)]',
+      bg: issueCount > 0 ? 'bg-[var(--danger-bg)]' : 'bg-[var(--surface)]',
+    },
+  ];
+
+  return (
+    <section
+      aria-label="Capture overview"
+      className="weevil-step-enter grid gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-2 sm:grid-cols-2 xl:grid-cols-4"
+    >
+      {items.map((item) => (
+        <div key={item.label} className="flex items-center gap-3 rounded-md bg-[var(--surface)] px-3 py-2.5">
+          <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-md ${item.bg} ${item.tone}`}>
+            <item.icon className="h-4 w-4" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold leading-5 text-[var(--ink)]">{item.value}</div>
+            <div className="truncate font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+              {item.label}
+            </div>
+          </div>
+        </div>
+      ))}
+    </section>
   );
 }
 

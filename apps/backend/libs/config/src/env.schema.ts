@@ -12,7 +12,7 @@ const booleanFromString = z.preprocess((value) => {
   return value.toLowerCase() === 'true';
 }, z.boolean());
 
-export const envSchema = z.object({
+const baseEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_NAME: z.string().min(1).default('weevil'),
   API_PORT: z.coerce.number().int().positive().default(4000),
@@ -46,6 +46,26 @@ export const envSchema = z.object({
   NOTIFICATION_GATEWAY_URL: z.string().optional().default(''),
   NOTIFICATION_GATEWAY_API_KEY: z.string().optional().default(''),
   NOTIFICATION_GATEWAY_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+  // HMAC secret for signup OTP hashes. Required in production.
+  AUTH_OTP_SECRET: z.string().optional().default(''),
+});
+
+export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
+  if (env.NODE_ENV !== 'production') return;
+  if (!env.WEB_ORIGIN.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['WEB_ORIGIN'],
+      message: 'WEB_ORIGIN must be set in production.',
+    });
+  }
+  if (env.AUTH_OTP_SECRET.trim().length < 32) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['AUTH_OTP_SECRET'],
+      message: 'AUTH_OTP_SECRET must be set to at least 32 characters in production.',
+    });
+  }
 });
 
 export type Env = z.infer<typeof envSchema>;

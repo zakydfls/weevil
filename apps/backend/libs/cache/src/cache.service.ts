@@ -54,6 +54,15 @@ export class CacheService implements OnModuleDestroy {
     await this.redis.del(this.buildKey(namespace, key));
   }
 
+  async increment(namespace: string, key: string, ttlSeconds: number): Promise<number> {
+    const cacheKey = this.buildKey(namespace, key);
+    const value = await this.redis.incr(cacheKey);
+    if (value === 1) {
+      await this.redis.expire(cacheKey, ttlSeconds);
+    }
+    return value;
+  }
+
   private buildKey(namespace: string, key: string): string {
     return [namespace, key].join(CACHE_KEY_SEPARATOR);
   }

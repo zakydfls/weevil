@@ -106,7 +106,7 @@ function createLoggingAdapter(connectionString: string) {
       };
     }
 
-    return adapter as unknown as Record<string, unknown>;
+    return adapter;
   };
 
   return inner as unknown as PrismaPg;

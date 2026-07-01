@@ -15,6 +15,7 @@ import {
   ReportEventKind,
 } from '@weevil/prisma-client';
 import { RedactionService } from '@weevil/redaction';
+import { assertReportAccess, type ReportAccessOptions } from './report-access';
 
 @Injectable()
 export class TelemetryService {
@@ -23,11 +24,15 @@ export class TelemetryService {
     private readonly redaction: RedactionService,
   ) {}
 
-  async attachConsoleLogs(reportId: string, dto: AttachConsoleLogsDto): Promise<number> {
+  async attachConsoleLogs(
+    reportId: string,
+    dto: AttachConsoleLogsDto,
+    options: ReportAccessOptions = {},
+  ): Promise<number> {
     if (dto.entries.length === 0) {
       return 0;
     }
-    const { redactRecord, redactText } = await this.getRedactors(reportId);
+    const { redactRecord, redactText } = await this.getRedactors(reportId, options);
 
     await this.prisma.$transaction([
       this.prisma.consoleLogEntry.createMany({
@@ -57,11 +62,15 @@ export class TelemetryService {
     return dto.entries.length;
   }
 
-  async attachNetworkRequests(reportId: string, dto: AttachNetworkRequestsDto): Promise<number> {
+  async attachNetworkRequests(
+    reportId: string,
+    dto: AttachNetworkRequestsDto,
+    options: ReportAccessOptions = {},
+  ): Promise<number> {
     if (dto.entries.length === 0) {
       return 0;
     }
-    const { redactRecord, redactText } = await this.getRedactors(reportId);
+    const { redactRecord, redactText } = await this.getRedactors(reportId, options);
 
     await this.prisma.$transaction([
       this.prisma.networkRequestEntry.createMany({
@@ -97,11 +106,15 @@ export class TelemetryService {
     return dto.entries.length;
   }
 
-  async attachPageActions(reportId: string, dto: AttachPageActionsDto): Promise<number> {
+  async attachPageActions(
+    reportId: string,
+    dto: AttachPageActionsDto,
+    options: ReportAccessOptions = {},
+  ): Promise<number> {
     if (dto.entries.length === 0) {
       return 0;
     }
-    const { redactRecord, redactText } = await this.getRedactors(reportId);
+    const { redactRecord, redactText } = await this.getRedactors(reportId, options);
 
     await this.prisma.$transaction([
       this.prisma.pageActionEntry.createMany({
@@ -139,11 +152,15 @@ export class TelemetryService {
     return dto.entries.length;
   }
 
-  async attachRuntimeErrors(reportId: string, dto: AttachRuntimeErrorsDto): Promise<number> {
+  async attachRuntimeErrors(
+    reportId: string,
+    dto: AttachRuntimeErrorsDto,
+    options: ReportAccessOptions = {},
+  ): Promise<number> {
     if (dto.entries.length === 0) {
       return 0;
     }
-    const { redactRecord, redactText } = await this.getRedactors(reportId);
+    const { redactRecord, redactText } = await this.getRedactors(reportId, options);
 
     await this.prisma.$transaction([
       this.prisma.runtimeErrorEntry.createMany({
@@ -180,11 +197,12 @@ export class TelemetryService {
   async attachPerformanceEntries(
     reportId: string,
     dto: AttachPerformanceEntriesDto,
+    options: ReportAccessOptions = {},
   ): Promise<number> {
     if (dto.entries.length === 0) {
       return 0;
     }
-    const { redactRecord, redactText } = await this.getRedactors(reportId);
+    const { redactRecord, redactText } = await this.getRedactors(reportId, options);
 
     await this.prisma.$transaction([
       this.prisma.performanceEntry.createMany({
@@ -218,11 +236,15 @@ export class TelemetryService {
     return dto.entries.length;
   }
 
-  async attachDomEvents(reportId: string, dto: AttachDomEventsDto): Promise<number> {
+  async attachDomEvents(
+    reportId: string,
+    dto: AttachDomEventsDto,
+    options: ReportAccessOptions = {},
+  ): Promise<number> {
     if (dto.entries.length === 0) {
       return 0;
     }
-    const { redactRecord, redactText } = await this.getRedactors(reportId);
+    const { redactRecord, redactText } = await this.getRedactors(reportId, options);
 
     await this.prisma.$transaction([
       this.prisma.domEventEntry.createMany({
@@ -256,11 +278,15 @@ export class TelemetryService {
     return dto.entries.length;
   }
 
-  async attachBackendTraces(reportId: string, dto: AttachBackendTracesDto): Promise<number> {
+  async attachBackendTraces(
+    reportId: string,
+    dto: AttachBackendTracesDto,
+    options: ReportAccessOptions = {},
+  ): Promise<number> {
     if (dto.entries.length === 0) {
       return 0;
     }
-    const { redactRecord, redactText } = await this.getRedactors(reportId);
+    const { redactRecord, redactText } = await this.getRedactors(reportId, options);
 
     await this.prisma.$transaction([
       this.prisma.backendTraceEntry.createMany({
@@ -301,11 +327,12 @@ export class TelemetryService {
     return value as Prisma.InputJsonValue | undefined;
   }
 
-  private async getRedactors(reportId: string) {
+  private async getRedactors(reportId: string, options: ReportAccessOptions) {
     const report = await this.prisma.bugReport.findUniqueOrThrow({
       where: { id: reportId },
-      select: { metadata: true },
+      select: { metadata: true, workspaceId: true, shareToken: true, ingestToken: true },
     });
+    assertReportAccess(report, options);
     const shouldRedact = this.redaction.shouldRedact(report.metadata);
 
     return {

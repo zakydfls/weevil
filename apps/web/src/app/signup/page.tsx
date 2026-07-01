@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState, type FormEvent } from 'react';
-import { Loader2 } from 'lucide-react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { ArrowLeft, CheckCircle2, Clock3, KeyRound, Loader2, MailCheck, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AuthShell } from '@/features/auth/auth-shell';
@@ -25,6 +25,17 @@ interface SignupErrorState {
   };
 }
 
+interface OtpState {
+  recipient: string;
+  expiresAt: string;
+  resendAvailableAt: string;
+  resendCount: number;
+  maxResends: number;
+  maxAttempts: number;
+}
+
+type SignupStep = 'details' | 'otp';
+
 export default function SignupPage() {
   const auth = useAuth();
   const [inviteToken, setInviteToken] = useState('');
@@ -36,12 +47,28 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
   const [workspaceSlug, setWorkspaceSlug] = useState('');
+  const [step, setStep] = useState<SignupStep>('details');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpState, setOtpState] = useState<OtpState | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState<SignupErrorState | null>(null);
+
   const isInviteMode = Boolean(inviteToken);
   const loginHref = inviteToken
     ? `/login?inviteToken=${encodeURIComponent(inviteToken)}`
     : '/login';
+
+  const otpExpiresInMs = otpState ? new Date(otpState.expiresAt).getTime() - nowMs : 0;
+  const resendInMs = otpState ? new Date(otpState.resendAvailableAt).getTime() - nowMs : 0;
+  const canResendOtp =
+    Boolean(otpState) && resendInMs <= 0 && otpState!.resendCount < otpState!.maxResends && !isResending;
+  const canSubmitDetails =
+    email.trim().length > 0 &&
+    password.length >= 8 &&
+    (isInviteMode || (workspaceName.trim().length >= 2 && isValidWorkspaceSlug(workspaceSlug.trim())));
+  const canVerifyOtp = otpCode.length === 6 && Boolean(otpState) && otpExpiresInMs > 0;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -82,6 +109,20 @@ export default function SignupPage() {
     };
   }, [inviteToken]);
 
+  useEffect(() => {
+    if (!otpState) return;
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, [otpState]);
+
+  useEffect(() => {
+    if (isInviteMode) {
+      setStep('details');
+      setOtpCode('');
+      setOtpState(null);
+    }
+  }, [isInviteMode]);
+
   function handleWorkspaceNameChange(value: string) {
     setWorkspaceName(value);
     if (!workspaceSlug || workspaceSlug === slugify(workspaceName)) {
@@ -89,8 +130,26 @@ export default function SignupPage() {
     }
   }
 
+  function handleOtpCodeChange(value: string) {
+    setOtpCode(value.replace(/\D/g, '').slice(0, 6));
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isInviteMode) {
+      await submitInviteSignup();
+      return;
+    }
+
+    if (step === 'otp') {
+      await verifyOtp();
+      return;
+    }
+
+    await requestOtp(false);
+  }
+
+  async function submitInviteSignup() {
     setIsSubmitting(true);
     setError(null);
     try {
@@ -98,9 +157,7 @@ export default function SignupPage() {
         email: email.trim(),
         password,
         displayName: displayName.trim() || undefined,
-        workspaceName: isInviteMode ? undefined : workspaceName.trim() || undefined,
-        workspaceSlug: isInviteMode ? undefined : workspaceSlug.trim() || undefined,
-        inviteToken: isInviteMode ? inviteToken : undefined,
+        inviteToken,
       });
     } catch (err) {
       setError(formatSignupError(err, {
@@ -113,15 +170,76 @@ export default function SignupPage() {
     }
   }
 
+  async function requestOtp(isResend: boolean) {
+    if (isResend) {
+      if (!canResendOtp) return;
+      setIsResending(true);
+    } else {
+      setIsSubmitting(true);
+    }
+    setError(null);
+    try {
+      const result = await apiClient.requestSignupOtp({
+        email: email.trim(),
+        password,
+        displayName: displayName.trim() || undefined,
+        workspaceName: workspaceName.trim(),
+        workspaceSlug: workspaceSlug.trim(),
+      });
+      setOtpState(result);
+      setOtpCode('');
+      setStep('otp');
+      setNowMs(Date.now());
+    } catch (err) {
+      setError(formatSignupError(err, {
+        email: email.trim(),
+        isInviteMode: false,
+        loginHref,
+      }));
+    } finally {
+      setIsSubmitting(false);
+      setIsResending(false);
+    }
+  }
+
+  async function verifyOtp() {
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await auth.verifySignupOtp(email.trim(), otpCode);
+    } catch (err) {
+      setError(formatSignupError(err, {
+        email: email.trim(),
+        isInviteMode: false,
+        loginHref,
+      }));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function editDetails() {
+    setStep('details');
+    setOtpCode('');
+    setOtpState(null);
+    setError(null);
+  }
+
   return (
     <AuthShell
       title={
-        isInviteMode ? `Join ${invitePreview?.workspace.name ?? 'workspace'}` : 'Start a workspace'
+        isInviteMode
+          ? `Join ${invitePreview?.workspace.name ?? 'workspace'}`
+          : step === 'otp'
+            ? 'Verify your email'
+            : 'Start a workspace'
       }
       subtitle={
         isInviteMode
           ? 'Create your account to accept the workspace invitation.'
-          : 'Create an account and your first workspace.'
+          : step === 'otp'
+            ? `We sent a 6-digit code to ${email.trim()}.`
+            : 'Create an account and your first workspace.'
       }
       footer={
         <span>
@@ -133,116 +251,242 @@ export default function SignupPage() {
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-1.5">
-          <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
-            Your email
-          </label>
-          <Input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            disabled={isSubmitting || (isInviteMode && !inviteError)}
-            autoComplete="email"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
-            Full name
-          </label>
-          <Input
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            autoComplete="name"
-            placeholder="Maya Rodriguez"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
-            Password
-          </label>
-          <Input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={8}
-            autoComplete="new-password"
-            placeholder="At least 8 characters"
-          />
-        </div>
-        {isInviteMode ? (
-          <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-3">
-            {isInviteLoading ? (
-              <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-[var(--ink-faint)]">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Loading invite
-              </div>
-            ) : invitePreview ? (
-              <div className="space-y-1">
-                <div className="text-sm font-semibold text-[var(--ink)]">
-                  {invitePreview.workspace.name}
-                </div>
-                <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--ink-faint)]">
-                  {invitePreview.role.toLowerCase()} access
+        {!isInviteMode ? <SignupProgress step={step} /> : null}
+
+        {step === 'otp' && otpState ? (
+          <div className="weevil-step-enter space-y-4">
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+              <div className="flex items-start gap-3">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-[var(--primary-subtle)] text-[var(--primary)]">
+                  <MailCheck className="h-4 w-4" aria-hidden />
+                </span>
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-[var(--ink)]">Code sent</div>
+                  <div className="mt-1 text-xs leading-5 text-[var(--ink-muted)]">
+                    It expires in <strong>{formatDuration(otpExpiresInMs)}</strong>. You have up to{' '}
+                    <strong>{otpState.maxAttempts}</strong> attempts.
+                  </div>
                 </div>
               </div>
-            ) : (
-              <div className="text-xs font-medium text-[var(--danger)]">
-                {inviteError ?? 'Invite unavailable.'}
-              </div>
-            )}
+            </div>
+
+            <label className="grid gap-1.5 text-sm font-medium text-[var(--ink)]">
+              <span>Verification code</span>
+              <Input
+                value={otpCode}
+                onChange={(event) => handleOtpCodeChange(event.target.value)}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="000000"
+                className="h-12 text-center font-mono text-xl tracking-[0.42em]"
+                aria-label="6-digit verification code"
+              />
+            </label>
+
+            <div className="flex items-center justify-between gap-3 rounded-md border border-[var(--divider)] bg-[var(--bg)] px-3 py-2 text-xs text-[var(--ink-muted)]">
+              <span className="inline-flex items-center gap-1.5">
+                <Clock3 className="h-3.5 w-3.5" aria-hidden />
+                {canResendOtp ? 'Ready to resend' : `Resend in ${formatDuration(resendInMs)}`}
+              </span>
+              <button
+                type="button"
+                onClick={() => void requestOtp(true)}
+                disabled={!canResendOtp}
+                className="font-medium text-[var(--primary)] disabled:text-[var(--ink-faint)]"
+              >
+                {isResending ? 'Sending...' : `Resend ${otpState.resendCount}/${otpState.maxResends}`}
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <Button type="button" variant="ghost" size="sm" onClick={editDetails} disabled={isSubmitting}>
+                <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+                Edit details
+              </Button>
+              <Button type="submit" className="h-10 min-w-36" disabled={isSubmitting || !canVerifyOtp}>
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                Verify and enter
+              </Button>
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="weevil-step-enter space-y-4">
             <div className="space-y-1.5">
               <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
-                Workspace name
+                Your email
               </label>
               <Input
-                value={workspaceName}
-                onChange={(e) => handleWorkspaceNameChange(e.target.value)}
-                placeholder="Acme Labs"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={isSubmitting || (isInviteMode && !inviteError)}
+                autoComplete="email"
               />
             </div>
             <div className="space-y-1.5">
               <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
-                Slug
+                Full name
               </label>
               <Input
-                value={workspaceSlug}
-                onChange={(e) => setWorkspaceSlug(e.target.value)}
-                placeholder="acme-labs"
-                className="font-mono"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                autoComplete="name"
+                placeholder="Maya Rodriguez"
               />
             </div>
+            <div className="space-y-1.5">
+              <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
+                Password
+              </label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={8}
+                autoComplete="new-password"
+                placeholder="At least 8 characters"
+              />
+            </div>
+            {isInviteMode ? (
+              <InviteCard
+                isLoading={isInviteLoading}
+                invitePreview={invitePreview}
+                inviteError={inviteError}
+              />
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
+                    Workspace name
+                  </label>
+                  <Input
+                    value={workspaceName}
+                    onChange={(e) => handleWorkspaceNameChange(e.target.value)}
+                    required
+                    placeholder="Acme Labs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
+                    Slug
+                  </label>
+                  <Input
+                    value={workspaceSlug}
+                    onChange={(e) => setWorkspaceSlug(slugify(e.target.value))}
+                    required
+                    placeholder="acme-labs"
+                    className="font-mono"
+                  />
+                </div>
+              </div>
+            )}
+            <Button
+              type="submit"
+              className="h-10 w-full"
+              disabled={isSubmitting || isInviteLoading || Boolean(inviteError) || !canSubmitDetails}
+            >
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {isInviteMode ? 'Join workspace' : 'Send verification code'}
+            </Button>
           </div>
         )}
-        {inviteError ? (
-          <div className="rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3 py-2 text-xs font-medium text-[var(--danger)]">
-            {inviteError}
-          </div>
-        ) : null}
+
         {error ? (
-          <div className="rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3 py-2 text-xs font-medium text-[var(--danger)]">
-            <span>{error.message}</span>
-            {error.action ? (
-              <Link href={error.action.href} className="ml-1 underline underline-offset-2">
-                {error.action.label}
-              </Link>
-            ) : null}
-          </div>
+          <ErrorNotice message={error.message} action={error.action} />
         ) : null}
-        <Button
-          type="submit"
-          className="h-10 w-full"
-          disabled={isSubmitting || isInviteLoading || Boolean(inviteError)}
-        >
-          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {isInviteMode ? 'Join workspace' : 'Create workspace'}
-        </Button>
       </form>
     </AuthShell>
+  );
+}
+
+function SignupProgress({ step }: { step: SignupStep }) {
+  const steps = useMemo(
+    () => [
+      { id: 'details' as const, label: 'Details', icon: ShieldCheck },
+      { id: 'otp' as const, label: 'OTP', icon: MailCheck },
+    ],
+    [],
+  );
+
+  return (
+    <div className="grid grid-cols-2 gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1">
+      {steps.map((item) => {
+        const active = item.id === step;
+        const done = step === 'otp' && item.id === 'details';
+        return (
+          <div
+            key={item.id}
+            className={`relative flex h-9 items-center justify-center gap-2 rounded-md text-xs font-medium transition-colors ${
+              active || done
+                ? 'bg-[var(--bg)] text-[var(--ink)]'
+                : 'text-[var(--ink-muted)]'
+            }`}
+          >
+            {done ? (
+              <CheckCircle2 className="h-3.5 w-3.5 text-[var(--success)]" aria-hidden />
+            ) : (
+              <item.icon className={`h-3.5 w-3.5 ${active ? 'text-[var(--primary)]' : ''}`} aria-hidden />
+            )}
+            {item.label}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function InviteCard({
+  isLoading,
+  invitePreview,
+  inviteError,
+}: {
+  isLoading: boolean;
+  invitePreview: InvitePreview | null;
+  inviteError: string | null;
+}) {
+  return (
+    <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-3">
+      {isLoading ? (
+        <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-[var(--ink-faint)]">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Loading invite
+        </div>
+      ) : invitePreview ? (
+        <div className="space-y-1">
+          <div className="text-sm font-semibold text-[var(--ink)]">
+            {invitePreview.workspace.name}
+          </div>
+          <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--ink-faint)]">
+            {invitePreview.role.toLowerCase()} access
+          </div>
+        </div>
+      ) : (
+        <div className="text-xs font-medium text-[var(--danger)]">
+          {inviteError ?? 'Invite unavailable.'}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ErrorNotice({
+  message,
+  action,
+}: {
+  message: string;
+  action?: { href: string; label: string };
+}) {
+  return (
+    <div className="rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3 py-2 text-xs font-medium text-[var(--danger)]">
+      <span>{message}</span>
+      {action ? (
+        <Link href={action.href} className="ml-1 underline underline-offset-2">
+          {action.label}
+        </Link>
+      ) : null}
+    </div>
   );
 }
 
@@ -251,7 +495,21 @@ function slugify(value: string): string {
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40)
     .replace(/^-+|-+$/g, '');
+}
+
+function isValidWorkspaceSlug(value: string): boolean {
+  return /^[a-z0-9-]{2,40}$/.test(value);
+}
+
+function formatDuration(valueMs: number): string {
+  const totalSeconds = Math.max(0, Math.ceil(valueMs / 1_000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes <= 0) return `${seconds}s`;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 function formatSignupError(
@@ -292,5 +550,5 @@ function formatSignupError(
     return { message: error.message };
   }
 
-  return { message: 'We couldn’t create your account. Try again in a moment.' };
+  return { message: 'We could not create your account. Try again in a moment.' };
 }

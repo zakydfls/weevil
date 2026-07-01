@@ -24,6 +24,13 @@ import {
 } from '@weevil/prisma-client';
 import { RedactionService } from '@weevil/redaction';
 import { nanoid } from 'nanoid';
+import {
+  assertReportAccess,
+  assertWorkspaceAccess,
+  hasReportTokenAccess,
+  requireWorkspaceId,
+  type ReportAccessOptions,
+} from './report-access';
 import { ReportMapper } from './report.mapper';
 import { TenantResolverService } from './tenant-resolver.service';
 
@@ -46,7 +53,7 @@ export class ReportsService {
   async create(
     dto: CreateReportDto,
     options: { workspaceId?: string; createdById?: string } = {},
-  ): Promise<ReportSummaryResponse> {
+  ): Promise<ReportSummaryResponse & { ingestToken: string }> {
     const tenant = options.workspaceId
       ? await this.tenantResolver.resolveForWorkspace(options.workspaceId, dto.projectId)
       : await this.tenantResolver.resolve(dto.projectId);
@@ -62,6 +69,7 @@ export class ReportsService {
         description: this.redactText(dto.description, shouldRedact),
         source: dto.source ?? ReportSource.EXTENSION,
         shareToken: nanoid(ReportDefaults.ShareTokenSize),
+        ingestToken: nanoid(ReportDefaults.ShareTokenSize),
         pageUrl: this.redactText(dto.pageUrl, shouldRedact),
         userAgent: dto.userAgent,
         browserName: dto.browserName,
@@ -86,13 +94,14 @@ export class ReportsService {
       },
     });
 
-    return this.mapper.toSummary(report);
+    return { ...this.mapper.toSummary(report), ingestToken: report.ingestToken! };
   }
 
   async findById(
     reportId: string,
     options: { workspaceId?: string } = {},
   ): Promise<ReportSummaryResponse> {
+    const workspaceId = requireWorkspaceId(options.workspaceId);
     const report = await this.prisma.bugReport.findUnique({
       where: { id: reportId },
       include: {
@@ -104,17 +113,43 @@ export class ReportsService {
     if (!report) {
       throw new NotFoundException(`Report ${reportId} not found.`);
     }
-    if (options.workspaceId && report.workspaceId !== options.workspaceId) {
-      throw new ForbiddenException('Report belongs to a different workspace.');
-    }
+    assertWorkspaceAccess(report, workspaceId);
     return this.mapper.toSummary(report);
   }
 
-  async update(reportId: string, dto: UpdateReportDto): Promise<ReportSummaryResponse> {
-    const current = await this.prisma.bugReport.findUniqueOrThrow({
+  async update(
+    reportId: string,
+    dto: UpdateReportDto,
+    options: ReportAccessOptions & {
+      actorUserId?: string;
+      canUpdateAny?: boolean;
+      canUpdateOwn?: boolean;
+    } = {},
+  ): Promise<ReportSummaryResponse> {
+    const current = await this.prisma.bugReport.findUnique({
       where: { id: reportId },
-      select: { metadata: true },
+      select: {
+        metadata: true,
+        workspaceId: true,
+        shareToken: true,
+        ingestToken: true,
+        createdById: true,
+      },
     });
+    if (!current) {
+      throw new NotFoundException(`Report ${reportId} not found.`);
+    }
+    assertReportAccess(current, options);
+    const hasIngestToken = hasReportTokenAccess(current, options.reportToken);
+    if (
+      !hasIngestToken &&
+      options.workspaceId &&
+      !options.canUpdateAny &&
+      !(options.canUpdateOwn && current.createdById === options.actorUserId)
+    ) {
+      throw new ForbiddenException('Missing permission to update this report.');
+    }
+
     const shouldRedact = this.redaction.shouldRedact(current.metadata);
     const report = await this.prisma.bugReport.update({
       where: { id: reportId },
@@ -140,6 +175,7 @@ export class ReportsService {
     query: ListReportsQueryDto = {},
     options: { workspaceId?: string } = {},
   ): Promise<PaginatedReportsResponse> {
+    const workspaceId = requireWorkspaceId(options.workspaceId);
     const page = Math.max(1, query.page ?? 1);
     const pageSize = Math.min(Math.max(1, query.pageSize ?? 12), 100);
     const search = query.search?.trim();
@@ -147,7 +183,7 @@ export class ReportsService {
       deletedAt: null,
       status: { not: ReportStatus.DRAFT },
       source: query.source,
-      ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
+      workspaceId,
       ...(typeof query.hasRecording === 'boolean'
         ? {
             uploads: query.hasRecording
@@ -219,6 +255,7 @@ export class ReportsService {
     reportId: string,
     options: { workspaceId?: string } = {},
   ): Promise<ReportDetailResponse> {
+    const workspaceId = requireWorkspaceId(options.workspaceId);
     // First, lightweight existence + ownership check — clear errors instead of a 500.
     const reportRow = await this.prisma.bugReport.findUnique({
       where: { id: reportId },
@@ -227,9 +264,7 @@ export class ReportsService {
     if (!reportRow) {
       throw new NotFoundException(`Report ${reportId} not found.`);
     }
-    if (options.workspaceId && reportRow.workspaceId !== options.workspaceId) {
-      throw new ForbiddenException('Report belongs to a different workspace.');
-    }
+    assertWorkspaceAccess(reportRow, workspaceId);
 
     const report = await this.prisma.bugReport.findUniqueOrThrow({
       where: { id: reportId },
@@ -301,11 +336,13 @@ export class ReportsService {
   async createCaptureSession(
     reportId: string,
     dto: CreateCaptureSessionDto,
+    options: ReportAccessOptions = {},
   ): Promise<CaptureSessionResponse> {
     const report = await this.prisma.bugReport.findUniqueOrThrow({
       where: { id: reportId },
-      select: { id: true, metadata: true },
+      select: { id: true, metadata: true, workspaceId: true, shareToken: true, ingestToken: true },
     });
+    assertReportAccess(report, options);
     const shouldRedact = this.redaction.shouldRedact(report.metadata);
 
     const session = await this.prisma.$transaction(async (tx) => {
@@ -370,8 +407,9 @@ export class ReportsService {
     reportId: string,
     sessionId: string,
     dto: CompleteCaptureSessionDto,
+    options: ReportAccessOptions = {},
   ): Promise<CaptureSessionResponse> {
-    const shouldRedact = await this.isReportRedactionEnabled(reportId);
+    const shouldRedact = await this.isReportRedactionEnabled(reportId, options);
     const session = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.captureSession.update({
         where: {
@@ -405,20 +443,27 @@ export class ReportsService {
     return this.mapper.toCaptureSession(session);
   }
 
-  async timeline(reportId: string): Promise<ReportTimelineEntryResponse[]> {
-    const detail = await this.findDetailById(reportId);
+  async timeline(
+    reportId: string,
+    options: { workspaceId?: string } = {},
+  ): Promise<ReportTimelineEntryResponse[]> {
+    const detail = await this.findDetailById(reportId, options);
     return detail.timeline;
   }
 
   async createComment(
     reportId: string,
     dto: CreateReportCommentDto,
-    options: { authorName?: string | null } = {},
+    options: { authorName?: string | null; workspaceId?: string } = {},
   ): Promise<ReportCommentResponse> {
-    const report = await this.prisma.bugReport.findUniqueOrThrow({
+    const report = await this.prisma.bugReport.findUnique({
       where: { id: reportId },
-      select: { id: true, metadata: true },
+      select: { id: true, metadata: true, workspaceId: true },
     });
+    if (!report) {
+      throw new NotFoundException(`Report ${reportId} not found.`);
+    }
+    assertWorkspaceAccess(report, options.workspaceId);
     const shouldRedact = this.redaction.shouldRedact(report.metadata);
 
     const comment = await this.prisma.reportComment.create({
@@ -442,11 +487,15 @@ export class ReportsService {
     return value as Prisma.InputJsonValue | undefined;
   }
 
-  private async isReportRedactionEnabled(reportId: string): Promise<boolean> {
+  private async isReportRedactionEnabled(
+    reportId: string,
+    options: ReportAccessOptions = {},
+  ): Promise<boolean> {
     const report = await this.prisma.bugReport.findUniqueOrThrow({
       where: { id: reportId },
-      select: { metadata: true },
+      select: { metadata: true, workspaceId: true, shareToken: true, ingestToken: true },
     });
+    assertReportAccess(report, options);
 
     return this.redaction.shouldRedact(report.metadata);
   }

@@ -240,6 +240,32 @@ export const apiClient = {
       expiresAt: string;
     }>('/auth/signup', { method: 'POST', body: JSON.stringify(body) }),
 
+  requestSignupOtp: (body: {
+    email: string;
+    password: string;
+    displayName?: string;
+    workspaceName: string;
+    workspaceSlug?: string;
+  }) =>
+    request<{
+      recipient: string;
+      purpose: string;
+      expiresAt: string;
+      resendAvailableAt: string;
+      resendCount: number;
+      maxResends: number;
+      maxAttempts: number;
+    }>('/auth/signup/request-otp', { method: 'POST', body: JSON.stringify(body) }),
+
+  verifySignupOtp: (body: { email: string; code: string }) =>
+    request<{
+      token: string;
+      sessionId: string;
+      userId: string;
+      workspaceId: string;
+      expiresAt: string;
+    }>('/auth/signup/verify-otp', { method: 'POST', body: JSON.stringify(body) }),
+
   login: (body: { email: string; password: string }) =>
     request<{
       token: string;

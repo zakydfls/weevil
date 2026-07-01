@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class SignupDto {
   @IsEmail({}, { message: 'Enter a valid email address.' })
@@ -44,4 +44,41 @@ export class AcceptInviteDto {
   @MinLength(1)
   @MaxLength(256)
   inviteToken: string;
+}
+
+export class RequestSignupOtpDto {
+  @IsEmail({}, { message: 'Enter a valid email address.' })
+  email: string;
+
+  @IsString()
+  @MinLength(8, { message: 'Password must be at least 8 characters.' })
+  @MaxLength(128)
+  password: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  displayName?: string;
+
+  @IsString()
+  @MinLength(2, { message: 'Workspace name must be at least 2 characters.' })
+  @MaxLength(120)
+  workspaceName: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  @Matches(/^[a-z0-9-]{2,40}$/, {
+    message: 'Slug must be 2-40 lowercase letters, numbers, or hyphens.',
+  })
+  workspaceSlug?: string;
+}
+
+export class VerifySignupOtpDto {
+  @IsEmail({}, { message: 'Enter a valid email address.' })
+  email: string;
+
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'Enter the 6-digit verification code.' })
+  code: string;
 }

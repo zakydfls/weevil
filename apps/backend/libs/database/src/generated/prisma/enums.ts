@@ -242,3 +242,10 @@ export const BackendTraceStatus = {
 } as const
 
 export type BackendTraceStatus = (typeof BackendTraceStatus)[keyof typeof BackendTraceStatus]
+
+
+export const OtpPurpose = {
+  SIGNUP: 'SIGNUP'
+} as const
+
+export type OtpPurpose = (typeof OtpPurpose)[keyof typeof OtpPurpose]

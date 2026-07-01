@@ -1,12 +1,26 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { CacheService } from '@weevil/cache';
 import { PrismaService } from '@weevil/database';
 import {
+  otpEmailSubject,
+  renderOtpEmail,
+} from '@weevil/notifications';
+import {
   MembershipStatus,
+  OtpPurpose,
   Prisma,
   UserStatus,
   WorkspaceRole,
   WorkspaceStatus,
 } from '@weevil/prisma-client';
+import { OtpService, type OtpChallengeState } from './otp.service';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 
@@ -36,6 +50,23 @@ export interface LoginInput {
   ipAddress?: string;
 }
 
+export interface RequestSignupOtpInput {
+  email: string;
+  password: string;
+  displayName?: string;
+  workspaceName: string;
+  workspaceSlug?: string;
+  userAgent?: string;
+  ipAddress?: string;
+}
+
+export interface VerifySignupOtpInput {
+  email: string;
+  code: string;
+  userAgent?: string;
+  ipAddress?: string;
+}
+
 export interface IssuedSession {
   /** Raw token to give to the client. Show once, never store. */
   token: string;
@@ -47,14 +78,20 @@ export interface IssuedSession {
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
+    private readonly otpService: OtpService,
   ) {}
 
   async signup(
     input: SignupInput,
   ): Promise<{ session: IssuedSession; userId: string; workspaceId: string | null }> {
     const normalizedEmail = input.email.trim().toLowerCase();
+    if (!input.inviteToken) {
+      throw new BadRequestException('Self-service signup must be verified with OTP.');
+    }
+
     const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (existing) {
       throw new ConflictException('An account with that email already exists.');
@@ -67,6 +104,7 @@ export class AuthService {
         data: {
           email: normalizedEmail,
           displayName: input.displayName ?? null,
+          emailVerified: new Date(),
           passwordHash,
           status: UserStatus.ACTIVE,
         },
@@ -125,6 +163,126 @@ export class AuthService {
 
       const session = await this.issueSessionInTx(tx, user.id, workspaceId, undefined, undefined);
       return { session, userId: user.id, workspaceId };
+    });
+  }
+
+  async requestSignupOtp(input: RequestSignupOtpInput): Promise<OtpChallengeState> {
+    const normalizedEmail = input.email.trim().toLowerCase();
+    await this.assertRateLimit('signup-otp', `${normalizedEmail}:${input.ipAddress ?? 'unknown'}`, 8, 60 * 60);
+
+    const cleanWorkspaceName = input.workspaceName.trim();
+    const cleanWorkspaceSlug = (input.workspaceSlug ?? slugify(cleanWorkspaceName)).trim().toLowerCase();
+
+    if (cleanWorkspaceName.length < 2) {
+      throw new BadRequestException('Workspace name must be at least 2 characters.');
+    }
+    if (!isValidWorkspaceSlug(cleanWorkspaceSlug)) {
+      throw new BadRequestException('Slug must be 2-40 lowercase letters, numbers, or hyphens.');
+    }
+
+    const [existingUser, existingWorkspace] = await Promise.all([
+      this.prisma.user.findUnique({ where: { email: normalizedEmail } }),
+      this.prisma.workspace.findUnique({ where: { slug: cleanWorkspaceSlug } }),
+    ]);
+    if (existingUser) {
+      throw new ConflictException('An account with that email already exists.');
+    }
+    if (existingWorkspace) {
+      throw new ConflictException('That workspace slug is already taken.');
+    }
+
+    const passwordHash = await this.passwordService.hash(input.password);
+    return this.otpService.issue({
+      purpose: OtpPurpose.SIGNUP,
+      recipient: normalizedEmail,
+      payload: {
+        passwordHash,
+        displayName: input.displayName?.trim() || null,
+        workspaceName: cleanWorkspaceName,
+        workspaceSlug: cleanWorkspaceSlug,
+      },
+      ipAddress: input.ipAddress,
+      userAgent: input.userAgent,
+      buildEmail: ({ code, expiresAt }) => ({
+        to: normalizedEmail,
+        subject: otpEmailSubject({ purposeLabel: 'signup' }),
+        html: renderOtpEmail({
+          code,
+          title: 'Verify your email',
+          purposeLabel: 'signup',
+          description: 'Use this code to finish creating your Weevil workspace.',
+          expiresAt,
+        }),
+        metadata: {
+          purpose: 'signup',
+          from_name: 'Weevil',
+        },
+      }),
+    });
+  }
+
+  async verifySignupOtp(
+    input: VerifySignupOtpInput,
+  ): Promise<{ session: IssuedSession; userId: string; workspaceId: string }> {
+    const normalizedEmail = input.email.trim().toLowerCase();
+    const challenge = await this.otpService.verify({
+      purpose: OtpPurpose.SIGNUP,
+      recipient: normalizedEmail,
+      code: input.code,
+    });
+    const payload = parseSignupOtpPayload(challenge.payload);
+
+    const [existingUser, existingWorkspace] = await Promise.all([
+      this.prisma.user.findUnique({ where: { email: normalizedEmail } }),
+      this.prisma.workspace.findUnique({ where: { slug: payload.workspaceSlug } }),
+    ]);
+    if (existingUser) {
+      throw new ConflictException('An account with that email already exists.');
+    }
+    if (existingWorkspace) {
+      throw new ConflictException('That workspace slug is already taken.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email: normalizedEmail,
+          displayName: payload.displayName,
+          emailVerified: new Date(),
+          passwordHash: payload.passwordHash,
+          status: UserStatus.ACTIVE,
+        },
+      });
+      const workspace = await tx.workspace.create({
+        data: {
+          slug: payload.workspaceSlug,
+          name: payload.workspaceName,
+          status: WorkspaceStatus.ACTIVE,
+          projects: { create: { key: 'DEFAULT', name: `${payload.workspaceName} (default)` } },
+        },
+      });
+      await tx.workspaceMember.create({
+        data: {
+          workspaceId: workspace.id,
+          userId: user.id,
+          role: WorkspaceRole.OWNER,
+          status: MembershipStatus.ACTIVE,
+          joinedAt: new Date(),
+        },
+      });
+      await tx.user.update({
+        where: { id: user.id },
+        data: { defaultWorkspaceId: workspace.id },
+      });
+      await this.otpService.consume(tx, challenge.id);
+      const session = await this.issueSessionInTx(
+        tx,
+        user.id,
+        workspace.id,
+        input.userAgent,
+        input.ipAddress,
+      );
+      return { session, userId: user.id, workspaceId: workspace.id };
     });
   }
 
@@ -210,6 +368,8 @@ export class AuthService {
     input: LoginInput,
   ): Promise<{ session: IssuedSession; userId: string; defaultWorkspaceId: string | null }> {
     const normalizedEmail = input.email.trim().toLowerCase();
+    await this.assertRateLimit('login', `${normalizedEmail}:${input.ipAddress ?? 'unknown'}`, 10, 10 * 60);
+
     const user = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (!user || !user.passwordHash || user.status !== UserStatus.ACTIVE) {
       // Generic error — don't leak existence.
@@ -297,6 +457,19 @@ export class AuthService {
     return { token: raw, sessionId: created.id, expiresAt: created.expiresAt };
   }
 
+  private async assertRateLimit(
+    scope: string,
+    rawKey: string,
+    maxAttempts: number,
+    ttlSeconds: number,
+  ): Promise<void> {
+    const key = this.tokenService.hash(`${scope}:${rawKey}`);
+    const count = await this.cache.increment('auth-rate-limit', key, ttlSeconds);
+    if (count > maxAttempts) {
+      throw new HttpException('Too many attempts. Try again later.', HttpStatus.TOO_MANY_REQUESTS);
+    }
+  }
+
   private async findPendingInvite(tx: TxClient | PrismaService, inviteToken: string) {
     const trimmedToken = inviteToken.trim();
     if (!trimmedToken) {
@@ -330,4 +503,39 @@ function slugify(value: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
+}
+
+interface SignupOtpPayload {
+  passwordHash: string;
+  displayName: string | null;
+  workspaceName: string;
+  workspaceSlug: string;
+}
+
+function parseSignupOtpPayload(payload: unknown): SignupOtpPayload {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new UnauthorizedException('Verification code is invalid or expired.');
+  }
+  const record = payload as Record<string, unknown>;
+  if (
+    typeof record.passwordHash !== 'string' ||
+    typeof record.workspaceName !== 'string' ||
+    typeof record.workspaceSlug !== 'string'
+  ) {
+    throw new UnauthorizedException('Verification code is invalid or expired.');
+  }
+  const displayName = typeof record.displayName === 'string' ? record.displayName : null;
+  if (!isValidWorkspaceSlug(record.workspaceSlug)) {
+    throw new UnauthorizedException('Verification code is invalid or expired.');
+  }
+  return {
+    passwordHash: record.passwordHash,
+    displayName,
+    workspaceName: record.workspaceName,
+    workspaceSlug: record.workspaceSlug,
+  };
+}
+
+function isValidWorkspaceSlug(value: string): boolean {
+  return /^[a-z0-9-]{2,40}$/.test(value);
 }

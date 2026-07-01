@@ -41,70 +41,105 @@ export class WeevilApiClient {
     });
   }
 
-  updateReport(reportId: string, input: UpdateReportInput) {
+  updateReport(reportId: string, input: UpdateReportInput, reportToken?: string | null) {
     return this.request<CreateReportResponse>(`/reports/${reportId}`, {
       method: 'PATCH',
+      headers: reportTokenHeaders(reportToken),
       body: JSON.stringify(input),
     });
   }
 
-  createCaptureSession(reportId: string, input: CreateCaptureSessionInput) {
+  createCaptureSession(
+    reportId: string,
+    input: CreateCaptureSessionInput,
+    reportToken?: string | null,
+  ) {
     return this.request<CaptureSessionResponse>(`/reports/${reportId}/capture-sessions`, {
       method: 'POST',
+      headers: reportTokenHeaders(reportToken),
       body: JSON.stringify(input),
     });
   }
 
-  completeCaptureSession(reportId: string, sessionId: string, input: CompleteCaptureSessionInput) {
+  completeCaptureSession(
+    reportId: string,
+    sessionId: string,
+    input: CompleteCaptureSessionInput,
+    reportToken?: string | null,
+  ) {
     return this.request<CaptureSessionResponse>(
       `/reports/${reportId}/capture-sessions/${sessionId}/complete`,
       {
         method: 'POST',
+        headers: reportTokenHeaders(reportToken),
         body: JSON.stringify(input),
       },
     );
   }
 
-  createUpload(reportId: string, input: CreateUploadInput) {
+  createUpload(reportId: string, input: CreateUploadInput, reportToken?: string | null) {
     return this.request<CreateUploadResponse>(`/reports/${reportId}/uploads`, {
       method: 'POST',
+      headers: reportTokenHeaders(reportToken),
       body: JSON.stringify(input),
     });
   }
 
-  completeUpload(reportId: string, uploadId: string, input: CompleteUploadInput) {
+  completeUpload(
+    reportId: string,
+    uploadId: string,
+    input: CompleteUploadInput,
+    reportToken?: string | null,
+  ) {
     return this.request<string>(`/reports/${reportId}/uploads/${uploadId}/complete`, {
       method: 'POST',
+      headers: reportTokenHeaders(reportToken),
       body: JSON.stringify(input),
     });
   }
 
-  attachConsoleLogs(reportId: string, entries: ConsoleTelemetryEntry[]) {
-    return this.attach(reportId, 'console', entries);
+  attachConsoleLogs(reportId: string, entries: ConsoleTelemetryEntry[], reportToken?: string | null) {
+    return this.attach(reportId, 'console', entries, reportToken);
   }
 
-  attachNetworkRequests(reportId: string, entries: NetworkTelemetryEntry[]) {
-    return this.attach(reportId, 'network', entries);
+  attachNetworkRequests(
+    reportId: string,
+    entries: NetworkTelemetryEntry[],
+    reportToken?: string | null,
+  ) {
+    return this.attach(reportId, 'network', entries, reportToken);
   }
 
-  attachPageActions(reportId: string, entries: PageActionTelemetryEntry[]) {
-    return this.attach(reportId, 'actions', entries);
+  attachPageActions(reportId: string, entries: PageActionTelemetryEntry[], reportToken?: string | null) {
+    return this.attach(reportId, 'actions', entries, reportToken);
   }
 
-  attachRuntimeErrors(reportId: string, entries: RuntimeErrorTelemetryEntry[]) {
-    return this.attach(reportId, 'errors', entries);
+  attachRuntimeErrors(
+    reportId: string,
+    entries: RuntimeErrorTelemetryEntry[],
+    reportToken?: string | null,
+  ) {
+    return this.attach(reportId, 'errors', entries, reportToken);
   }
 
-  attachPerformanceEntries(reportId: string, entries: PerformanceTelemetryEntry[]) {
-    return this.attach(reportId, 'performance', entries);
+  attachPerformanceEntries(
+    reportId: string,
+    entries: PerformanceTelemetryEntry[],
+    reportToken?: string | null,
+  ) {
+    return this.attach(reportId, 'performance', entries, reportToken);
   }
 
-  attachDomEvents(reportId: string, entries: DomEventTelemetryEntry[]) {
-    return this.attach(reportId, 'dom-events', entries);
+  attachDomEvents(reportId: string, entries: DomEventTelemetryEntry[], reportToken?: string | null) {
+    return this.attach(reportId, 'dom-events', entries, reportToken);
   }
 
-  attachBackendTraces(reportId: string, entries: BackendTraceTelemetryEntry[]) {
-    return this.attach(reportId, 'backend-traces', entries);
+  attachBackendTraces(
+    reportId: string,
+    entries: BackendTraceTelemetryEntry[],
+    reportToken?: string | null,
+  ) {
+    return this.attach(reportId, 'backend-traces', entries, reportToken);
   }
 
   async uploadBlob(putUrl: string, bytes: Blob | ArrayBuffer, contentType: string) {
@@ -126,7 +161,12 @@ export class WeevilApiClient {
     }
   }
 
-  private async attach<TEntry>(reportId: string, kind: string, entries: TEntry[]) {
+  private async attach<TEntry>(
+    reportId: string,
+    kind: string,
+    entries: TEntry[],
+    reportToken?: string | null,
+  ) {
     if (entries.length === 0) {
       return 0;
     }
@@ -136,6 +176,7 @@ export class WeevilApiClient {
       chunks.map((items) =>
         this.request<number>(`/reports/${reportId}/telemetry/${kind}`, {
           method: 'POST',
+          headers: reportTokenHeaders(reportToken),
           body: JSON.stringify({ entries: items }),
         }),
       ),
@@ -187,6 +228,10 @@ function safeJsonParse(value: string) {
   } catch {
     return value;
   }
+}
+
+function reportTokenHeaders(reportToken: string | null | undefined): Record<string, string> {
+  return reportToken ? { 'x-weevil-report-token': reportToken } : {};
 }
 
 function chunkAttachEntries<TEntry>(entries: TEntry[]) {

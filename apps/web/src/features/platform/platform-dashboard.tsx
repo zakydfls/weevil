@@ -476,7 +476,6 @@ function UsersTab() {
   useEffect(() => {
     const handle = window.setTimeout(() => void refresh(search), 300);
     return () => window.clearTimeout(handle);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
   async function toggleStatus(user: PlatformUser) {

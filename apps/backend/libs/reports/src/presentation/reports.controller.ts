@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Patch, Post, Query } from '@nestjs/common';
 import {
   ApiRoutes,
   CompleteCaptureSessionDto,
@@ -9,8 +9,9 @@ import {
   UpdateReportDto,
   RouteParams,
 } from '@weevil/contracts';
-import { CurrentAuth, OptionalAuth, Public } from '@weevil/auth';
+import { CurrentAuth, OptionalAuth, Public, RequirePermissions } from '@weevil/auth';
 import type { AuthContext } from '@weevil/auth';
+import { Permission } from '@weevil/prisma-client';
 import { ReportsService } from '../application/reports.service';
 
 @Controller(ApiRoutes.Reports)
@@ -32,32 +33,48 @@ export class ReportsController {
     });
   }
 
+  @RequirePermissions(Permission.REPORT_READ_ALL)
   @Get()
   list(@CurrentAuth() auth: AuthContext, @Query() query: ListReportsQueryDto) {
     return this.reportsService.list(query, { workspaceId: auth.workspace?.id });
   }
 
+  @RequirePermissions(Permission.REPORT_READ_ALL)
   @Get(`:${RouteParams.ReportId}/detail`)
   findDetailById(@CurrentAuth() auth: AuthContext, @Param(RouteParams.ReportId) reportId: string) {
     return this.reportsService.findDetailById(reportId, { workspaceId: auth.workspace?.id });
   }
 
-  @Public()
+  @RequirePermissions(Permission.REPORT_READ_ALL)
   @Get(ApiRoutes.ReportTimelineRelative)
-  timeline(@Param(RouteParams.ReportId) reportId: string) {
-    return this.reportsService.timeline(reportId);
+  timeline(@CurrentAuth() auth: AuthContext, @Param(RouteParams.ReportId) reportId: string) {
+    return this.reportsService.timeline(reportId, { workspaceId: auth.workspace?.id });
   }
 
+  @RequirePermissions(Permission.REPORT_READ_ALL)
   @Get(`:${RouteParams.ReportId}`)
   findById(@CurrentAuth() auth: AuthContext, @Param(RouteParams.ReportId) reportId: string) {
     return this.reportsService.findById(reportId, { workspaceId: auth.workspace?.id });
   }
 
+  @Public()
   @Patch(`:${RouteParams.ReportId}`)
-  update(@Param(RouteParams.ReportId) reportId: string, @Body() dto: UpdateReportDto) {
-    return this.reportsService.update(reportId, dto);
+  update(
+    @OptionalAuth() auth: AuthContext | null,
+    @Headers('x-weevil-report-token') reportToken: string | undefined,
+    @Param(RouteParams.ReportId) reportId: string,
+    @Body() dto: UpdateReportDto,
+  ) {
+    return this.reportsService.update(reportId, dto, {
+      workspaceId: auth?.workspace?.id,
+      actorUserId: auth?.user.id,
+      canUpdateAny: auth?.workspace?.permissions.has(Permission.REPORT_UPDATE_ANY) ?? false,
+      canUpdateOwn: auth?.workspace?.permissions.has(Permission.REPORT_UPDATE_OWN) ?? false,
+      reportToken,
+    });
   }
 
+  @RequirePermissions(Permission.COMMENT_CREATE)
   @Post(ApiRoutes.ReportCommentsRelative)
   createComment(
     @CurrentAuth() auth: AuthContext,
@@ -66,6 +83,7 @@ export class ReportsController {
   ) {
     return this.reportsService.createComment(reportId, dto, {
       authorName: auth.user.displayName ?? auth.user.email,
+      workspaceId: auth.workspace?.id,
     });
   }
 
@@ -73,19 +91,29 @@ export class ReportsController {
   @Public()
   @Post(ApiRoutes.ReportCaptureSessionsRelative)
   createCaptureSession(
+    @OptionalAuth() auth: AuthContext | null,
+    @Headers('x-weevil-report-token') reportToken: string | undefined,
     @Param(RouteParams.ReportId) reportId: string,
     @Body() dto: CreateCaptureSessionDto,
   ) {
-    return this.reportsService.createCaptureSession(reportId, dto);
+    return this.reportsService.createCaptureSession(reportId, dto, {
+      workspaceId: auth?.workspace?.id,
+      reportToken,
+    });
   }
 
   @Public()
   @Post(ApiRoutes.ReportCaptureSessionCompleteRelative)
   completeCaptureSession(
+    @OptionalAuth() auth: AuthContext | null,
+    @Headers('x-weevil-report-token') reportToken: string | undefined,
     @Param(RouteParams.ReportId) reportId: string,
     @Param(RouteParams.SessionId) sessionId: string,
     @Body() dto: CompleteCaptureSessionDto,
   ) {
-    return this.reportsService.completeCaptureSession(reportId, sessionId, dto);
+    return this.reportsService.completeCaptureSession(reportId, sessionId, dto, {
+      workspaceId: auth?.workspace?.id,
+      reportToken,
+    });
   }
 }

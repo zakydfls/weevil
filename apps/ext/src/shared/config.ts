@@ -30,6 +30,7 @@ export const defaultRecorderState: RecorderState = {
   windowId: null,
   reportId: null,
   shareToken: null,
+  ingestToken: null,
   sessionId: null,
   startedAt: null,
   pageUrl: null,

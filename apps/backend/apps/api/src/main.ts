@@ -28,13 +28,15 @@ async function bootstrap(): Promise<void> {
     }),
   );
   app.useGlobalFilters(new PrismaExceptionFilter());
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Weevil API')
-    .setDescription('Backend API for bug recording reports, uploads, and telemetry.')
-    .setVersion('0.1.0')
-    .build();
-  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup(ApiRoutes.Docs, app, swaggerDocument);
+  if (config.nodeEnv !== 'production') {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Weevil API')
+      .setDescription('Backend API for bug recording reports, uploads, and telemetry.')
+      .setVersion('0.1.0')
+      .build();
+    const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup(ApiRoutes.Docs, app, swaggerDocument);
+  }
 
   app.enableShutdownHooks();
 

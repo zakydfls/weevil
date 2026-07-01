@@ -55,6 +55,13 @@ export type Project = Prisma.ProjectModel
  */
 export type User = Prisma.UserModel
 /**
+ * Model OtpChallenge
+ * Generic OTP challenge. Purpose + recipient make this reusable for signup,
+ * password reset, email change, and future auth challenges. Raw OTP codes are
+ * never stored; purpose-specific data lives in payload.
+ */
+export type OtpChallenge = Prisma.OtpChallengeModel
+/**
  * Model WorkspaceMember
  * Junction table — a user can belong to multiple workspaces with distinct roles.
  * This is the foundation of multi-tenancy: every workspace-scoped query joins through here.

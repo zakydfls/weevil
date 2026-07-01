@@ -5,7 +5,13 @@ import { AuthService } from '../application/auth.service';
 import { CurrentAuth } from '../decorators/current-auth.decorator';
 import { Public } from '../decorators/public.decorator';
 import type { AuthContext } from '../domain/auth-context';
-import { AcceptInviteDto, LoginDto, SignupDto } from './dto';
+import {
+  AcceptInviteDto,
+  LoginDto,
+  RequestSignupOtpDto,
+  SignupDto,
+  VerifySignupOtpDto,
+} from './dto';
 
 const SESSION_COOKIE = 'wv_session';
 
@@ -25,6 +31,40 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.signup(body);
+    this.setSessionCookie(res, result.session.token, result.session.expiresAt);
+    return {
+      token: result.session.token,
+      sessionId: result.session.sessionId,
+      userId: result.userId,
+      workspaceId: result.workspaceId,
+      expiresAt: result.session.expiresAt.toISOString(),
+    };
+  }
+
+  @Public()
+  @Post('signup/request-otp')
+  @HttpCode(HttpStatus.OK)
+  requestSignupOtp(@Body() body: RequestSignupOtpDto, @Req() req: Request) {
+    return this.authService.requestSignupOtp({
+      ...body,
+      userAgent: req.headers['user-agent'],
+      ipAddress: clientIp(req),
+    });
+  }
+
+  @Public()
+  @Post('signup/verify-otp')
+  @HttpCode(HttpStatus.OK)
+  async verifySignupOtp(
+    @Body() body: VerifySignupOtpDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.verifySignupOtp({
+      ...body,
+      userAgent: req.headers['user-agent'],
+      ipAddress: clientIp(req),
+    });
     this.setSessionCookie(res, result.session.token, result.session.expiresAt);
     return {
       token: result.session.token,

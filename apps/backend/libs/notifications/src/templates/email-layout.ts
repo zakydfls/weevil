@@ -21,7 +21,7 @@ export function renderEmailLayout(input: EmailLayoutInput): string {
   const action = input.action
     ? `<tr>
         <td style="padding:0 32px 26px;">
-          <a href="${escapeHtml(input.action.href)}" style="display:inline-block;background:#556b2f;color:#ffffff;text-decoration:none;border-radius:8px;padding:12px 18px;font-weight:700;font-size:14px;">${escapeHtml(input.action.label)}</a>
+          <a href="${escapeHtml(input.action.href)}" style="display:inline-block;background:#b94a0b;color:#ffffff;text-decoration:none;border-radius:8px;padding:12px 18px;font-weight:700;font-size:14px;">${escapeHtml(input.action.label)}</a>
         </td>
       </tr>`
     : '';
@@ -40,14 +40,14 @@ export function renderEmailLayout(input: EmailLayoutInput): string {
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>${title}</title>
   </head>
-  <body style="margin:0;background:#f7f8f4;color:#1f2418;font-family:Inter,Arial,sans-serif;">
+  <body style="margin:0;background:#fafaf8;color:#1f2418;font-family:Inter,Arial,sans-serif;">
     ${previewText ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${previewText}</div>` : ''}
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f7f8f4;padding:32px 16px;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#fafaf8;padding:32px 16px;">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #dfe3d4;border-radius:12px;overflow:hidden;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #deded8;border-radius:12px;overflow:hidden;">
             <tr>
-              <td style="padding:28px 32px 10px;font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:#64704f;font-weight:700;">
+              <td style="padding:28px 32px 10px;font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:#b94a0b;font-weight:700;">
                 ${eyebrow}
               </td>
             </tr>
@@ -57,7 +57,7 @@ export function renderEmailLayout(input: EmailLayoutInput): string {
               </td>
             </tr>
             <tr>
-              <td style="padding:0 32px 20px;font-size:15px;line-height:1.7;color:#4d5741;">
+              <td style="padding:0 32px 20px;font-size:15px;line-height:1.7;color:#4f5549;">
                 ${input.bodyHtml}
               </td>
             </tr>

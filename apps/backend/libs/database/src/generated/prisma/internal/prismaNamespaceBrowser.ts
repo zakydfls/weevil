@@ -54,6 +54,7 @@ export const ModelName = {
   Workspace: 'Workspace',
   Project: 'Project',
   User: 'User',
+  OtpChallenge: 'OtpChallenge',
   WorkspaceMember: 'WorkspaceMember',
   WorkspaceInvite: 'WorkspaceInvite',
   AuthSession: 'AuthSession',
@@ -128,6 +129,28 @@ export const UserScalarFieldEnum = {
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
+
+
+export const OtpChallengeScalarFieldEnum = {
+  id: 'id',
+  purpose: 'purpose',
+  recipient: 'recipient',
+  codeHash: 'codeHash',
+  payload: 'payload',
+  attemptCount: 'attemptCount',
+  resendCount: 'resendCount',
+  expiresAt: 'expiresAt',
+  nextResendAt: 'nextResendAt',
+  lastSentAt: 'lastSentAt',
+  consumedAt: 'consumedAt',
+  lockedAt: 'lockedAt',
+  ipAddress: 'ipAddress',
+  userAgent: 'userAgent',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type OtpChallengeScalarFieldEnum = (typeof OtpChallengeScalarFieldEnum)[keyof typeof OtpChallengeScalarFieldEnum]
 
 
 export const WorkspaceMemberScalarFieldEnum = {
@@ -207,6 +230,7 @@ export const BugReportScalarFieldEnum = {
   status: 'status',
   source: 'source',
   shareToken: 'shareToken',
+  ingestToken: 'ingestToken',
   pageUrl: 'pageUrl',
   userAgent: 'userAgent',
   browserName: 'browserName',

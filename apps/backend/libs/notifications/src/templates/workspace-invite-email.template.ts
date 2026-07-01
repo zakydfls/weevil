@@ -31,7 +31,7 @@ export function renderWorkspaceInviteEmail(input: WorkspaceInviteEmailTemplateIn
       Workspace slug: <strong>${escapeHtml(input.workspaceSlug)}</strong><br />
       This invitation expires on ${escapeHtml(formatDate(input.expiresAt))}.<br /><br />
       If the button does not work, open this link:<br />
-      <a href="${inviteUrl}" style="color:#556b2f;word-break:break-all;">${inviteUrl}</a>
+      <a href="${inviteUrl}" style="color:#b94a0b;word-break:break-all;">${inviteUrl}</a>
     `,
   });
 }

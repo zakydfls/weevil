@@ -49,6 +49,7 @@ interface AuthContextValue {
     workspaceSlug?: string;
     inviteToken?: string;
   }) => Promise<void>;
+  verifySignupOtp: (email: string, code: string) => Promise<void>;
   logout: (options?: { redirectTo?: string }) => Promise<void>;
   acceptInvite: (inviteToken: string) => Promise<void>;
   createWorkspace: (input: { name: string; slug: string }) => Promise<void>;
@@ -56,8 +57,8 @@ interface AuthContextValue {
   refresh: () => Promise<void>;
 }
 
-const TOKEN_STORAGE_KEY = 'weevil.auth.token';
 const WORKSPACE_STORAGE_KEY = 'weevil.auth.workspace';
+const LEGACY_TOKEN_STORAGE_KEY = 'weevil.auth.token';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -71,16 +72,13 @@ function isPublicPath(pathname: string | null): boolean {
 }
 
 function loadToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return window.localStorage.getItem(TOKEN_STORAGE_KEY);
+  return null;
 }
 
 function saveToken(token: string | null) {
-  if (typeof window === 'undefined') return;
-  if (token) {
-    window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
-  } else {
-    window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+  setAuthToken(token);
+  if (typeof window !== 'undefined') {
+    window.localStorage.removeItem(LEGACY_TOKEN_STORAGE_KEY);
   }
 }
 
@@ -151,6 +149,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Bootstrap from storage
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(LEGACY_TOKEN_STORAGE_KEY);
+    }
     const storedToken = loadToken();
     const storedSlug = loadWorkspaceSlug();
     if (storedSlug) setActiveWorkspaceSlug(storedSlug);
@@ -158,7 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthToken(storedToken);
       void refresh();
     } else {
-      setStatus('unauthenticated');
+      void refresh();
     }
   }, [refresh]);
 
@@ -222,6 +223,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refresh, router],
   );
 
+  const verifySignupOtp = useCallback<AuthContextValue['verifySignupOtp']>(
+    async (email, code) => {
+      const result = await apiClient.verifySignupOtp({ email, code });
+      saveToken(result.token);
+      setAuthToken(result.token);
+      await refresh();
+      router.push('/');
+    },
+    [refresh, router],
+  );
+
   const logout = useCallback<AuthContextValue['logout']>(async (options) => {
     await apiClient.logout().catch(() => undefined);
     saveToken(null);
@@ -271,6 +283,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       can,
       login,
       signup,
+      verifySignupOtp,
       logout,
       acceptInvite,
       createWorkspace,
@@ -285,6 +298,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       can,
       login,
       signup,
+      verifySignupOtp,
       logout,
       acceptInvite,
       createWorkspace,

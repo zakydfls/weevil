@@ -37,20 +37,21 @@ export function CaptureCardGrid({ reports, isLoading, isError, onRetry, onSelect
         {Array.from({ length: 6 }).map((_, index) => (
           <div
             key={index}
-            className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)]"
+            className="weevil-step-enter overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)]"
+            style={{ animationDelay: `${index * 28}ms` }}
           >
-            <div className="aspect-[16/9] animate-pulse border-b border-[var(--border)] bg-[var(--surface-deep)]" />
+            <div className="weevil-skeleton aspect-[16/9] border-b border-[var(--border)] bg-[var(--surface-deep)]" />
             <div className="flex flex-col gap-3 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1 space-y-2">
-                  <div className="h-4 w-2/3 animate-pulse rounded bg-[var(--surface-deep)]" />
-                  <div className="h-3 w-1/2 animate-pulse rounded bg-[var(--surface)]" />
+                  <div className="weevil-skeleton h-4 w-2/3 rounded bg-[var(--surface-deep)]" />
+                  <div className="weevil-skeleton h-3 w-1/2 rounded bg-[var(--surface)]" />
                 </div>
-                <div className="h-3 w-9 shrink-0 animate-pulse rounded bg-[var(--surface)]" />
+                <div className="weevil-skeleton h-3 w-9 shrink-0 rounded bg-[var(--surface)]" />
               </div>
               <div className="flex items-center gap-4 border-t border-[var(--divider)] pt-3">
                 {Array.from({ length: 4 }).map((_, statIndex) => (
-                  <div key={statIndex} className="h-3 w-8 animate-pulse rounded bg-[var(--surface)]" />
+                  <div key={statIndex} className="weevil-skeleton h-3 w-8 rounded bg-[var(--surface)]" />
                 ))}
               </div>
             </div>
@@ -78,7 +79,7 @@ export function CaptureCardGrid({ reports, isLoading, isError, onRetry, onSelect
             key={report.id}
             type="button"
             onClick={() => onSelect(report)}
-            className="group weevil-soft-rise weevil-card-hover min-w-0 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] text-left transition-[border-color] duration-150 focus:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary-subtle)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
+            className="group weevil-soft-rise weevil-card-hover min-w-0 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] text-left transition-[border-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_8px_8px_-8px_rgba(26,29,18,0.24)] focus:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary-subtle)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
             style={{ animationDelay: `${Math.min(index, 8) * 22}ms` }}
           >
             <div className="relative aspect-[16/9] overflow-hidden border-b border-[var(--border)] bg-[var(--surface)]">
@@ -271,9 +272,9 @@ function CaptureThumbnail({ report }: { report: ReportSummary }) {
           onCanPlay={() => setHasLoadedPreview(true)}
           onSeeked={() => setHasLoadedPreview(true)}
           onError={() => setSourceUrl(null)}
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
+          className={`absolute inset-0 h-full w-full object-cover transition-[opacity,transform] duration-300 ${
             hasLoadedPreview ? 'opacity-100' : 'opacity-0'
-          }`}
+          } group-hover:scale-[1.025]`}
         />
       ) : null}
       {!sourceUrl && !recordingId ? (

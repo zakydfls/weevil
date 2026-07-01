@@ -25,6 +25,7 @@ export interface RecorderState {
   windowId: number | null;
   reportId: string | null;
   shareToken?: Optional<string | null>;
+  ingestToken?: Optional<string | null>;
   sessionId: string | null;
   startedAt: string | null;
   pageUrl: string | null;
@@ -35,6 +36,7 @@ export interface RecorderState {
 export interface CreateReportResponse {
   id: string;
   shareToken: string;
+  ingestToken?: Optional<string | null>;
 }
 
 export interface CaptureSessionResponse {

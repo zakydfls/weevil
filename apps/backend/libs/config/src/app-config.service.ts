@@ -94,4 +94,8 @@ export class AppConfigService {
   get notificationGatewayTimeoutMs(): number {
     return this.configService.get('NOTIFICATION_GATEWAY_TIMEOUT_MS', { infer: true });
   }
+
+  get authOtpSecret(): string | undefined {
+    return this.configService.get('AUTH_OTP_SECRET', { infer: true }) || undefined;
+  }
 }

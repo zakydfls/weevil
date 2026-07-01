@@ -201,6 +201,10 @@ enum BackendTraceStatus {
   UNKNOWN
 }
 
+enum OtpPurpose {
+  SIGNUP
+}
+
 model Workspace {
   id        String          @id @default(cuid())
   slug      String          @unique
@@ -263,6 +267,33 @@ model User {
 
   @@index([status])
   @@map("users")
+}
+
+/// Generic OTP challenge. Purpose + recipient make this reusable for signup,
+/// password reset, email change, and future auth challenges. Raw OTP codes are
+/// never stored; purpose-specific data lives in payload.
+model OtpChallenge {
+  id            String     @id @default(cuid())
+  purpose       OtpPurpose
+  recipient     String
+  codeHash      String
+  payload       Json?
+  attemptCount  Int        @default(0)
+  resendCount   Int        @default(0)
+  expiresAt     DateTime
+  nextResendAt  DateTime
+  lastSentAt    DateTime   @default(now())
+  consumedAt    DateTime?
+  lockedAt      DateTime?
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([purpose, recipient])
+  @@index([purpose, expiresAt])
+  @@index([consumedAt])
+  @@map("otp_challenges")
 }
 
 /// Junction table — a user can belong to multiple workspaces with distinct roles.
@@ -369,6 +400,9 @@ model BugReport {
   status         ReportStatus @default(DRAFT)
   source         ReportSource @default(EXTENSION)
   shareToken     String       @unique
+  /// Capability token returned only at capture creation time. The extension
+  /// uses this for upload/telemetry writes without exposing it in report detail.
+  ingestToken    String?      @unique
   pageUrl        String?
   userAgent      String?
   browserName    String?

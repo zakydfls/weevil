@@ -14,6 +14,11 @@ import { QueueService } from '@weevil/queue';
 import { StorageService } from '@weevil/storage';
 import { nanoid } from 'nanoid';
 import { extensionFromContentType } from '../domain/content-type-extension.map';
+import {
+  assertReportAccess,
+  assertWorkspaceAccess,
+  type ReportAccessOptions,
+} from './report-access';
 
 const UPLOAD_ID_SIZE = 21;
 const MIN_SCREEN_RECORDING_BYTES = 1_024;
@@ -28,15 +33,22 @@ export class UploadsService {
     private readonly storage: StorageService,
   ) {}
 
-  async create(reportId: string, dto: CreateUploadDto): Promise<CreateUploadResponse> {
+  async create(
+    reportId: string,
+    dto: CreateUploadDto,
+    options: ReportAccessOptions = {},
+  ): Promise<CreateUploadResponse> {
     const report = await this.prisma.bugReport.findUniqueOrThrow({
       where: { id: reportId },
       select: {
         id: true,
         workspaceId: true,
         projectId: true,
+        shareToken: true,
+        ingestToken: true,
       },
     });
+    assertReportAccess(report, options);
 
     const uploadId = nanoid(UPLOAD_ID_SIZE);
     const objectKey = this.storage.buildReportObjectKey({
@@ -92,6 +104,7 @@ export class UploadsService {
     reportId: string,
     uploadId: string,
     dto: CompleteUploadDto,
+    options: ReportAccessOptions = {},
   ): Promise<CreateUploadResponse['uploadId']> {
     const upload = await this.prisma.reportUpload.findFirstOrThrow({
       where: { id: uploadId, reportId },
@@ -100,8 +113,16 @@ export class UploadsService {
         kind: true,
         bucket: true,
         objectKey: true,
+        report: {
+          select: {
+            workspaceId: true,
+            shareToken: true,
+            ingestToken: true,
+          },
+        },
       },
     });
+    assertReportAccess(upload.report, options);
     const objectMetadata = await this.storage.getObjectMetadata(upload.bucket, upload.objectKey);
 
     if (upload.kind === 'SCREEN_RECORDING' && objectMetadata.size < MIN_SCREEN_RECORDING_BYTES) {
@@ -151,14 +172,24 @@ export class UploadsService {
     return uploadId;
   }
 
-  async createDownloadUrl(reportId: string, uploadId: string): Promise<DownloadUrlResponse> {
+  async createDownloadUrl(
+    reportId: string,
+    uploadId: string,
+    options: { workspaceId?: string } = {},
+  ): Promise<DownloadUrlResponse> {
     const upload = await this.prisma.reportUpload.findFirstOrThrow({
       where: { id: uploadId, reportId },
       select: {
         bucket: true,
         objectKey: true,
+        report: {
+          select: {
+            workspaceId: true,
+          },
+        },
       },
     });
+    assertWorkspaceAccess(upload.report, options.workspaceId);
 
     return {
       getUrl: await this.storage.createGetUrl(upload.bucket, upload.objectKey),

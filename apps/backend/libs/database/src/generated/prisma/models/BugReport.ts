@@ -46,6 +46,7 @@ export type BugReportMinAggregateOutputType = {
   status: $Enums.ReportStatus | null
   source: $Enums.ReportSource | null
   shareToken: string | null
+  ingestToken: string | null
   pageUrl: string | null
   userAgent: string | null
   browserName: string | null
@@ -69,6 +70,7 @@ export type BugReportMaxAggregateOutputType = {
   status: $Enums.ReportStatus | null
   source: $Enums.ReportSource | null
   shareToken: string | null
+  ingestToken: string | null
   pageUrl: string | null
   userAgent: string | null
   browserName: string | null
@@ -92,6 +94,7 @@ export type BugReportCountAggregateOutputType = {
   status: number
   source: number
   shareToken: number
+  ingestToken: number
   pageUrl: number
   userAgent: number
   browserName: number
@@ -128,6 +131,7 @@ export type BugReportMinAggregateInputType = {
   status?: true
   source?: true
   shareToken?: true
+  ingestToken?: true
   pageUrl?: true
   userAgent?: true
   browserName?: true
@@ -151,6 +155,7 @@ export type BugReportMaxAggregateInputType = {
   status?: true
   source?: true
   shareToken?: true
+  ingestToken?: true
   pageUrl?: true
   userAgent?: true
   browserName?: true
@@ -174,6 +179,7 @@ export type BugReportCountAggregateInputType = {
   status?: true
   source?: true
   shareToken?: true
+  ingestToken?: true
   pageUrl?: true
   userAgent?: true
   browserName?: true
@@ -285,6 +291,7 @@ export type BugReportGroupByOutputType = {
   status: $Enums.ReportStatus
   source: $Enums.ReportSource
   shareToken: string
+  ingestToken: string | null
   pageUrl: string | null
   userAgent: string | null
   browserName: string | null
@@ -332,6 +339,7 @@ export type BugReportWhereInput = {
   status?: Prisma.EnumReportStatusFilter<"BugReport"> | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFilter<"BugReport"> | $Enums.ReportSource
   shareToken?: Prisma.StringFilter<"BugReport"> | string
+  ingestToken?: Prisma.StringNullableFilter<"BugReport"> | string | null
   pageUrl?: Prisma.StringNullableFilter<"BugReport"> | string | null
   userAgent?: Prisma.StringNullableFilter<"BugReport"> | string | null
   browserName?: Prisma.StringNullableFilter<"BugReport"> | string | null
@@ -370,6 +378,7 @@ export type BugReportOrderByWithRelationInput = {
   status?: Prisma.SortOrder
   source?: Prisma.SortOrder
   shareToken?: Prisma.SortOrder
+  ingestToken?: Prisma.SortOrderInput | Prisma.SortOrder
   pageUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   userAgent?: Prisma.SortOrderInput | Prisma.SortOrder
   browserName?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -401,6 +410,7 @@ export type BugReportOrderByWithRelationInput = {
 export type BugReportWhereUniqueInput = Prisma.AtLeast<{
   id?: string
   shareToken?: string
+  ingestToken?: string
   AND?: Prisma.BugReportWhereInput | Prisma.BugReportWhereInput[]
   OR?: Prisma.BugReportWhereInput[]
   NOT?: Prisma.BugReportWhereInput | Prisma.BugReportWhereInput[]
@@ -437,7 +447,7 @@ export type BugReportWhereUniqueInput = Prisma.AtLeast<{
   performanceEntries?: Prisma.PerformanceEntryListRelationFilter
   domEvents?: Prisma.DomEventEntryListRelationFilter
   backendTraces?: Prisma.BackendTraceEntryListRelationFilter
-}, "id" | "shareToken">
+}, "id" | "shareToken" | "ingestToken">
 
 export type BugReportOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -449,6 +459,7 @@ export type BugReportOrderByWithAggregationInput = {
   status?: Prisma.SortOrder
   source?: Prisma.SortOrder
   shareToken?: Prisma.SortOrder
+  ingestToken?: Prisma.SortOrderInput | Prisma.SortOrder
   pageUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   userAgent?: Prisma.SortOrderInput | Prisma.SortOrder
   browserName?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -481,6 +492,7 @@ export type BugReportScalarWhereWithAggregatesInput = {
   status?: Prisma.EnumReportStatusWithAggregatesFilter<"BugReport"> | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceWithAggregatesFilter<"BugReport"> | $Enums.ReportSource
   shareToken?: Prisma.StringWithAggregatesFilter<"BugReport"> | string
+  ingestToken?: Prisma.StringNullableWithAggregatesFilter<"BugReport"> | string | null
   pageUrl?: Prisma.StringNullableWithAggregatesFilter<"BugReport"> | string | null
   userAgent?: Prisma.StringNullableWithAggregatesFilter<"BugReport"> | string | null
   browserName?: Prisma.StringNullableWithAggregatesFilter<"BugReport"> | string | null
@@ -502,6 +514,7 @@ export type BugReportCreateInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -540,6 +553,7 @@ export type BugReportUncheckedCreateInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -572,6 +586,7 @@ export type BugReportUpdateInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -610,6 +625,7 @@ export type BugReportUncheckedUpdateInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -645,6 +661,7 @@ export type BugReportCreateManyInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -666,6 +683,7 @@ export type BugReportUpdateManyMutationInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -690,6 +708,7 @@ export type BugReportUncheckedUpdateManyInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -724,6 +743,7 @@ export type BugReportCountOrderByAggregateInput = {
   status?: Prisma.SortOrder
   source?: Prisma.SortOrder
   shareToken?: Prisma.SortOrder
+  ingestToken?: Prisma.SortOrder
   pageUrl?: Prisma.SortOrder
   userAgent?: Prisma.SortOrder
   browserName?: Prisma.SortOrder
@@ -753,6 +773,7 @@ export type BugReportMaxOrderByAggregateInput = {
   status?: Prisma.SortOrder
   source?: Prisma.SortOrder
   shareToken?: Prisma.SortOrder
+  ingestToken?: Prisma.SortOrder
   pageUrl?: Prisma.SortOrder
   userAgent?: Prisma.SortOrder
   browserName?: Prisma.SortOrder
@@ -776,6 +797,7 @@ export type BugReportMinOrderByAggregateInput = {
   status?: Prisma.SortOrder
   source?: Prisma.SortOrder
   shareToken?: Prisma.SortOrder
+  ingestToken?: Prisma.SortOrder
   pageUrl?: Prisma.SortOrder
   userAgent?: Prisma.SortOrder
   browserName?: Prisma.SortOrder
@@ -1102,6 +1124,7 @@ export type BugReportCreateWithoutWorkspaceInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -1138,6 +1161,7 @@ export type BugReportUncheckedCreateWithoutWorkspaceInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -1202,6 +1226,7 @@ export type BugReportScalarWhereInput = {
   status?: Prisma.EnumReportStatusFilter<"BugReport"> | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFilter<"BugReport"> | $Enums.ReportSource
   shareToken?: Prisma.StringFilter<"BugReport"> | string
+  ingestToken?: Prisma.StringNullableFilter<"BugReport"> | string | null
   pageUrl?: Prisma.StringNullableFilter<"BugReport"> | string | null
   userAgent?: Prisma.StringNullableFilter<"BugReport"> | string | null
   browserName?: Prisma.StringNullableFilter<"BugReport"> | string | null
@@ -1223,6 +1248,7 @@ export type BugReportCreateWithoutProjectInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -1259,6 +1285,7 @@ export type BugReportUncheckedCreateWithoutProjectInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -1317,6 +1344,7 @@ export type BugReportCreateWithoutCreatedByInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -1353,6 +1381,7 @@ export type BugReportUncheckedCreateWithoutCreatedByInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -1411,6 +1440,7 @@ export type BugReportCreateWithoutCaptureSessionsInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -1448,6 +1478,7 @@ export type BugReportUncheckedCreateWithoutCaptureSessionsInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -1495,6 +1526,7 @@ export type BugReportUpdateWithoutCaptureSessionsInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1532,6 +1564,7 @@ export type BugReportUncheckedUpdateWithoutCaptureSessionsInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1563,6 +1596,7 @@ export type BugReportCreateWithoutCommentsInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -1600,6 +1634,7 @@ export type BugReportUncheckedCreateWithoutCommentsInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -1647,6 +1682,7 @@ export type BugReportUpdateWithoutCommentsInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1684,6 +1720,7 @@ export type BugReportUncheckedUpdateWithoutCommentsInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1715,6 +1752,7 @@ export type BugReportCreateWithoutUploadsInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -1752,6 +1790,7 @@ export type BugReportUncheckedCreateWithoutUploadsInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -1799,6 +1838,7 @@ export type BugReportUpdateWithoutUploadsInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1836,6 +1876,7 @@ export type BugReportUncheckedUpdateWithoutUploadsInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1867,6 +1908,7 @@ export type BugReportCreateWithoutPageActionsInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -1904,6 +1946,7 @@ export type BugReportUncheckedCreateWithoutPageActionsInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -1951,6 +1994,7 @@ export type BugReportUpdateWithoutPageActionsInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1988,6 +2032,7 @@ export type BugReportUncheckedUpdateWithoutPageActionsInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2019,6 +2064,7 @@ export type BugReportCreateWithoutRuntimeErrorsInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -2056,6 +2102,7 @@ export type BugReportUncheckedCreateWithoutRuntimeErrorsInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -2103,6 +2150,7 @@ export type BugReportUpdateWithoutRuntimeErrorsInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2140,6 +2188,7 @@ export type BugReportUncheckedUpdateWithoutRuntimeErrorsInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2171,6 +2220,7 @@ export type BugReportCreateWithoutPerformanceEntriesInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -2208,6 +2258,7 @@ export type BugReportUncheckedCreateWithoutPerformanceEntriesInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -2255,6 +2306,7 @@ export type BugReportUpdateWithoutPerformanceEntriesInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2292,6 +2344,7 @@ export type BugReportUncheckedUpdateWithoutPerformanceEntriesInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2323,6 +2376,7 @@ export type BugReportCreateWithoutDomEventsInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -2360,6 +2414,7 @@ export type BugReportUncheckedCreateWithoutDomEventsInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -2407,6 +2462,7 @@ export type BugReportUpdateWithoutDomEventsInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2444,6 +2500,7 @@ export type BugReportUncheckedUpdateWithoutDomEventsInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2475,6 +2532,7 @@ export type BugReportCreateWithoutBackendTracesInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -2512,6 +2570,7 @@ export type BugReportUncheckedCreateWithoutBackendTracesInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -2559,6 +2618,7 @@ export type BugReportUpdateWithoutBackendTracesInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2596,6 +2656,7 @@ export type BugReportUncheckedUpdateWithoutBackendTracesInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2627,6 +2688,7 @@ export type BugReportCreateWithoutEventsInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -2664,6 +2726,7 @@ export type BugReportUncheckedCreateWithoutEventsInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -2711,6 +2774,7 @@ export type BugReportUpdateWithoutEventsInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2748,6 +2812,7 @@ export type BugReportUncheckedUpdateWithoutEventsInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2779,6 +2844,7 @@ export type BugReportCreateWithoutConsoleLogsInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -2816,6 +2882,7 @@ export type BugReportUncheckedCreateWithoutConsoleLogsInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -2863,6 +2930,7 @@ export type BugReportUpdateWithoutConsoleLogsInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2900,6 +2968,7 @@ export type BugReportUncheckedUpdateWithoutConsoleLogsInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2931,6 +3000,7 @@ export type BugReportCreateWithoutNetworkRequestsInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -2968,6 +3038,7 @@ export type BugReportUncheckedCreateWithoutNetworkRequestsInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -3015,6 +3086,7 @@ export type BugReportUpdateWithoutNetworkRequestsInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3052,6 +3124,7 @@ export type BugReportUncheckedUpdateWithoutNetworkRequestsInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3085,6 +3158,7 @@ export type BugReportCreateManyWorkspaceInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -3106,6 +3180,7 @@ export type BugReportUpdateWithoutWorkspaceInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3142,6 +3217,7 @@ export type BugReportUncheckedUpdateWithoutWorkspaceInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3176,6 +3252,7 @@ export type BugReportUncheckedUpdateManyWithoutWorkspaceInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3199,6 +3276,7 @@ export type BugReportCreateManyProjectInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -3220,6 +3298,7 @@ export type BugReportUpdateWithoutProjectInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3256,6 +3335,7 @@ export type BugReportUncheckedUpdateWithoutProjectInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3290,6 +3370,7 @@ export type BugReportUncheckedUpdateManyWithoutProjectInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3313,6 +3394,7 @@ export type BugReportCreateManyCreatedByInput = {
   status?: $Enums.ReportStatus
   source?: $Enums.ReportSource
   shareToken: string
+  ingestToken?: string | null
   pageUrl?: string | null
   userAgent?: string | null
   browserName?: string | null
@@ -3334,6 +3416,7 @@ export type BugReportUpdateWithoutCreatedByInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3370,6 +3453,7 @@ export type BugReportUncheckedUpdateWithoutCreatedByInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3404,6 +3488,7 @@ export type BugReportUncheckedUpdateManyWithoutCreatedByInput = {
   status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
   source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
   shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3549,6 +3634,7 @@ export type BugReportSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   status?: boolean
   source?: boolean
   shareToken?: boolean
+  ingestToken?: boolean
   pageUrl?: boolean
   userAgent?: boolean
   browserName?: boolean
@@ -3588,6 +3674,7 @@ export type BugReportSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   status?: boolean
   source?: boolean
   shareToken?: boolean
+  ingestToken?: boolean
   pageUrl?: boolean
   userAgent?: boolean
   browserName?: boolean
@@ -3615,6 +3702,7 @@ export type BugReportSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   status?: boolean
   source?: boolean
   shareToken?: boolean
+  ingestToken?: boolean
   pageUrl?: boolean
   userAgent?: boolean
   browserName?: boolean
@@ -3642,6 +3730,7 @@ export type BugReportSelectScalar = {
   status?: boolean
   source?: boolean
   shareToken?: boolean
+  ingestToken?: boolean
   pageUrl?: boolean
   userAgent?: boolean
   browserName?: boolean
@@ -3656,7 +3745,7 @@ export type BugReportSelectScalar = {
   deletedAt?: boolean
 }
 
-export type BugReportOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "workspaceId" | "projectId" | "createdById" | "title" | "description" | "status" | "source" | "shareToken" | "pageUrl" | "userAgent" | "browserName" | "browserVersion" | "osName" | "viewportWidth" | "viewportHeight" | "metadata" | "failureReason" | "createdAt" | "updatedAt" | "deletedAt", ExtArgs["result"]["bugReport"]>
+export type BugReportOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "workspaceId" | "projectId" | "createdById" | "title" | "description" | "status" | "source" | "shareToken" | "ingestToken" | "pageUrl" | "userAgent" | "browserName" | "browserVersion" | "osName" | "viewportWidth" | "viewportHeight" | "metadata" | "failureReason" | "createdAt" | "updatedAt" | "deletedAt", ExtArgs["result"]["bugReport"]>
 export type BugReportInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   workspace?: boolean | Prisma.WorkspaceDefaultArgs<ExtArgs>
   project?: boolean | Prisma.ProjectDefaultArgs<ExtArgs>
@@ -3713,6 +3802,11 @@ export type $BugReportPayload<ExtArgs extends runtime.Types.Extensions.InternalA
     status: $Enums.ReportStatus
     source: $Enums.ReportSource
     shareToken: string
+    /**
+     * Capability token returned only at capture creation time. The extension
+     * uses this for upload/telemetry writes without exposing it in report detail.
+     */
+    ingestToken: string | null
     pageUrl: string | null
     userAgent: string | null
     browserName: string | null
@@ -4171,6 +4265,7 @@ export interface BugReportFieldRefs {
   readonly status: Prisma.FieldRef<"BugReport", 'ReportStatus'>
   readonly source: Prisma.FieldRef<"BugReport", 'ReportSource'>
   readonly shareToken: Prisma.FieldRef<"BugReport", 'String'>
+  readonly ingestToken: Prisma.FieldRef<"BugReport", 'String'>
   readonly pageUrl: Prisma.FieldRef<"BugReport", 'String'>
   readonly userAgent: Prisma.FieldRef<"BugReport", 'String'>
   readonly browserName: Prisma.FieldRef<"BugReport", 'String'>

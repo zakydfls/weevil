@@ -293,31 +293,35 @@ async function startCapture(tab: chrome.tabs.Tab, captureSettings?: ExtensionSet
       },
     });
     const sessionStartedAt = new Date();
-    const session = await api.createCaptureSession(report.id, {
-      startedAt: sessionStartedAt.toISOString(),
-      recordingStartedAt: sessionStartedAt.toISOString(),
-      pageUrl,
-      title,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      locale: navigator.language,
-      userAgent: captureContext.userAgent,
-      browserName: captureContext.browserName ?? 'Chrome',
-      browserVersion: captureContext.browserVersion,
-      osName: captureContext.osName,
-      extensionVersion: manifest.version,
-      manifestVersion: String(manifest.manifest_version),
-      tabId: String(tab.id),
-      windowId: String(tab.windowId),
-      viewportWidth: captureContext.viewportWidth,
-      viewportHeight: captureContext.viewportHeight,
-      screenWidth: captureContext.screenWidth,
-      screenHeight: captureContext.screenHeight,
-      devicePixelRatio: captureContext.devicePixelRatio,
-      metadata: {
-        source: 'extension',
-        redactSensitiveData: settings.redactSensitiveData,
+    const session = await api.createCaptureSession(
+      report.id,
+      {
+        startedAt: sessionStartedAt.toISOString(),
+        recordingStartedAt: sessionStartedAt.toISOString(),
+        pageUrl,
+        title,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        locale: navigator.language,
+        userAgent: captureContext.userAgent,
+        browserName: captureContext.browserName ?? 'Chrome',
+        browserVersion: captureContext.browserVersion,
+        osName: captureContext.osName,
+        extensionVersion: manifest.version,
+        manifestVersion: String(manifest.manifest_version),
+        tabId: String(tab.id),
+        windowId: String(tab.windowId),
+        viewportWidth: captureContext.viewportWidth,
+        viewportHeight: captureContext.viewportHeight,
+        screenWidth: captureContext.screenWidth,
+        screenHeight: captureContext.screenHeight,
+        devicePixelRatio: captureContext.devicePixelRatio,
+        metadata: {
+          source: 'extension',
+          redactSensitiveData: settings.redactSensitiveData,
+        },
       },
-    });
+      report.ingestToken ?? report.shareToken,
+    );
 
     const startedAt = new Date();
     const state: RecorderState = {
@@ -326,6 +330,7 @@ async function startCapture(tab: chrome.tabs.Tab, captureSettings?: ExtensionSet
       windowId: tab.windowId,
       reportId: report.id,
       shareToken: report.shareToken,
+      ingestToken: report.ingestToken ?? report.shareToken,
       sessionId: session.id,
       startedAt: startedAt.toISOString(),
       pageUrl: pageUrl ?? null,
@@ -386,6 +391,7 @@ async function stopCapture() {
     reportId: state.reportId,
     sessionId: state.sessionId,
     shareToken: state.shareToken ?? null,
+    ingestToken: state.ingestToken ?? state.shareToken ?? null,
     title: state.title ?? 'Untitled capture',
     description: 'Recording captured from the Weevil browser extension.',
     pageUrl: state.pageUrl,
@@ -447,37 +453,42 @@ async function captureScreenshot(tab: chrome.tabs.Tab) {
       redactSensitiveData: settings.redactSensitiveData,
     },
   });
-  const session = await api.createCaptureSession(report.id, {
-    startedAt: capturedAt.toISOString(),
-    pageUrl,
-    title,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    locale: navigator.language,
-    userAgent: captureContext.userAgent,
-    browserName: captureContext.browserName ?? 'Chrome',
-    browserVersion: captureContext.browserVersion,
-    osName: captureContext.osName,
-    extensionVersion: manifest.version,
-    manifestVersion: String(manifest.manifest_version),
-    tabId: String(tab.id),
-    windowId: String(tab.windowId),
-    viewportWidth: captureContext.viewportWidth,
-    viewportHeight: captureContext.viewportHeight,
-    screenWidth: captureContext.screenWidth,
-    screenHeight: captureContext.screenHeight,
-    devicePixelRatio: captureContext.devicePixelRatio,
-    metadata: {
-      source: 'extension',
-      captureMode: 'screenshot',
-      redactSensitiveData: settings.redactSensitiveData,
+  const session = await api.createCaptureSession(
+    report.id,
+    {
+      startedAt: capturedAt.toISOString(),
+      pageUrl,
+      title,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      locale: navigator.language,
+      userAgent: captureContext.userAgent,
+      browserName: captureContext.browserName ?? 'Chrome',
+      browserVersion: captureContext.browserVersion,
+      osName: captureContext.osName,
+      extensionVersion: manifest.version,
+      manifestVersion: String(manifest.manifest_version),
+      tabId: String(tab.id),
+      windowId: String(tab.windowId),
+      viewportWidth: captureContext.viewportWidth,
+      viewportHeight: captureContext.viewportHeight,
+      screenWidth: captureContext.screenWidth,
+      screenHeight: captureContext.screenHeight,
+      devicePixelRatio: captureContext.devicePixelRatio,
+      metadata: {
+        source: 'extension',
+        captureMode: 'screenshot',
+        redactSensitiveData: settings.redactSensitiveData,
+      },
     },
-  });
+    report.ingestToken ?? report.shareToken,
+  );
   const review: PendingCaptureReview = {
     artifactKind: 'screenshot',
     tabId: tab.id,
     reportId: report.id,
     sessionId: session.id,
     shareToken: report.shareToken ?? null,
+    ingestToken: report.ingestToken ?? report.shareToken ?? null,
     title,
     description: 'Screenshot captured from the Weevil browser extension.',
     pageUrl,
@@ -511,7 +522,7 @@ async function submitCaptureReview(input?: SubmitCaptureReviewInput) {
     ? input.description.trim()
     : review.description ?? undefined;
 
-  await api.updateReport(review.reportId, { title, description });
+  await api.updateReport(review.reportId, { title, description }, review.ingestToken);
 
   if (review.dataUrl) {
     const upload = await api.createUpload(review.reportId, {
@@ -521,12 +532,12 @@ async function submitCaptureReview(input?: SubmitCaptureReviewInput) {
       metadata: {
         source: review.artifactKind === 'screenshot' ? 'extension-visible-tab-screenshot' : 'extension-tab-recording',
       },
-    });
+    }, review.ingestToken);
     const blob = await dataUrlToBlob(review.dataUrl);
     await api.uploadBlob(upload.putUrl, blob, review.contentType);
     await api.completeUpload(review.reportId, upload.uploadId, {
       byteSize: review.byteSize ?? blob.size,
-    });
+    }, review.ingestToken);
   }
 
   await api.completeCaptureSession(review.reportId, review.sessionId, {
@@ -537,7 +548,7 @@ async function submitCaptureReview(input?: SubmitCaptureReviewInput) {
     metadata: {
       captureMode: review.artifactKind,
     },
-  });
+  }, review.ingestToken);
 
   pendingReview = {
     ...review,
@@ -834,34 +845,35 @@ async function flushTelemetry() {
   const api = new WeevilApiClient(settings.apiBaseUrl);
   const batch = drainBuffers();
   const reportId = state.reportId;
+  const reportToken = state.ingestToken ?? state.shareToken ?? null;
   const tasks = [
     ...chunk(batch.consoleLogs, settings.maxBatchSize).map((items) => ({
       kind: 'console',
-      run: () => api.attachConsoleLogs(reportId, items),
+      run: () => api.attachConsoleLogs(reportId, items, reportToken),
     })),
     ...chunk(batch.networkRequests, settings.maxBatchSize).map((items) => ({
       kind: 'network',
-      run: () => api.attachNetworkRequests(reportId, items),
+      run: () => api.attachNetworkRequests(reportId, items, reportToken),
     })),
     ...chunk(batch.pageActions, settings.maxBatchSize).map((items) => ({
       kind: 'actions',
-      run: () => api.attachPageActions(reportId, items),
+      run: () => api.attachPageActions(reportId, items, reportToken),
     })),
     ...chunk(batch.runtimeErrors, settings.maxBatchSize).map((items) => ({
       kind: 'errors',
-      run: () => api.attachRuntimeErrors(reportId, items),
+      run: () => api.attachRuntimeErrors(reportId, items, reportToken),
     })),
     ...chunk(batch.performanceEntries, settings.maxBatchSize).map((items) => ({
       kind: 'performance',
-      run: () => api.attachPerformanceEntries(reportId, items),
+      run: () => api.attachPerformanceEntries(reportId, items, reportToken),
     })),
     ...chunk(batch.domEvents, settings.maxBatchSize).map((items) => ({
       kind: 'dom-events',
-      run: () => api.attachDomEvents(reportId, items),
+      run: () => api.attachDomEvents(reportId, items, reportToken),
     })),
     ...chunk(batch.backendTraces, settings.maxBatchSize).map((items) => ({
       kind: 'backend-traces',
-      run: () => api.attachBackendTraces(reportId, items),
+      run: () => api.attachBackendTraces(reportId, items, reportToken),
     })),
   ];
 
@@ -1731,6 +1743,7 @@ interface PendingCaptureReview {
   reportId: string;
   sessionId: string;
   shareToken?: string | null | undefined;
+  ingestToken?: string | null | undefined;
   title?: string | null | undefined;
   description?: string | null | undefined;
   pageUrl?: string | null | undefined;
