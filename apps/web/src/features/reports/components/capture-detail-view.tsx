@@ -15,11 +15,15 @@ import {
   FileText,
   Globe,
   Info,
+  Keyboard,
   Link2,
   ListTree,
   Loader2,
   Monitor,
+  MousePointerClick,
   MousePointer2,
+  MoveVertical,
+  Navigation,
   Play,
   RefreshCcw,
   Search,
@@ -27,6 +31,7 @@ import {
   Server,
   Smartphone,
   Terminal,
+  TextCursorInput,
   Wifi,
   X,
   Zap,
@@ -314,7 +319,7 @@ export function CaptureDetailView({
       <div className="grid min-h-0 grid-rows-[1fr_auto] overflow-hidden bg-[var(--bg)]">
         <div className="thin-scrollbar min-h-0 overflow-auto">
           <div className={isDevToolsOpen ? '' : 'mx-auto max-w-[108rem]'}>
-            <div className="sticky top-0 z-[var(--z-sticky)] border-b border-[var(--border)] bg-[var(--bg)]/95 px-4 pb-3 pt-4 backdrop-blur lg:px-6">
+            <div className="border-b border-[var(--border)] bg-[var(--bg)] px-4 pb-4 pt-4 lg:px-6">
               <div className="mx-auto w-full max-w-[74rem]">
                 <RecordingHero
                   report={report}
@@ -334,7 +339,7 @@ export function CaptureDetailView({
               </div>
             </div>
 
-            <div className="mx-auto w-full max-w-[74rem] px-4 py-7 lg:px-6">
+            <div className="mx-auto w-full max-w-[74rem] px-4 py-8 lg:px-6">
               <CaptureStats report={report} />
 
               <div className="mt-8">
@@ -355,7 +360,7 @@ export function CaptureDetailView({
                 </div>
               </div>
 
-              <section className="mt-10 border-t border-[var(--border)] pt-8">
+              <section className="mt-12 border-t border-[var(--border)] pb-16 pt-8">
                 <div className="flex items-baseline justify-between gap-3">
                   <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
                     Discussion
@@ -364,11 +369,11 @@ export function CaptureDetailView({
                     {comments.length} {comments.length === 1 ? 'reply' : 'replies'}
                   </span>
                 </div>
-                <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--bg)] p-3 transition-colors focus-within:border-[var(--primary)]">
+                <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-4 transition-colors focus-within:border-[var(--primary)]">
                   <Textarea
                     value={commentBody}
                     onChange={(event) => setCommentBody(event.target.value)}
-                    className="min-h-16 border-0 p-0 text-sm shadow-none focus:ring-0"
+                    className="min-h-24 border-0 p-0 text-sm shadow-none focus:ring-0"
                     placeholder="Write a comment, paste a fix, or @mention…"
                   />
                   <div className="mt-2 flex items-center justify-between text-[var(--ink-faint)]">
@@ -1069,15 +1074,7 @@ function DevToolsPanel({
       <div className="thin-scrollbar h-full min-h-0 overflow-auto bg-[var(--bg)] p-3">
         <PanelEmptyState isEmpty={report.pageActions.length === 0} label="No user actions yet." />
         {report.pageActions.map((entry) => (
-          <TelemetryCard
-            key={entry.id}
-            title={formatActionKind(entry.kind)}
-            subtitle={formatActionSubtitle(entry)}
-            tone="info"
-            timestamp={entry.occurredAt}
-            offsetMs={entry.offsetMs}
-            rows={actionRows(entry)}
-          />
+          <ActionTelemetryCard key={entry.id} entry={entry} />
         ))}
       </div>
     );
@@ -1180,39 +1177,139 @@ function DevToolsPanel({
   );
 }
 
-function formatActionKind(kind: string): string {
-  return kind.replace(/_/g, ' ');
+function ActionTelemetryCard({ entry }: { entry: PageActionEntry }) {
+  const rows = actionRows(entry);
+  const title = actionTitle(entry);
+  const caption = actionCaption(entry);
+
+  return (
+    <div className="mb-2 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg)] transition-colors hover:border-[var(--border-strong)]">
+      <div className="border-b border-[var(--divider)] bg-[var(--surface)] px-3 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span
+              className={`grid h-8 w-8 shrink-0 place-items-center rounded-md ring-1 ${actionIconFrameClass(entry.kind)}`}
+              title={actionKindLabel(entry.kind)}
+              role="img"
+              aria-label={actionKindLabel(entry.kind)}
+            >
+              <ActionKindIcon kind={entry.kind} />
+            </span>
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold text-[var(--ink)]">{title}</div>
+              {caption ? (
+                <div className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+                  {caption}
+                </div>
+              ) : null}
+            </div>
+          </div>
+          <div className="shrink-0 font-mono text-[11px] text-[var(--ink-faint)]">
+            <span className="font-semibold text-[var(--ink-muted)]">{formatOffset(entry.offsetMs)}</span>
+            <span className="px-1.5">·</span>
+            <span>{formatDate(entry.occurredAt)}</span>
+          </div>
+        </div>
+      </div>
+      {rows.length > 0 ? (
+        <div>
+          {rows.map(([label, value]) => (
+            <div
+              key={label}
+              className="grid grid-cols-1 border-b border-[var(--divider)] text-xs transition-colors last:border-b-0 hover:bg-[var(--surface)] sm:grid-cols-[7rem_1fr]"
+            >
+              <div className="px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+                {label}
+              </div>
+              <div className="break-words px-3 pb-1.5 font-mono text-[11px] leading-5 text-[var(--ink)] sm:py-1.5">
+                {value}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
-function formatActionSubtitle(entry: PageActionEntry): string {
+function ActionKindIcon({ kind }: { kind: string }) {
+  const className = 'h-4 w-4';
+
+  if (kind === 'SCROLL') return <MoveVertical className={className} aria-hidden />;
+  if (kind === 'KEY_PRESS') return <Keyboard className={className} aria-hidden />;
+  if (kind === 'NAVIGATION' || kind === 'ROUTE_CHANGE') return <Navigation className={className} aria-hidden />;
+  if (kind === 'INPUT' || kind === 'FORM_SUBMIT') return <TextCursorInput className={className} aria-hidden />;
+  if (kind === 'CLICK' || kind === 'DOUBLE_CLICK') return <MousePointerClick className={className} aria-hidden />;
+
+  return <MousePointer2 className={className} aria-hidden />;
+}
+
+function actionIconFrameClass(kind: string): string {
+  if (kind === 'SCROLL') return 'bg-[var(--accent-cool-soft)] text-[var(--accent-cool)] ring-[var(--border-cool)]';
+  if (kind === 'KEY_PRESS') return 'bg-[var(--warning-bg)] text-[var(--warning)] ring-[var(--warning-border)]';
+  if (kind === 'NAVIGATION' || kind === 'ROUTE_CHANGE') {
+    return 'bg-[var(--success-bg)] text-[var(--success)] ring-[var(--success)]';
+  }
+  if (kind === 'INPUT' || kind === 'FORM_SUBMIT') {
+    return 'bg-[var(--surface-cool)] text-[var(--accent-cool)] ring-[var(--border-cool)]';
+  }
+  if (kind === 'CLICK' || kind === 'DOUBLE_CLICK') {
+    return 'bg-[var(--primary-subtle)] text-[var(--primary)] ring-[var(--primary-soft)]';
+  }
+  return 'bg-[var(--surface)] text-[var(--ink-muted)] ring-[var(--border)]';
+}
+
+function actionKindLabel(kind: string): string {
+  if (kind === 'SCROLL') return 'Viewport movement';
+  if (kind === 'KEY_PRESS') return 'Keyboard action';
+  if (kind === 'NAVIGATION' || kind === 'ROUTE_CHANGE') return 'Navigation';
+  if (kind === 'INPUT') return 'Input change';
+  if (kind === 'FORM_SUBMIT') return 'Form submit';
+  if (kind === 'CLICK' || kind === 'DOUBLE_CLICK') return 'Pointer action';
+  return kind.replace(/_/g, ' ').toLowerCase();
+}
+
+function actionTitle(entry: PageActionEntry): string {
   if (entry.kind === 'SCROLL') {
-    return entry.label ?? formatScrollPosition(entry) ?? 'Scroll';
+    return entry.label && entry.label !== 'Window scroll' ? entry.label : 'Viewport moved';
   }
 
-  if (entry.kind === 'NAVIGATION') {
-    return entry.label ? `Navigation: ${entry.label}` : entry.pageUrl ?? 'Navigation';
+  if (entry.kind === 'NAVIGATION' || entry.kind === 'ROUTE_CHANGE') {
+    return entry.label ?? readableUrl(entry.pageUrl) ?? 'Page changed';
   }
 
   if (entry.kind === 'KEY_PRESS') {
-    return entry.label ? `Key ${entry.label}` : entry.selector ?? 'Key press';
+    return entry.label ? `Key ${entry.label}` : entry.selector ?? 'Keyboard action';
   }
 
-  return entry.label ?? entry.textPreview ?? entry.valuePreview ?? entry.selector ?? formatActionKind(entry.kind);
+  if (entry.kind === 'INPUT' || entry.kind === 'FORM_SUBMIT') {
+    return entry.label ?? entry.selector ?? 'Field updated';
+  }
+
+  return entry.label ?? entry.textPreview ?? entry.valuePreview ?? entry.selector ?? actionKindLabel(entry.kind);
+}
+
+function actionCaption(entry: PageActionEntry): string | null {
+  const parts = [
+    actionKindLabel(entry.kind),
+    entry.tagName ? entry.tagName.toLowerCase() : null,
+    formatPointerPosition(entry),
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(' · ') : null;
 }
 
 function actionRows(entry: PageActionEntry): Array<[string, string]> {
   const rows: Array<[string, string]> = [];
 
   if (entry.kind === 'SCROLL') {
-    pushActionRow(rows, 'Scroll', formatScrollPosition(entry));
-    pushActionRow(rows, 'Target', entry.label === 'Window scroll' ? undefined : entry.label);
+    pushActionRow(rows, 'Viewport', formatScrollPosition(entry));
+    pushActionRow(rows, 'Container', entry.label === 'Window scroll' ? undefined : entry.label);
     pushActionRow(rows, 'Selector', entry.selector);
-    pushActionRow(rows, 'Node path', entry.nodePath);
     pushActionRow(rows, 'Page URL', entry.pageUrl);
-    return rows.length > 0 ? rows : [['Details', 'Scroll position was not captured']];
+    return rows.length > 0 ? rows : [['Details', 'Viewport position was not captured']];
   }
 
-  if (entry.kind === 'NAVIGATION') {
+  if (entry.kind === 'NAVIGATION' || entry.kind === 'ROUTE_CHANGE') {
     pushActionRow(rows, 'Trigger', entry.label);
     pushActionRow(rows, 'Page URL', entry.pageUrl);
     return rows.length > 0 ? rows : [['Details', 'Navigation details were not captured']];
@@ -1220,20 +1317,20 @@ function actionRows(entry: PageActionEntry): Array<[string, string]> {
 
   if (entry.kind === 'KEY_PRESS') {
     pushActionRow(rows, 'Key', entry.label);
-    pushActionRow(rows, 'Selector', entry.selector);
-    pushActionRow(rows, 'Node path', entry.nodePath);
+    pushActionRow(rows, 'Target', entry.selector);
     pushActionRow(rows, 'Tag', entry.tagName);
     pushActionRow(rows, 'Page URL', entry.pageUrl);
     return rows.length > 0 ? rows : [['Details', 'Key press details were not captured']];
   }
 
-  pushActionRow(rows, 'Selector', entry.selector);
-  pushActionRow(rows, 'Node path', entry.nodePath);
+  pushActionRow(rows, 'Target', entry.label ?? entry.textPreview ?? entry.selector);
   pushActionRow(rows, 'Tag', entry.tagName);
-  pushActionRow(rows, 'Text', entry.textPreview);
+  if (entry.textPreview && entry.textPreview !== entry.label) {
+    pushActionRow(rows, 'Text', entry.textPreview);
+  }
   pushActionRow(rows, 'Value', entry.valuePreview);
   pushActionRow(rows, 'Position', formatPointerPosition(entry));
-  pushActionRow(rows, 'Scroll', formatScrollPosition(entry));
+  pushActionRow(rows, 'Selector', entry.selector);
   pushActionRow(rows, 'Page URL', entry.pageUrl);
 
   return rows.length > 0 ? rows : [['Details', 'No additional details captured']];
@@ -1258,7 +1355,20 @@ function formatScrollPosition(entry: PageActionEntry): string | null {
   if (typeof entry.scrollX !== 'number' && typeof entry.scrollY !== 'number') {
     return null;
   }
-  return `x ${entry.scrollX ?? 0}, y ${entry.scrollY ?? 0}`;
+  return `left ${entry.scrollX ?? 0}, top ${entry.scrollY ?? 0}`;
+}
+
+function readableUrl(value?: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const url = new URL(value);
+    return `${url.hostname}${url.pathname}`;
+  } catch {
+    return value;
+  }
 }
 
 function BackendPanel({ traces }: { traces: BackendTraceEntry[] }) {
