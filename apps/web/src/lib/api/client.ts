@@ -211,10 +211,7 @@ export const apiClient = {
   createComment: (reportId: string, body: string) =>
     request(`/reports/${reportId}/comments`, {
       method: 'POST',
-      body: JSON.stringify({
-        authorName: 'Weevil User',
-        body,
-      }),
+      body: JSON.stringify({ body }),
     }),
 
   // ── Auth ───────────────────────────────────────────────────────────────────

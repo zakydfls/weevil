@@ -7,15 +7,11 @@ import {
   AlertTriangle,
   ArrowLeft,
   Check,
-  ChevronDown,
   Clock,
   Copy,
-  Database,
   FileCode2,
   FileText,
-  Gauge,
   Globe,
-  Home,
   Info,
   Link2,
   ListTree,
@@ -61,13 +57,14 @@ type DevToolsTab =
   | 'DOM'
   | 'Backend';
 
-// Visible tabs only — other telemetry (Timeline, Actions, Errors, Performance, Backend)
+// Visible tabs only — other telemetry (Timeline, Performance, DOM, Backend)
 // is still captured and stored, but not surfaced in the UI for now.
 const devToolsTabItems = [
   { id: 'Info', icon: Info },
   { id: 'Console', icon: Terminal },
   { id: 'Network', icon: Wifi },
-  { id: 'DOM', icon: FileCode2 },
+  { id: 'Actions', icon: MousePointer2 },
+  { id: 'Errors', icon: AlertTriangle },
 ] satisfies Array<{ id: DevToolsTab; icon: typeof Clock }>;
 const networkFilterLabels = ['All', 'Fetch/XHR', 'WS', 'JS', 'CSS', 'Media', 'Font', 'Doc', 'Other'] as const;
 type NetworkFilter = (typeof networkFilterLabels)[number];
@@ -685,9 +682,6 @@ function CaptureStats({ report }: { report: ReportDetail }) {
     { label: 'network', value: report.networkRequests?.length ?? 0, color: 'var(--tl-network)' },
     { label: 'actions', value: report.pageActions?.length ?? 0, color: 'var(--tl-action)' },
     { label: 'errors', value: report.runtimeErrors?.length ?? 0, color: 'var(--tl-error)' },
-    { label: 'backend', value: report.backendTraces?.length ?? 0, color: 'var(--tl-backend)' },
-    { label: 'perf', value: report.performanceEntries?.length ?? 0, color: 'var(--tl-performance)' },
-    { label: 'dom', value: report.domEvents?.length ?? 0, color: 'var(--ink-faint)' },
   ] as const;
 
   return (
@@ -1012,28 +1006,37 @@ function DevToolsPanel({
 
   if (activeTab === 'Info') {
     const session = report.captureSessions?.[0];
+    const pageUrl = report.pageUrl ?? session?.pageUrl ?? '—';
+    const browser = [
+      report.browserName ?? session?.browserName,
+      report.browserVersion ?? session?.browserVersion,
+    ].filter(Boolean).join(' ') || '—';
+    const osName = report.osName ?? session?.osName ?? '—';
+    const viewportWidth = report.viewportWidth ?? session?.viewportWidth;
+    const viewportHeight = report.viewportHeight ?? session?.viewportHeight;
+    const screenSize = session?.screenWidth && session?.screenHeight
+      ? `${session.screenWidth} × ${session.screenHeight}${session.devicePixelRatio ? ` @${session.devicePixelRatio}x` : ''}`
+      : '—';
+    const userAgent = report.userAgent ?? session?.userAgent ?? '—';
 
     return (
       <div className="thin-scrollbar h-full min-h-0 overflow-auto bg-[var(--bg)]">
         <SectionTitle title="Page" />
-        <KeyValue label="URL" value={report.pageUrl ?? '—'} />
-        <KeyValue label="Browser" value={[report.browserName, report.browserVersion].filter(Boolean).join(' ') || '—'} />
-        <KeyValue label="OS" value={report.osName ?? '—'} />
+        <KeyValue label="URL" value={pageUrl} />
+        <KeyValue label="Browser" value={browser} />
+        <KeyValue label="OS" value={osName} />
         <KeyValue
           label="Viewport"
-          value={report.viewportWidth && report.viewportHeight ? `${report.viewportWidth} × ${report.viewportHeight}` : '—'}
+          value={viewportWidth && viewportHeight ? `${viewportWidth} × ${viewportHeight}` : '—'}
         />
-        <KeyValue
-          label="Screen"
-          value={session?.screenWidth && session?.screenHeight ? `${session.screenWidth} × ${session.screenHeight}` : '—'}
-        />
+        <KeyValue label="Screen" value={screenSize} />
         <SectionTitle title="Session" />
         <KeyValue label="Status" value={session?.status ?? '—'} />
         <KeyValue label="Duration" value={formatDuration(session?.durationMs)} />
         <KeyValue label="Timezone" value={session?.timezone ?? '—'} />
         <KeyValue label="Locale" value={session?.locale ?? '—'} />
         <KeyValue label="Extension" value={session?.extensionVersion ?? '—'} />
-        <KeyValue label="User agent" value={report.userAgent ?? '—'} />
+        <KeyValue label="User agent" value={userAgent} />
         <SectionTitle title="IDs" />
         <KeyValue label="Report ID" value={report.id} />
         <KeyValue label="Share token" value={report.shareToken ?? '—'} />

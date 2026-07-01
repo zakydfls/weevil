@@ -55,6 +55,18 @@ const webStartCaptureUnsupportedMessage =
 let attachedConsoleDebuggee: chrome.debugger.Debuggee | null = null;
 let pendingReview: PendingCaptureReview | null = null;
 
+interface BrowserCaptureContext {
+  userAgent?: string | undefined;
+  browserName?: string | undefined;
+  browserVersion?: string | undefined;
+  osName?: string | undefined;
+  viewportWidth?: number | undefined;
+  viewportHeight?: number | undefined;
+  screenWidth?: number | undefined;
+  screenHeight?: number | undefined;
+  devicePixelRatio?: number | undefined;
+}
+
 chrome.runtime.onInstalled.addListener(async () => {
   await resetRecorderState();
 });
@@ -246,6 +258,7 @@ async function startCapture(tab: chrome.tabs.Tab, captureSettings?: ExtensionSet
   clearBuffers();
   await injectContentScript(tab.id);
   await injectPageBridge(tab.id);
+  const captureContext = await getTabCaptureContext(tab.id);
 
   let preparingOverlayShown = false;
   let offscreenStarted = false;
@@ -266,7 +279,12 @@ async function startCapture(tab: chrome.tabs.Tab, captureSettings?: ExtensionSet
       description: 'Captured from the Weevil browser extension.',
       source: ReportSource.Extension,
       pageUrl,
-      browserName: 'Chrome',
+      userAgent: captureContext.userAgent,
+      browserName: captureContext.browserName ?? 'Chrome',
+      browserVersion: captureContext.browserVersion,
+      osName: captureContext.osName,
+      viewportWidth: captureContext.viewportWidth,
+      viewportHeight: captureContext.viewportHeight,
       metadata: {
         tabId: tab.id,
         windowId: tab.windowId,
@@ -282,12 +300,19 @@ async function startCapture(tab: chrome.tabs.Tab, captureSettings?: ExtensionSet
       title,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       locale: navigator.language,
-      userAgent: navigator.userAgent,
-      browserName: 'Chrome',
+      userAgent: captureContext.userAgent,
+      browserName: captureContext.browserName ?? 'Chrome',
+      browserVersion: captureContext.browserVersion,
+      osName: captureContext.osName,
       extensionVersion: manifest.version,
       manifestVersion: String(manifest.manifest_version),
       tabId: String(tab.id),
       windowId: String(tab.windowId),
+      viewportWidth: captureContext.viewportWidth,
+      viewportHeight: captureContext.viewportHeight,
+      screenWidth: captureContext.screenWidth,
+      screenHeight: captureContext.screenHeight,
+      devicePixelRatio: captureContext.devicePixelRatio,
       metadata: {
         source: 'extension',
         redactSensitiveData: settings.redactSensitiveData,
@@ -399,6 +424,8 @@ async function captureScreenshot(tab: chrome.tabs.Tab) {
   const manifest = chrome.runtime.getManifest();
   const pageUrl = tab.url;
   const title = tab.title || pageUrl || 'Weevil screenshot';
+  await injectContentScript(tab.id);
+  const captureContext = await getTabCaptureContext(tab.id);
   const dataUrl = await captureVisibleTab(tab.windowId);
   const screenshotBlob = await dataUrlToBlob(dataUrl);
   const report = await api.createReport({
@@ -406,7 +433,12 @@ async function captureScreenshot(tab: chrome.tabs.Tab) {
     description: 'Captured screenshot from the Weevil browser extension.',
     source: ReportSource.Extension,
     pageUrl,
-    browserName: 'Chrome',
+    userAgent: captureContext.userAgent,
+    browserName: captureContext.browserName ?? 'Chrome',
+    browserVersion: captureContext.browserVersion,
+    osName: captureContext.osName,
+    viewportWidth: captureContext.viewportWidth,
+    viewportHeight: captureContext.viewportHeight,
     metadata: {
       tabId: tab.id,
       windowId: tab.windowId,
@@ -421,12 +453,19 @@ async function captureScreenshot(tab: chrome.tabs.Tab) {
     title,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     locale: navigator.language,
-    userAgent: navigator.userAgent,
-    browserName: 'Chrome',
+    userAgent: captureContext.userAgent,
+    browserName: captureContext.browserName ?? 'Chrome',
+    browserVersion: captureContext.browserVersion,
+    osName: captureContext.osName,
     extensionVersion: manifest.version,
     manifestVersion: String(manifest.manifest_version),
     tabId: String(tab.id),
     windowId: String(tab.windowId),
+    viewportWidth: captureContext.viewportWidth,
+    viewportHeight: captureContext.viewportHeight,
+    screenWidth: captureContext.screenWidth,
+    screenHeight: captureContext.screenHeight,
+    devicePixelRatio: captureContext.devicePixelRatio,
     metadata: {
       source: 'extension',
       captureMode: 'screenshot',
@@ -451,7 +490,6 @@ async function captureScreenshot(tab: chrome.tabs.Tab) {
   };
   pendingReview = review;
 
-  await injectContentScript(tab.id);
   await notifyTab(tab.id, {
     type: RuntimeMessageTypes.CaptureCompleted,
     payload: pendingReviewToPayload(review, false),
@@ -880,6 +918,111 @@ async function stopOffscreenRecording() {
     await markError(error);
     return null;
   }
+}
+
+async function getTabCaptureContext(tabId: number): Promise<BrowserCaptureContext> {
+  try {
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: collectBrowserCaptureContext,
+    });
+
+    return sanitizeBrowserCaptureContext(result?.result);
+  } catch {
+    return {};
+  }
+}
+
+function collectBrowserCaptureContext(): BrowserCaptureContext {
+  const ua = navigator.userAgent;
+  const uaData = (navigator as unknown as {
+    userAgentData?: {
+      platform?: string;
+      brands?: Array<{ brand?: string; version?: string }>;
+    };
+  }).userAgentData;
+  const browser = detectBrowser(ua, uaData?.brands);
+
+  return {
+    userAgent: ua,
+    browserName: browser.name,
+    browserVersion: browser.version,
+    osName: detectOsName(ua, uaData?.platform ?? navigator.platform),
+    viewportWidth: positiveInt(window.innerWidth),
+    viewportHeight: positiveInt(window.innerHeight),
+    screenWidth: positiveInt(window.screen?.width),
+    screenHeight: positiveInt(window.screen?.height),
+    devicePixelRatio: positiveNumber(window.devicePixelRatio),
+  };
+
+  function detectBrowser(userAgent: string, brands?: Array<{ brand?: string; version?: string }>) {
+    const brand = brands?.find((item) => {
+      const name = item.brand?.toLowerCase() ?? '';
+      return name.includes('chrome') || name.includes('chromium') || name.includes('arc');
+    });
+    const chromeVersion = userAgent.match(/(?:Chrome|CriOS)\/([\d.]+)/)?.[1];
+    const edgeVersion = userAgent.match(/Edg\/([\d.]+)/)?.[1];
+    const firefoxVersion = userAgent.match(/Firefox\/([\d.]+)/)?.[1];
+    const safariVersion = !chromeVersion && userAgent.includes('Safari/')
+      ? userAgent.match(/Version\/([\d.]+)/)?.[1]
+      : undefined;
+
+    if (edgeVersion) return { name: 'Edge', version: edgeVersion };
+    if (chromeVersion) return { name: 'Chrome', version: chromeVersion };
+    if (firefoxVersion) return { name: 'Firefox', version: firefoxVersion };
+    if (safariVersion) return { name: 'Safari', version: safariVersion };
+    return { name: brand?.brand ?? 'Chrome', version: brand?.version };
+  }
+
+  function detectOsName(userAgent: string, platform?: string) {
+    const source = `${platform ?? ''} ${userAgent}`;
+    if (/Windows/i.test(source)) return 'Windows';
+    if (/Mac OS X|Macintosh|MacIntel/i.test(source)) return 'macOS';
+    if (/iPhone|iPad|iPod/i.test(source)) return 'iOS';
+    if (/Android/i.test(source)) return 'Android';
+    if (/Linux/i.test(source)) return 'Linux';
+    if (/CrOS/i.test(source)) return 'ChromeOS';
+    return platform || undefined;
+  }
+
+  function positiveInt(value: unknown) {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0
+      ? Math.round(value)
+      : undefined;
+  }
+
+  function positiveNumber(value: unknown) {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0
+      ? value
+      : undefined;
+  }
+}
+
+function sanitizeBrowserCaptureContext(value: unknown): BrowserCaptureContext {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  const record = value as Record<string, unknown>;
+  return {
+    userAgent: optionalString(record.userAgent, 2_000),
+    browserName: optionalString(record.browserName, 120),
+    browserVersion: optionalString(record.browserVersion, 120),
+    osName: optionalString(record.osName, 120),
+    viewportWidth: optionalBoundedInt(record.viewportWidth, 1, 100_000),
+    viewportHeight: optionalBoundedInt(record.viewportHeight, 1, 100_000),
+    screenWidth: optionalBoundedInt(record.screenWidth, 1, 100_000),
+    screenHeight: optionalBoundedInt(record.screenHeight, 1, 100_000),
+    devicePixelRatio: optionalPositiveNumber(record.devicePixelRatio, 100),
+  };
+}
+
+function optionalPositiveNumber(value: unknown, max: number) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0 || value > max) {
+    return undefined;
+  }
+
+  return value;
 }
 
 async function ensureOffscreenDocument() {

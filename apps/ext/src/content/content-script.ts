@@ -974,7 +974,7 @@ function updateOverlay() {
   if (modalTitle) {
     modalTitle.textContent =
       overlayMode === 'stopping'
-        ? 'Preparing preview'
+        ? 'Finalizing capture'
         : overlayMode === 'failed'
           ? 'Recorder could not start'
           : overlayMode === 'done'
@@ -986,7 +986,7 @@ function updateOverlay() {
   if (modalCopy) {
     modalCopy.textContent =
       overlayMode === 'stopping'
-        ? 'Building a local preview so you can review it before saving.'
+        ? 'Preparing your preview and syncing the last telemetry.'
         : overlayMode === 'failed'
           ? startFailureMessage
           : overlayMode === 'done'
@@ -994,16 +994,23 @@ function updateOverlay() {
               ? `Your report is ready in the dashboard: ${reportId}`
               : 'Review your capture, then save it to the dashboard.'
             : isPreparingOvertime
-              ? 'Opening the capture session. This can take a moment on production.'
+              ? 'Opening the capture session. Keep this tab visible.'
               : 'Your capture will start in a moment. Keep this tab visible.';
   }
   if (modalHint) {
-    modalHint.innerHTML =
-      overlayMode === 'stopping'
-        ? 'compressing recording data'
-        : overlayMode === 'failed'
+    modalHint.classList.toggle('weevil-modal-hint-steps', overlayMode === 'stopping');
+    if (overlayMode === 'stopping') {
+      modalHint.innerHTML = [
+        '<span data-active>video</span>',
+        '<span data-active>telemetry</span>',
+        '<span>review</span>',
+      ].join('');
+    } else {
+      modalHint.innerHTML =
+        overlayMode === 'failed'
           ? 'press <kbd>esc</kbd> to close'
           : 'keep this tab visible';
+    }
   }
   if (status) {
     status.textContent =
@@ -1190,7 +1197,7 @@ function setStopButtonDisabled(isDisabled: boolean) {
   }
 
   button.disabled = isDisabled;
-  button.textContent = isDisabled ? 'Saving' : 'Stop';
+  button.textContent = isDisabled ? 'Stopping' : 'Stop';
 }
 
 function resizeAnnotationCanvas() {
@@ -1357,6 +1364,7 @@ function createOverlayMarkup() {
           transform 220ms cubic-bezier(0.165, 0.84, 0.44, 1);
         z-index: 50;
         min-width: 320px;
+        width: min(380px, calc(100vw - 32px));
       }
 
 	      .weevil-root[data-mode="preparing"] .weevil-modal,
@@ -1433,9 +1441,20 @@ function createOverlayMarkup() {
 	        position: absolute;
 	      }
 
-	      .weevil-root[data-mode="stopping"] .weevil-modal-mark,
-	      .weevil-root[data-mode="failed"] .weevil-modal-mark {
-	        display: inline-flex;
+      .weevil-root[data-mode="stopping"] .weevil-modal-mark,
+      .weevil-root[data-mode="failed"] .weevil-modal-mark {
+        display: inline-flex;
+      }
+
+	      .weevil-root[data-mode="stopping"] .weevil-modal-mark::before {
+	        content: "";
+	        background: #ffffff;
+	        border-radius: 999px;
+	        box-shadow:
+	          -9px 0 0 rgba(255, 255, 255, 0.55),
+	          9px 0 0 rgba(255, 255, 255, 0.55);
+	        height: 7px;
+	        width: 7px;
 	      }
 
 	      .weevil-root[data-mode="failed"] .weevil-modal-mark {
@@ -1508,6 +1527,30 @@ function createOverlayMarkup() {
         margin: 0 2px;
         text-transform: none;
         letter-spacing: 0;
+      }
+
+      .weevil-modal-hint-steps {
+        align-items: center;
+        display: grid;
+        gap: 8px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .weevil-modal-hint-steps span {
+        align-items: center;
+        background: var(--w-surface);
+        border: 0.5px solid var(--w-border);
+        border-radius: 6px;
+        color: var(--w-ink-faint);
+        display: inline-flex;
+        justify-content: center;
+        min-height: 26px;
+      }
+
+      .weevil-modal-hint-steps span[data-active] {
+        background: var(--w-primary-soft);
+        border-color: oklch(0.82 0.08 42);
+        color: var(--w-primary);
       }
 
 	      .weevil-root[data-mode="recording"] .weevil-modal,

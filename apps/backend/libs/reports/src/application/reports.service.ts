@@ -383,6 +383,7 @@ export class ReportsService {
   async createComment(
     reportId: string,
     dto: CreateReportCommentDto,
+    options: { authorName?: string | null } = {},
   ): Promise<ReportCommentResponse> {
     const report = await this.prisma.bugReport.findUniqueOrThrow({
       where: { id: reportId },
@@ -393,7 +394,7 @@ export class ReportsService {
     const comment = await this.prisma.reportComment.create({
       data: {
         reportId,
-        authorName: dto.authorName.trim() || 'Weevil User',
+        authorName: options.authorName?.trim() || dto.authorName?.trim() || 'Weevil User',
         body: this.redactText(dto.body, shouldRedact) ?? dto.body,
       },
     });

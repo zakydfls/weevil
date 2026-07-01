@@ -472,9 +472,10 @@ export interface BackendTraceResponse {
 }
 
 export class CreateReportCommentDto {
+  @IsOptional()
   @IsString()
   @MaxLength(120)
-  authorName: string;
+  authorName?: string;
 
   @IsString()
   @MaxLength(4000)

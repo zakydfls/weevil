@@ -60,10 +60,13 @@ export class ReportsController {
 
   @Post(ApiRoutes.ReportCommentsRelative)
   createComment(
+    @CurrentAuth() auth: AuthContext,
     @Param(RouteParams.ReportId) reportId: string,
     @Body() dto: CreateReportCommentDto,
   ) {
-    return this.reportsService.createComment(reportId, dto);
+    return this.reportsService.createComment(reportId, dto, {
+      authorName: auth.user.displayName ?? auth.user.email,
+    });
   }
 
   // Capture sessions and uploads are still extension-driven for now.
