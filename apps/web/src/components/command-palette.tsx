@@ -104,7 +104,7 @@ export function CommandPalette() {
       {
         id: 'action-new-capture',
         kind: 'action',
-        label: extMissing ? 'Start new capture (extension required)' : 'Start new capture',
+        label: extMissing ? 'Start capture (extension required)' : 'Start from extension',
         hint: extMissing ? 'Install the Weevil extension first' : 'Use the extension button on the target tab',
         icon: Plus,
         perform: () => {

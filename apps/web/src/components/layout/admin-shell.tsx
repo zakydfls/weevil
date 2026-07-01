@@ -174,7 +174,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 aria-label="New capture — Weevil extension required"
               >
                 <Plus className="h-4 w-4" aria-hidden />
-                <span className="hidden sm:inline">New capture</span>
+                <span className="hidden sm:inline">Use extension</span>
               </Button>
             </Tooltip>
           ) : (

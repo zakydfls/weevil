@@ -33,7 +33,7 @@ export function CaptureCardGrid({ reports, isLoading, isError, onRetry, onSelect
     // Skeleton grid that mirrors the real cards, so the load reads as "content
     // arriving" (not an empty/placeholder message) and swaps in seamlessly.
     return (
-      <div className="grid gap-6 sm:grid-cols-2 2xl:grid-cols-3" role="status" aria-label="Loading captures">
+      <div className="grid items-start gap-5 sm:grid-cols-2 xl:grid-cols-3 xl:gap-6" role="status" aria-label="Loading captures">
         {Array.from({ length: 6 }).map((_, index) => (
           <div
             key={index}
@@ -70,7 +70,7 @@ export function CaptureCardGrid({ reports, isLoading, isError, onRetry, onSelect
   }
 
   return (
-    <div className="grid gap-6 sm:grid-cols-2 2xl:grid-cols-3">
+    <div className="grid items-start gap-5 sm:grid-cols-2 xl:grid-cols-3 xl:gap-6">
       {reports.map((report, index) => (
         <button
           key={report.id}
