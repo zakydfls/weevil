@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+import { AcceptInviteClient } from './accept-invite-client';
 
 export default async function AcceptInvitePage({
   searchParams,
@@ -6,8 +6,8 @@ export default async function AcceptInvitePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const token = first(params.token) ?? first(params.inviteToken) ?? first(params.invite);
-  redirect(token ? `/signup?inviteToken=${encodeURIComponent(token)}` : '/signup');
+  const token = first(params.token) ?? first(params.inviteToken) ?? first(params.invite) ?? '';
+  return <AcceptInviteClient inviteToken={token} />;
 }
 
 function first(value: string | string[] | undefined): string | undefined {

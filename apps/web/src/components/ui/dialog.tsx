@@ -1,8 +1,23 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import {
+  createContext,
+  forwardRef,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentPropsWithoutRef,
+  type ElementRef,
+  type HTMLAttributes,
+  type ReactNode,
+} from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 type DialogTone = 'default' | 'danger' | 'warning';
 
@@ -80,7 +95,6 @@ export function DialogProvider({ children }: { children: ReactNode }) {
     window.addEventListener('keydown', handleKey);
     window.setTimeout(() => confirmButtonRef.current?.focus(), 0);
     return () => window.removeEventListener('keydown', handleKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending]);
 
   const value = useMemo<DialogContextValue>(() => ({ confirm, alert: alertFn }), [confirm, alertFn]);
@@ -107,6 +121,96 @@ export function useDialog(): DialogContextValue {
   }
   return ctx;
 }
+
+const Dialog = DialogPrimitive.Root;
+const DialogTrigger = DialogPrimitive.Trigger;
+const DialogPortal = DialogPrimitive.Portal;
+const DialogClose = DialogPrimitive.Close;
+
+const DialogOverlay = forwardRef<
+  ElementRef<typeof DialogPrimitive.Overlay>,
+  ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
+>(function DialogOverlay({ className, ...props }, ref) {
+  return (
+    <DialogPrimitive.Overlay
+      ref={ref}
+      className={cn(
+        'fixed inset-0 z-[var(--z-modal)] bg-[var(--ink-strong)]/40 backdrop-blur-sm data-[state=open]:weevil-fade-in',
+        className,
+      )}
+      {...props}
+    />
+  );
+});
+
+const DialogContent = forwardRef<
+  ElementRef<typeof DialogPrimitive.Content>,
+  ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { showClose?: boolean }
+>(function DialogContent({ className, children, showClose = true, ...props }, ref) {
+  return (
+    <DialogPortal>
+      <DialogOverlay />
+      <DialogPrimitive.Content
+        ref={ref}
+        className={cn(
+          'fixed left-1/2 top-1/2 z-[calc(var(--z-modal)+1)] flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-lg border border-[var(--border-strong)] bg-[var(--bg)] shadow-[0_8px_8px_-8px_rgba(26,29,18,0.24)] outline-none data-[state=open]:weevil-soft-rise',
+          className,
+        )}
+        {...props}
+      >
+        {children}
+        {showClose ? (
+          <DialogPrimitive.Close className="absolute right-3 top-3 grid h-7 w-7 place-items-center rounded-md text-[var(--ink-faint)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)] disabled:pointer-events-none">
+            <X className="h-3.5 w-3.5" aria-hidden />
+            <span className="sr-only">Close</span>
+          </DialogPrimitive.Close>
+        ) : null}
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  );
+});
+
+function DialogHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('grid gap-1.5 px-4 py-3 text-left', className)} {...props} />;
+}
+
+function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn(
+        'flex flex-col-reverse gap-2 border-t border-[var(--divider)] bg-[var(--surface)] px-4 py-3 sm:flex-row sm:justify-end',
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+const DialogTitle = forwardRef<
+  ElementRef<typeof DialogPrimitive.Title>,
+  ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
+>(function DialogTitle({ className, ...props }, ref) {
+  return (
+    <DialogPrimitive.Title
+      ref={ref}
+      className={cn('text-sm font-semibold tracking-[-0.01em] text-[var(--ink)]', className)}
+      {...props}
+    />
+  );
+});
+
+const DialogDescription = forwardRef<
+  ElementRef<typeof DialogPrimitive.Description>,
+  ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
+>(function DialogDescription({ className, ...props }, ref) {
+  return (
+    <DialogPrimitive.Description
+      ref={ref}
+      className={cn('text-sm leading-6 text-[var(--ink-muted)]', className)}
+      {...props}
+    />
+  );
+});
 
 function DialogModal({
   pending,
@@ -199,3 +303,16 @@ function DialogModal({
     </div>
   );
 }
+
+export {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+  DialogTrigger,
+};

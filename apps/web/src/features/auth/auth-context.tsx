@@ -49,7 +49,8 @@ interface AuthContextValue {
     workspaceSlug?: string;
     inviteToken?: string;
   }) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: (options?: { redirectTo?: string }) => Promise<void>;
+  acceptInvite: (inviteToken: string) => Promise<void>;
   createWorkspace: (input: { name: string; slug: string }) => Promise<void>;
   switchWorkspace: (slug: string) => Promise<void>;
   refresh: () => Promise<void>;
@@ -180,6 +181,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => onAuthError(null);
   }, []);
 
+  const acceptInvite = useCallback<AuthContextValue['acceptInvite']>(
+    async (inviteToken) => {
+      const result = await apiClient.acceptInvite({ inviteToken });
+      saveWorkspaceSlug(result.workspace.slug);
+      setActiveWorkspaceSlug(result.workspace.slug);
+      await refresh();
+    },
+    [refresh],
+  );
+
   const login = useCallback(
     async (email: string, password: string, options?: { inviteToken?: string }) => {
       const result = await apiClient.login({ email, password });
@@ -187,16 +198,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthToken(result.token);
       if (options?.inviteToken) {
         try {
-          await apiClient.acceptInvite({ inviteToken: options.inviteToken });
+          await acceptInvite(options.inviteToken);
         } catch (err) {
           await refresh().catch(() => undefined);
           throw err;
         }
+      } else {
+        await refresh();
       }
-      await refresh();
       router.push('/');
     },
-    [refresh, router],
+    [acceptInvite, refresh, router],
   );
 
   const signup = useCallback<AuthContextValue['signup']>(
@@ -210,7 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refresh, router],
   );
 
-  const logout = useCallback(async () => {
+  const logout = useCallback<AuthContextValue['logout']>(async (options) => {
     await apiClient.logout().catch(() => undefined);
     saveToken(null);
     saveWorkspaceSlug(null);
@@ -220,7 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setWorkspace(null);
     setWorkspaces([]);
-    router.replace('/login');
+    router.replace(options?.redirectTo ?? '/login');
   }, [router]);
 
   const createWorkspace = useCallback<AuthContextValue['createWorkspace']>(
@@ -260,6 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       signup,
       logout,
+      acceptInvite,
       createWorkspace,
       switchWorkspace,
       refresh,
@@ -273,6 +286,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       signup,
       logout,
+      acceptInvite,
       createWorkspace,
       switchWorkspace,
       refresh,

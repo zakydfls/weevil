@@ -108,18 +108,20 @@ export function CaptureCardGrid({ reports, isLoading, isError, onRetry, onSelect
                   <p className="mt-1 truncate font-mono text-xs text-[var(--ink-faint)]">
                     {report.pageUrl ?? report.id}
                   </p>
-                  <div className="mt-2 flex min-w-0 items-center gap-2">
+                  <div className="mt-3 flex min-w-0 items-center gap-2.5 rounded-md bg-[var(--surface)] px-2.5 py-2">
                     <span
-                      className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[var(--primary-subtle)] font-mono text-[10px] font-semibold uppercase text-[var(--primary)] ring-1 ring-[var(--border)]"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--primary-subtle)] font-mono text-[10px] font-semibold uppercase text-[var(--primary)] ring-1 ring-[var(--primary-soft)]"
                       aria-hidden
                     >
                       {reporter.initials}
                     </span>
-                    <div className="min-w-0 truncate text-xs text-[var(--ink-muted)]">
-                      <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
-                        Reporter
-                      </span>{' '}
-                      <span className="font-medium text-[var(--ink)]">{reporter.name}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-mono text-[9px] uppercase tracking-wider text-[var(--ink-faint)]">
+                        Reported by
+                      </div>
+                      <div className="mt-0.5 truncate text-xs font-semibold text-[var(--ink)]">
+                        {reporter.name}
+                      </div>
                     </div>
                   </div>
                 </div>

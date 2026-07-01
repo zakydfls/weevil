@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AuthShell } from '@/features/auth/auth-shell';
 import { useAuth } from '@/features/auth/auth-context';
-import { ApiError } from '@/lib/api/client';
+import { ApiError, apiClient } from '@/lib/api/client';
 import { appEnv, readPublicEnv } from '@/lib/env';
 
 const devSeedEmail = appEnv.canShowDevOnlyUi
@@ -18,6 +18,14 @@ const devSeedPassword = appEnv.canShowDevOnlyUi
   : '';
 const showDevSeedHint = Boolean(devSeedEmail && devSeedPassword);
 
+interface InvitePreview {
+  email: string;
+  role: string;
+  expiresAt: string;
+  workspace: { slug: string; name: string };
+  invitedBy: { email: string; displayName: string | null } | null;
+}
+
 export default function LoginPage() {
   const auth = useAuth();
   const [inviteToken, setInviteToken] = useState('');
@@ -26,6 +34,9 @@ export default function LoginPage() {
     : '/signup';
   const [email, setEmail] = useState(devSeedEmail);
   const [password, setPassword] = useState(devSeedPassword);
+  const [invitePreview, setInvitePreview] = useState<InvitePreview | null>(null);
+  const [isInviteLoading, setIsInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState('');
   const [submitPhase, setSubmitPhase] = useState<'idle' | 'checking' | 'redirecting'>('idle');
   const [error, setError] = useState<string | null>(null);
   const isSubmitting = submitPhase !== 'idle';
@@ -34,6 +45,38 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search);
     setInviteToken(params.get('inviteToken') ?? params.get('invite') ?? '');
   }, []);
+
+  useEffect(() => {
+    if (!inviteToken) {
+      setInvitePreview(null);
+      setInviteError('');
+      setIsInviteLoading(false);
+      return;
+    }
+
+    let isActive = true;
+    setIsInviteLoading(true);
+    setInviteError('');
+    void apiClient
+      .getInvitePreview(inviteToken)
+      .then((preview) => {
+        if (!isActive) return;
+        setInvitePreview(preview);
+        setEmail(preview.email);
+      })
+      .catch(() => {
+        if (!isActive) return;
+        setInvitePreview(null);
+        setInviteError('This invite link is invalid or expired.');
+      })
+      .finally(() => {
+        if (isActive) setIsInviteLoading(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [inviteToken]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -51,8 +94,14 @@ export default function LoginPage() {
 
   return (
     <AuthShell
-      title="Welcome back"
-      subtitle="Sign in to your workspace."
+      title={invitePreview ? `Join ${invitePreview.workspace.name}` : 'Welcome back'}
+      subtitle={
+        invitePreview
+          ? `Sign in as ${invitePreview.email} to accept this invitation.`
+          : inviteToken
+            ? 'Sign in to accept your workspace invitation.'
+            : 'Sign in to your workspace.'
+      }
       footer={
         <span>
           New to Weevil?{' '}
@@ -75,12 +124,35 @@ export default function LoginPage() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            disabled={isSubmitting}
+            disabled={isSubmitting || Boolean(invitePreview)}
             required
             autoComplete="email"
             placeholder="you@example.com"
           />
         </div>
+        {inviteToken ? (
+          <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-3">
+            {isInviteLoading ? (
+              <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-[var(--ink-faint)]">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                Loading invite
+              </div>
+            ) : invitePreview ? (
+              <div className="space-y-1">
+                <div className="text-sm font-semibold text-[var(--ink)]">
+                  {invitePreview.workspace.name}
+                </div>
+                <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--ink-faint)]">
+                  {invitePreview.role.toLowerCase()} access
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs font-medium text-[var(--danger)]">
+                {inviteError || 'Invite unavailable.'}
+              </div>
+            )}
+          </div>
+        ) : null}
         <div className="space-y-1.5">
           <label
             htmlFor="password"
@@ -104,13 +176,15 @@ export default function LoginPage() {
             {error}
           </div>
         ) : null}
-        <Button type="submit" className="h-10 w-full" disabled={isSubmitting}>
+        <Button type="submit" className="h-10 w-full" disabled={isSubmitting || Boolean(inviteError)}>
           {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
           {submitPhase === 'checking'
             ? 'Checking credentials'
             : submitPhase === 'redirecting'
               ? 'Opening dashboard'
-              : 'Sign in'}
+              : inviteToken
+                ? 'Sign in and join'
+                : 'Sign in'}
         </Button>
         {isSubmitting ? (
           <div
