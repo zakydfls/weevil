@@ -50,6 +50,8 @@ const maxTelemetryOperationChars = 240;
 const maxTelemetryShortTextChars = 160;
 const maxTelemetryOffsetMs = 86_400_000;
 const maxTelemetryDurationMs = 3_600_000;
+const webStartCaptureUnsupportedMessage =
+  'Chrome only allows tab recording after you click the Weevil extension button on the page you want to capture. Open the target page, click the Weevil icon in the browser toolbar, then start capture there.';
 let attachedConsoleDebuggee: chrome.debugger.Debuggee | null = null;
 let pendingReview: PendingCaptureReview | null = null;
 
@@ -138,6 +140,10 @@ async function handleMessage(message: RuntimeMessage, sender: chrome.runtime.Mes
   }
 
   if (message.type === RuntimeMessageTypes.StartCapture) {
+    if (sender.tab?.id) {
+      throw new Error(webStartCaptureUnsupportedMessage);
+    }
+
     const settings = await saveIncomingSettings(message.payload);
     const tab = await getActiveTab();
     return { ok: true, state: await startCapture(tab, settings) };
@@ -251,7 +257,11 @@ async function startCapture(tab: chrome.tabs.Tab, captureSettings?: ExtensionSet
     });
     preparingOverlayShown = true;
 
-    const reportPromise = api.createReport({
+    await delay(preparingCountdownMs);
+    await startOffscreenRecording(tab.id);
+    offscreenStarted = true;
+
+    const report = await api.createReport({
       title,
       description: 'Captured from the Weevil browser extension.',
       source: ReportSource.Extension,
@@ -264,10 +274,6 @@ async function startCapture(tab: chrome.tabs.Tab, captureSettings?: ExtensionSet
         redactSensitiveData: settings.redactSensitiveData,
       },
     });
-
-    await delay(preparingCountdownMs);
-
-    const report = await reportPromise;
     const sessionStartedAt = new Date();
     const session = await api.createCaptureSession(report.id, {
       startedAt: sessionStartedAt.toISOString(),
@@ -287,9 +293,6 @@ async function startCapture(tab: chrome.tabs.Tab, captureSettings?: ExtensionSet
         redactSensitiveData: settings.redactSensitiveData,
       },
     });
-
-    await startOffscreenRecording(tab.id);
-    offscreenStarted = true;
 
     const startedAt = new Date();
     const state: RecorderState = {
@@ -962,7 +965,7 @@ function normalizeCaptureError(error: unknown): Error {
     message.includes('Cannot access contents of the page')
   ) {
     return new Error(
-      'This page cannot be captured by Chrome. Open a normal http or https website tab and start the capture from the Weevil extension button.',
+      'This page cannot be captured by Chrome. Open a normal http or https website tab, click the Weevil extension button in the browser toolbar, then start capture there.',
     );
   }
   return error instanceof Error ? error : new Error(message);

@@ -5,8 +5,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Check, ChevronDown, KanbanSquare, LayoutGrid, LogOut, Plus, Search, Settings, ShieldCheck } from 'lucide-react';
 import { WeevilLogo } from '@/components/brand/weevil-mark';
 import { Button } from '@/components/ui/button';
+import { useDialog } from '@/components/ui/dialog';
 import { Tooltip } from '@/components/ui/tooltip';
-import { startExtensionCapture } from '@/lib/extension-bridge';
 import { useExtensionInstalled } from '@/lib/use-extension-installed';
 import { useAuth } from '@/features/auth/auth-context';
 
@@ -18,11 +18,11 @@ const platformNav = { href: '/platform', label: 'Platform', icon: ShieldCheck } 
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
+  const dialog = useDialog();
   const router = useRouter();
   const pathname = usePathname();
   const { status: extStatus } = useExtensionInstalled();
   const extMissing = extStatus === 'missing';
-  const [isStartingCapture, setIsStartingCapture] = useState(false);
 
   // Captures is the home of the capture artifact, so the capture-detail route
   // (/c/[id]) keeps the Captures tab highlighted.
@@ -39,15 +39,17 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     window.dispatchEvent(new CustomEvent('weevil:open-command-palette'));
   }
 
-  async function handleNewCapture() {
-    setIsStartingCapture(true);
-    try {
-      await startExtensionCapture({ redactSensitiveData: true });
-    } catch {
-      // The dashboard already surfaces capture-start errors when the user is on the captures view.
-    } finally {
-      setIsStartingCapture(false);
-    }
+  function handleNewCapture() {
+    void dialog.alert({
+      title: 'Start capture from the extension',
+      description: (
+        <>
+          Open the page you want to record, click the Weevil icon in the browser toolbar, then press
+          Start capture. Chrome only grants tab recording permission from that extension button.
+        </>
+      ),
+      acknowledgeLabel: 'Got it',
+    });
   }
 
   // Show loading shell during auth bootstrap so we don't render the dashboard with no workspace
@@ -176,16 +178,20 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               </Button>
             </Tooltip>
           ) : (
-            <Button
-              type="button"
-              variant="primary"
-              className="h-9"
-              disabled={isStartingCapture || extStatus === 'checking'}
-              onClick={() => void handleNewCapture()}
+            <Tooltip
+              content="Open the target tab, then use the Weevil extension button in the browser toolbar."
             >
-              <Plus className="h-4 w-4" aria-hidden />
-              <span className="hidden sm:inline">New capture</span>
-            </Button>
+              <Button
+                type="button"
+                variant="primary"
+                className="h-9"
+                disabled={extStatus === 'checking'}
+                onClick={handleNewCapture}
+              >
+                <Plus className="h-4 w-4" aria-hidden />
+                <span className="hidden sm:inline">New capture</span>
+              </Button>
+            </Tooltip>
           )}
           <Button
             type="button"

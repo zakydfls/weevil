@@ -4,16 +4,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
-  Inbox,
   KanbanSquare,
   LayoutGrid,
+  type LucideIcon,
   Plus,
   Search,
   Settings,
   Terminal,
 } from 'lucide-react';
+import { useDialog } from '@/components/ui/dialog';
 import { useReports } from '@/features/reports/queries';
-import { startExtensionCapture } from '@/lib/extension-bridge';
 import { useExtensionInstalled } from '@/lib/use-extension-installed';
 
 type CommandKind = 'view' | 'capture' | 'action';
@@ -23,12 +23,13 @@ interface CommandItem {
   kind: CommandKind;
   label: string;
   hint?: string;
-  icon: typeof Inbox;
+  icon: LucideIcon;
   perform: () => void;
 }
 
 export function CommandPalette() {
   const router = useRouter();
+  const dialog = useDialog();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -104,12 +105,21 @@ export function CommandPalette() {
         id: 'action-new-capture',
         kind: 'action',
         label: extMissing ? 'Start new capture (extension required)' : 'Start new capture',
-        hint: extMissing ? 'Install the Weevil extension first' : 'Triggers the browser extension',
+        hint: extMissing ? 'Install the Weevil extension first' : 'Use the extension button on the target tab',
         icon: Plus,
         perform: () => {
           // No extension = nothing to trigger; the hint tells the user why.
           if (extMissing) return;
-          void startExtensionCapture({ redactSensitiveData: true }).catch(() => undefined);
+          void dialog.alert({
+            title: 'Start capture from the extension',
+            description: (
+              <>
+                Open the page you want to record, click the Weevil icon in the browser toolbar, then press
+                Start capture. Chrome only grants tab recording permission from that extension button.
+              </>
+            ),
+            acknowledgeLabel: 'Got it',
+          });
         },
       },
     ];
@@ -131,7 +141,7 @@ export function CommandPalette() {
       const haystack = `${item.label} ${item.hint ?? ''}`.toLowerCase();
       return haystack.includes(normalized);
     });
-  }, [query, reports, router, extMissing]);
+  }, [query, reports, router, extMissing, dialog]);
 
   useEffect(() => {
     setSelectedIndex((current) => Math.min(current, Math.max(items.length - 1, 0)));
