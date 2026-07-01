@@ -76,12 +76,23 @@ export class WorkspaceService {
   }
 
   async listMembers(workspaceId: string) {
-    const members = await this.prisma.workspaceMember.findMany({
-      where: { workspaceId },
-      include: { user: true },
-      orderBy: [{ role: 'asc' }, { user: { displayName: 'asc' } }],
-    });
-    return members.map((m) => ({
+    const [members, pendingInvites] = await Promise.all([
+      this.prisma.workspaceMember.findMany({
+        where: { workspaceId },
+        include: { user: true },
+        orderBy: [{ role: 'asc' }, { user: { displayName: 'asc' } }],
+      }),
+      this.prisma.workspaceInvite.findMany({
+        where: {
+          workspaceId,
+          status: MembershipStatus.INVITED,
+          expiresAt: { gte: new Date() },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    const memberRows = members.map((m) => ({
       id: m.id,
       userId: m.user.id,
       email: m.user.email,
@@ -97,6 +108,24 @@ export class WorkspaceService {
       joinedAt: m.joinedAt?.toISOString() ?? null,
       lastActiveAt: m.lastActiveAt?.toISOString() ?? null,
     }));
+    const pendingRows = pendingInvites.map((invite) => ({
+      id: invite.id,
+      userId: null,
+      email: invite.email,
+      displayName: null,
+      avatarUrl: null,
+      role: invite.role,
+      status: invite.status,
+      extraPermissions: [],
+      deniedPermissions: [],
+      effectivePermissions: Array.from(resolveEffectivePermissions(invite.role, [], [])),
+      joinedAt: null,
+      lastActiveAt: null,
+      expiresAt: invite.expiresAt.toISOString(),
+      inviteUrl: this.workspaceInviteNotification.buildInviteUrl(invite.token),
+    }));
+
+    return [...memberRows, ...pendingRows];
   }
 
   async invite(workspaceId: string, invitedById: string, email: string, role: WorkspaceRole) {
@@ -122,14 +151,14 @@ export class WorkspaceService {
       }
     }
 
-    const { raw, hash } = this.tokenService.generate('tok');
+    const { hash } = this.tokenService.generate('tok');
     const invite = await this.prisma.workspaceInvite.upsert({
       where: { workspaceId_email: { workspaceId, email: cleanEmail } },
       create: {
         workspaceId,
         email: cleanEmail,
         role,
-        token: hash, // store hash; share `raw` once below
+        token: hash,
         createdById: invitedById,
         expiresAt: new Date(Date.now() + ttl),
       },
@@ -143,7 +172,7 @@ export class WorkspaceService {
     });
     const delivery = await this.workspaceInviteNotification.sendInvite({
       invitedEmail: invite.email,
-      inviteToken: raw,
+      inviteToken: invite.token,
       workspaceName: workspace.name,
       workspaceSlug: workspace.slug,
       role: invite.role,
@@ -158,8 +187,7 @@ export class WorkspaceService {
       inviteUrl: delivery.inviteUrl,
       emailSent: delivery.sent,
       notificationId: delivery.notificationId,
-      /** Raw token — return ONCE to the caller, never expose again. */
-      token: raw,
+      token: invite.token,
     };
   }
 

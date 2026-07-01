@@ -299,7 +299,7 @@ export const apiClient = {
     request<
       Array<{
         id: string;
-        userId: string;
+        userId: string | null;
         email: string;
         displayName: string | null;
         avatarUrl: string | null;
@@ -310,6 +310,8 @@ export const apiClient = {
         effectivePermissions: string[];
         joinedAt: string | null;
         lastActiveAt: string | null;
+        expiresAt?: string;
+        inviteUrl?: string;
       }>
     >('/workspaces/current/members'),
 

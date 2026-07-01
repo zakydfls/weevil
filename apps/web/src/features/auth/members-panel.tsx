@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Check, Copy, Loader2, MoreHorizontal, Trash2, UserPlus } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useDialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -11,19 +10,13 @@ import { useAuth } from './auth-context';
 
 interface Member {
   id: string;
-  userId: string;
+  userId: string | null;
   email: string;
   displayName: string | null;
   role: string;
   status: string;
-}
-
-interface InviteResult {
-  email: string;
-  inviteUrl: string;
-  emailSent: boolean;
-  notificationId: string | null;
-  expiresAt: string;
+  expiresAt?: string;
+  inviteUrl?: string;
 }
 
 const ROLES = ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'] as const;
@@ -37,8 +30,6 @@ export function MembersPanel() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<(typeof ROLES)[number]>('MEMBER');
   const [isInviting, setIsInviting] = useState(false);
-  const [inviteResult, setInviteResult] = useState<InviteResult | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const canInvite = auth.can('MEMBER_INVITE');
   const canManageRoles = auth.can('MEMBER_ROLE_UPDATE');
@@ -66,19 +57,10 @@ export function MembersPanel() {
     if (!inviteEmail.trim()) return;
     setIsInviting(true);
     setError(null);
-    setInviteResult(null);
-    setCopied(false);
     try {
-      const result = await apiClient.inviteMember({
+      await apiClient.inviteMember({
         email: inviteEmail.trim(),
         role: inviteRole,
-      });
-      setInviteResult({
-        email: result.email,
-        inviteUrl: result.inviteUrl,
-        emailSent: result.emailSent,
-        notificationId: result.notificationId,
-        expiresAt: result.expiresAt,
       });
       setInviteEmail('');
       await refresh();
@@ -119,19 +101,16 @@ export function MembersPanel() {
     }
   }
 
-  async function handleCopyInvite() {
-    if (!inviteResult) return;
-    await navigator.clipboard.writeText(inviteResult.inviteUrl);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  }
-
   const sorted = useMemo(() => {
     const order = { OWNER: 0, ADMIN: 1, MEMBER: 2, VIEWER: 3 } as const;
-    return [...members].sort(
-      (a, b) =>
-        (order[a.role as keyof typeof order] ?? 99) - (order[b.role as keyof typeof order] ?? 99),
-    );
+    return [...members].sort((a, b) => {
+      const statusA = a.status === 'INVITED' ? 1 : 0;
+      const statusB = b.status === 'INVITED' ? 1 : 0;
+      if (statusA !== statusB) return statusA - statusB;
+      return (
+        (order[a.role as keyof typeof order] ?? 99) - (order[b.role as keyof typeof order] ?? 99)
+      );
+    });
   }, [members]);
 
   return (
@@ -165,37 +144,6 @@ export function MembersPanel() {
               Send invite
             </Button>
           </form>
-          {inviteResult ? (
-            <div className="mt-3 rounded-md border border-[var(--border)] bg-[var(--bg)] p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-2">
-                  <Badge tone={inviteResult.emailSent ? 'success' : 'warning'}>
-                    {inviteResult.emailSent ? 'Email queued' : 'Email skipped'}
-                  </Badge>
-                  <span className="truncate font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
-                    {inviteResult.email}
-                  </span>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => void handleCopyInvite()}
-                >
-                  {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied ? 'Copied' : 'Copy link'}
-                </Button>
-              </div>
-              <code className="mt-2 block break-all font-mono text-[11px] text-[var(--ink)]">
-                {inviteResult.inviteUrl}
-              </code>
-              {inviteResult.notificationId ? (
-                <p className="mt-2 font-mono text-[10px] text-[var(--ink-faint)]">
-                  notification {inviteResult.notificationId}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
         </div>
       ) : null}
 
@@ -224,8 +172,10 @@ export function MembersPanel() {
               <MemberRow
                 key={member.id}
                 member={member}
-                canManageRoles={canManageRoles && member.userId !== auth.user?.id}
-                canRemove={canRemove && member.userId !== auth.user?.id}
+                canManageRoles={
+                  canManageRoles && Boolean(member.userId) && member.userId !== auth.user?.id
+                }
+                canRemove={canRemove && Boolean(member.userId) && member.userId !== auth.user?.id}
                 onChangeRole={(role) => handleChangeRole(member.id, role)}
                 onRemove={() => handleRemove(member.id, member.displayName ?? member.email)}
                 isSelf={member.userId === auth.user?.id}
@@ -254,7 +204,16 @@ function MemberRow({
   isSelf: boolean;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [copiedInvite, setCopiedInvite] = useState(false);
+  const isPendingInvite = member.status === 'INVITED' && !member.userId;
   const initials = (member.displayName ?? member.email).slice(0, 2).toUpperCase();
+
+  async function handleCopyInvite() {
+    if (!member.inviteUrl) return;
+    await navigator.clipboard.writeText(member.inviteUrl);
+    setCopiedInvite(true);
+    window.setTimeout(() => setCopiedInvite(false), 1400);
+  }
 
   return (
     <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5">
@@ -272,6 +231,11 @@ function MemberRow({
                 you
               </span>
             ) : null}
+            {isPendingInvite ? (
+              <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+                pending invitation
+              </span>
+            ) : null}
           </div>
           <div className="truncate font-mono text-[11px] text-[var(--ink-faint)]">
             {member.email}
@@ -279,7 +243,13 @@ function MemberRow({
         </div>
       </div>
       <div className="flex items-center justify-end gap-2">
-        {canManageRoles ? (
+        {isPendingInvite && member.inviteUrl ? (
+          <Button type="button" variant="ghost" size="sm" onClick={() => void handleCopyInvite()}>
+            {copiedInvite ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            {copiedInvite ? 'Copied' : 'Copy link'}
+          </Button>
+        ) : null}
+        {canManageRoles && !isPendingInvite ? (
           <select
             value={member.role}
             onChange={(e) => void onChangeRole(e.target.value)}
@@ -296,7 +266,7 @@ function MemberRow({
             {member.role.toLowerCase()}
           </span>
         )}
-        {canRemove ? (
+        {canRemove && !isPendingInvite ? (
           <div className="relative">
             <button
               type="button"

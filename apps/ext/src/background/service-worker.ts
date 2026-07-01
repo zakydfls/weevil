@@ -229,6 +229,7 @@ async function startCapture(tab: chrome.tabs.Tab, captureSettings?: ExtensionSet
   if (!tab.id || !tab.windowId) {
     throw new Error('Active tab is not captureable.');
   }
+  await assertCaptureableTab(tab);
 
   const settings = captureSettings ?? await getSettings();
   const api = new WeevilApiClient(settings.apiBaseUrl);
@@ -387,6 +388,7 @@ async function captureScreenshot(tab: chrome.tabs.Tab) {
   if (!tab.id || !tab.windowId) {
     throw new Error('Active tab is not captureable.');
   }
+  await assertCaptureableTab(tab);
 
   const settings = await getSettings();
   const api = new WeevilApiClient(settings.apiBaseUrl);
@@ -394,7 +396,7 @@ async function captureScreenshot(tab: chrome.tabs.Tab) {
   const manifest = chrome.runtime.getManifest();
   const pageUrl = tab.url;
   const title = tab.title || pageUrl || 'Weevil screenshot';
-  const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
+  const dataUrl = await captureVisibleTab(tab.windowId);
   const screenshotBlob = await dataUrlToBlob(dataUrl);
   const report = await api.createReport({
     title,
@@ -896,8 +898,79 @@ async function ensureOffscreenDocument() {
 }
 
 async function getMediaStreamId(tabId: number) {
-  return chrome.tabCapture.getMediaStreamId({
-    targetTabId: tabId,
+  try {
+    return await chrome.tabCapture.getMediaStreamId({
+      targetTabId: tabId,
+    });
+  } catch (error) {
+    throw normalizeCaptureError(error);
+  }
+}
+
+async function captureVisibleTab(windowId: number) {
+  try {
+    return await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
+  } catch (error) {
+    throw normalizeCaptureError(error);
+  }
+}
+
+async function assertCaptureableTab(tab: chrome.tabs.Tab) {
+  const url = tab.url?.trim();
+  if (!url) {
+    throw new Error('This tab is not ready to capture. Open a website tab, then try again.');
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error('This tab URL cannot be captured. Open a website tab, then try again.');
+  }
+
+  const protocol = parsed.protocol;
+  if (protocol === 'file:') {
+    if (!(await isFileSchemeAccessAllowed())) {
+      throw new Error(
+        'Local file pages cannot be captured until file access is enabled for Weevil in chrome://extensions.',
+      );
+    }
+    return;
+  }
+
+  if (restrictedCaptureProtocols.has(protocol)) {
+    throw new Error(
+      'Chrome internal pages cannot be captured. Open a normal http or https website tab, then try again.',
+    );
+  }
+}
+
+const restrictedCaptureProtocols = new Set([
+  'chrome:',
+  'chrome-extension:',
+  'chrome-untrusted:',
+  'devtools:',
+  'edge:',
+  'about:',
+]);
+
+function normalizeCaptureError(error: unknown): Error {
+  const message = getErrorMessage(error);
+  if (
+    message.includes('activeTab permission') ||
+    message.includes('Chrome pages cannot be captured') ||
+    message.includes('Cannot access contents of the page')
+  ) {
+    return new Error(
+      'This page cannot be captured by Chrome. Open a normal http or https website tab and start the capture from the Weevil extension button.',
+    );
+  }
+  return error instanceof Error ? error : new Error(message);
+}
+
+function isFileSchemeAccessAllowed(): Promise<boolean> {
+  return new Promise((resolve) => {
+    chrome.extension.isAllowedFileSchemeAccess((isAllowed) => resolve(isAllowed));
   });
 }
 

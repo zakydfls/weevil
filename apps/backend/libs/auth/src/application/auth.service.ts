@@ -128,8 +128,8 @@ export class AuthService {
     });
   }
 
-  async getInvitePreview(rawToken: string) {
-    const invite = await this.findPendingInvite(this.prisma, rawToken);
+  async getInvitePreview(inviteToken: string) {
+    const invite = await this.findPendingInvite(this.prisma, inviteToken);
     return {
       email: invite.email,
       role: invite.role,
@@ -297,13 +297,21 @@ export class AuthService {
     return { token: raw, sessionId: created.id, expiresAt: created.expiresAt };
   }
 
-  private async findPendingInvite(tx: TxClient | PrismaService, rawToken: string) {
-    const trimmedToken = rawToken.trim();
+  private async findPendingInvite(tx: TxClient | PrismaService, inviteToken: string) {
+    const trimmedToken = inviteToken.trim();
     if (!trimmedToken) {
       throw new UnauthorizedException('Invite is invalid or expired.');
     }
-    const invite = await tx.workspaceInvite.findUnique({
-      where: { token: this.tokenService.hash(trimmedToken) },
+    const invite = await tx.workspaceInvite.findFirst({
+      where: {
+        OR: [
+          // Current invite links use the durable stored token so admins can copy
+          // links again from the pending invitation list.
+          { token: trimmedToken },
+          // Backward compatibility for earlier one-time raw-token links.
+          { token: this.tokenService.hash(trimmedToken) },
+        ],
+      },
       include: {
         workspace: true,
         createdBy: { select: { email: true, displayName: true } },

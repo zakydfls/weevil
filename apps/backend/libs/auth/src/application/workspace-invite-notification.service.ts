@@ -66,7 +66,7 @@ export class WorkspaceInviteNotificationService {
     };
   }
 
-  private buildInviteUrl(inviteToken: string): string {
+  buildInviteUrl(inviteToken: string): string {
     const baseUrl = this.webBaseUrl();
     const query = `token=${encodeURIComponent(inviteToken)}`;
     if (!baseUrl) {
