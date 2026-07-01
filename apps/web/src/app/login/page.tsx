@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AuthShell } from '@/features/auth/auth-shell';
 import { useAuth } from '@/features/auth/auth-context';
+import { ApiError } from '@/lib/api/client';
 import { appEnv, readPublicEnv } from '@/lib/env';
 
 const devSeedEmail = appEnv.canShowDevOnlyUi
@@ -43,7 +44,7 @@ export default function LoginPage() {
       setSubmitPhase('redirecting');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed.';
-      setError(message.includes('401') ? 'Invalid email or password.' : message);
+      setError(err instanceof ApiError && err.status === 401 ? 'Invalid email or password.' : message);
       setSubmitPhase('idle');
     }
   }

@@ -1,7 +1,7 @@
 import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class SignupDto {
-  @IsEmail()
+  @IsEmail({}, { message: 'Enter a valid email address.' })
   email: string;
 
   @IsString()
@@ -30,7 +30,7 @@ export class SignupDto {
 }
 
 export class LoginDto {
-  @IsEmail()
+  @IsEmail({}, { message: 'Enter a valid email address.' })
   email: string;
 
   @IsString()

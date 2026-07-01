@@ -30,6 +30,37 @@ read_dotenv_value() {
   printf '%s' "$value"
 }
 
+write_dotenv_value() {
+  local key="$1"
+  local value="$2"
+  local file="$3"
+  local temp_file
+
+  if grep -Eq "^[[:space:]]*${key}[[:space:]]*=" "$file"; then
+    temp_file="$(mktemp)"
+    awk -v key="$key" -v value="$value" '
+      $0 ~ "^[[:space:]]*" key "[[:space:]]*=" {
+        if (!written) {
+          print key "=" value
+          written = 1
+        }
+        next
+      }
+      { print }
+      END {
+        if (!written) {
+          print key "=" value
+        }
+      }
+    ' "$file" > "$temp_file"
+    cat "$temp_file" > "$file"
+    rm -f "$temp_file"
+    return
+  fi
+
+  printf '\n%s=%s\n' "$key" "$value" >> "$file"
+}
+
 if [[ -z "${WEEVIL_BACKEND_IMAGE:-}" ]]; then
   echo "WEEVIL_BACKEND_IMAGE is required" >&2
   exit 1
@@ -52,6 +83,10 @@ if [[ -z "$RUN_PROD_SEED" ]]; then
   RUN_PROD_SEED="$(read_dotenv_value RUN_PROD_SEED || true)"
 fi
 RUN_PROD_SEED="${RUN_PROD_SEED:-false}"
+
+write_dotenv_value WEEVIL_BACKEND_IMAGE "$WEEVIL_BACKEND_IMAGE" .env
+write_dotenv_value API_BIND "$API_BIND" .env
+write_dotenv_value API_PORT "$API_PORT" .env
 
 cat > "$DEPLOY_ENV_FILE" <<EOF
 WEEVIL_BACKEND_IMAGE=$WEEVIL_BACKEND_IMAGE

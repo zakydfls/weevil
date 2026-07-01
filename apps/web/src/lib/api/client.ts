@@ -85,11 +85,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (authState.workspaceSlug) {
     headers['x-weevil-workspace'] = authState.workspaceSlug;
   }
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...init,
-    credentials: 'include',
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${getApiBaseUrl()}${path}`, {
+      ...init,
+      credentials: 'include',
+      headers,
+    });
+  } catch {
+    throw new ApiError(
+      'We couldn’t reach the Weevil API. Check your connection and try again.',
+      0,
+      null,
+    );
+  }
   const text = await response.text();
   const payload = text ? safeJsonParse(text) : null;
 
@@ -99,7 +108,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     throw new ApiError(
-      `API request failed with status ${response.status}`,
+      apiErrorMessage(payload, response.status),
       response.status,
       payload,
     );
@@ -443,6 +452,33 @@ function safeJsonParse(value: string) {
   } catch {
     return value;
   }
+}
+
+function apiErrorMessage(payload: unknown, status: number) {
+  const message = payloadMessage(payload);
+  if (message) {
+    return message;
+  }
+
+  if (status === 401) return 'Please sign in to continue.';
+  if (status === 403) return 'You don’t have permission to do that.';
+  if (status === 404) return 'We couldn’t find that resource.';
+  if (status === 409) return 'That action conflicts with existing data.';
+  if (status >= 500) return 'Something went wrong on our end. Try again in a moment.';
+  return `Request failed with status ${status}.`;
+}
+
+function payloadMessage(payload: unknown) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return '';
+  }
+
+  const message = (payload as { message?: unknown }).message;
+  if (Array.isArray(message)) {
+    return message.filter((item): item is string => typeof item === 'string').join(' ');
+  }
+
+  return typeof message === 'string' ? message : '';
 }
 
 function toQueryString(params: ListReportsParams) {

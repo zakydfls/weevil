@@ -182,10 +182,21 @@ On the VPS, useful checks:
 
 ```bash
 cd /opt/weevil
-docker compose --env-file .deploy.env -f compose.prod.yml ps
+docker compose -f compose.prod.yml ps
 docker logs -f weevil-api
 docker logs -f weevil-worker
 ```
+
+To reload backend environment changes without deploying a new image:
+
+```bash
+cd /opt/weevil
+docker compose -f compose.prod.yml up -d api worker
+```
+
+`deploy.sh` writes the last deployed `WEEVIL_BACKEND_IMAGE`, `API_BIND`, and
+`API_PORT` into the VPS `.env`, so plain Docker Compose commands continue to
+use the same image and port binding.
 
 ## Frontend on Vercel
 

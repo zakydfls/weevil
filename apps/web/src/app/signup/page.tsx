@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AuthShell } from '@/features/auth/auth-shell';
 import { useAuth } from '@/features/auth/auth-context';
-import { apiClient } from '@/lib/api/client';
+import { ApiError, apiClient } from '@/lib/api/client';
 
 interface InvitePreview {
   email: string;
@@ -15,6 +15,14 @@ interface InvitePreview {
   expiresAt: string;
   workspace: { slug: string; name: string };
   invitedBy: { email: string; displayName: string | null } | null;
+}
+
+interface SignupErrorState {
+  message: string;
+  action?: {
+    href: string;
+    label: string;
+  };
 }
 
 export default function SignupPage() {
@@ -29,7 +37,7 @@ export default function SignupPage() {
   const [workspaceName, setWorkspaceName] = useState('');
   const [workspaceSlug, setWorkspaceSlug] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<SignupErrorState | null>(null);
   const isInviteMode = Boolean(inviteToken);
   const loginHref = inviteToken
     ? `/login?inviteToken=${encodeURIComponent(inviteToken)}`
@@ -95,8 +103,11 @@ export default function SignupPage() {
         inviteToken: isInviteMode ? inviteToken : undefined,
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Signup failed.';
-      setError(message);
+      setError(formatSignupError(err, {
+        email: email.trim(),
+        isInviteMode,
+        loginHref,
+      }));
     } finally {
       setIsSubmitting(false);
     }
@@ -214,7 +225,12 @@ export default function SignupPage() {
         ) : null}
         {error ? (
           <div className="rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3 py-2 text-xs font-medium text-[var(--danger)]">
-            {error}
+            <span>{error.message}</span>
+            {error.action ? (
+              <Link href={error.action.href} className="ml-1 underline underline-offset-2">
+                {error.action.label}
+              </Link>
+            ) : null}
           </div>
         ) : null}
         <Button
@@ -236,4 +252,45 @@ function slugify(value: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
+}
+
+function formatSignupError(
+  error: unknown,
+  context: { email: string; isInviteMode: boolean; loginHref: string },
+): SignupErrorState {
+  if (error instanceof ApiError) {
+    const message = error.message.toLowerCase();
+
+    if (error.status === 409 && message.includes('account') && message.includes('email')) {
+      return {
+        message: context.isInviteMode
+          ? `An account already exists for ${context.email}. Sign in to accept this invite.`
+          : `An account already exists for ${context.email}. Sign in instead.`,
+        action: {
+          href: context.loginHref,
+          label: context.isInviteMode ? 'Sign in to accept invite' : 'Sign in',
+        },
+      };
+    }
+
+    if (error.status === 409 && message.includes('slug')) {
+      return {
+        message: 'That workspace slug is already taken. Try a different slug.',
+      };
+    }
+
+    if (error.status === 401 && message.includes('invite')) {
+      return {
+        message: 'This invite was sent to a different email. Use the invited email or ask for a new invite.',
+      };
+    }
+
+    return { message: error.message };
+  }
+
+  if (error instanceof Error) {
+    return { message: error.message };
+  }
+
+  return { message: 'We couldn’t create your account. Try again in a moment.' };
 }

@@ -2,7 +2,7 @@ name: weevil
 
 services:
   api:
-    image: ${WEEVIL_BACKEND_IMAGE}
+    image: ${WEEVIL_BACKEND_IMAGE:-ghcr.io/zakydfls/weevil/backend:main}
     container_name: weevil-api
     restart: unless-stopped
     env_file:
@@ -31,7 +31,7 @@ services:
         max-file: "5"
 
   worker:
-    image: ${WEEVIL_BACKEND_IMAGE}
+    image: ${WEEVIL_BACKEND_IMAGE:-ghcr.io/zakydfls/weevil/backend:main}
     container_name: weevil-worker
     restart: unless-stopped
     env_file:
@@ -51,7 +51,7 @@ services:
         max-file: "5"
 
   migrate:
-    image: ${WEEVIL_BACKEND_IMAGE}
+    image: ${WEEVIL_BACKEND_IMAGE:-ghcr.io/zakydfls/weevil/backend:main}
     env_file:
       - .env
     environment:
@@ -63,7 +63,7 @@ services:
       - tools
 
   seed:
-    image: ${WEEVIL_BACKEND_IMAGE}
+    image: ${WEEVIL_BACKEND_IMAGE:-ghcr.io/zakydfls/weevil/backend:main}
     env_file:
       - .env
     environment:
