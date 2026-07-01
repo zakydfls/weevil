@@ -76,16 +76,20 @@ export function CapturesView() {
         <CaptureCardGrid
           reports={reports}
           isLoading={reportsQuery.isLoading}
+          isError={reportsQuery.isError}
+          onRetry={() => void reportsQuery.refetch()}
           onSelect={openCapture}
         />
-        <PaginationBar
-          page={page}
-          pageSize={pageSize}
-          totalItems={totalItems}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          onPageSizeChange={setPageSize}
-        />
+        {reportsQuery.isError && reports.length === 0 ? null : (
+          <PaginationBar
+            page={page}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        )}
       </div>
     </div>
   );

@@ -20,6 +20,8 @@ export function BoardView() {
     <KanbanBoard
       reports={reports}
       isLoading={reportsQuery.isLoading}
+      isError={reportsQuery.isError}
+      onRetry={() => void reportsQuery.refetch()}
       onOpenReport={openCapture}
     />
   );

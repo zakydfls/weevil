@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ErrorState } from '@/components/ui/error-state';
 import { Textarea } from '@/components/ui/input';
 import { Input } from '@/components/ui/input';
 import type { BackendTraceEntry, NetworkRequestEntry, ReportDetail, TimelineEntry } from '@/lib/api/types';
@@ -44,6 +45,8 @@ import { StatusBadge } from './status-badge';
 interface CaptureDetailViewProps {
   report: ReportDetail | undefined;
   isLoading: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
   onBack: () => void;
 }
 
@@ -87,6 +90,8 @@ const MAX_NETWORK_LIST_WIDTH = 360;
 export function CaptureDetailView({
   report,
   isLoading,
+  isError,
+  onRetry,
   onBack,
 }: CaptureDetailViewProps) {
   const [activeTab, setActiveTab] = useState<DevToolsTab>('Info');
@@ -189,13 +194,40 @@ export function CaptureDetailView({
     });
   }
 
+  // Error before loading, so a failed detail fetch shows a retry — not a
+  // skeleton that spins forever (report stays undefined on error).
+  if (isError && !report) {
+    return (
+      <section className="flex min-h-[calc(100dvh-3.5rem)] flex-col bg-[var(--bg)]">
+        <div className="flex h-14 items-center gap-2 border-b border-[var(--border)] px-3 sm:px-4 lg:px-6">
+          <Button type="button" variant="ghost" size="icon" onClick={onBack} aria-label="Back">
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+          </Button>
+          <span className="text-sm font-semibold text-[var(--ink)]">Capture</span>
+        </div>
+        <div className="grid flex-1 place-items-center p-6">
+          <div className="w-full max-w-md">
+            <ErrorState
+              title="Couldn’t load this capture"
+              description="It may have been deleted, or the workspace is unreachable. Try again."
+              onRetry={onRetry}
+            />
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   if (isLoading || !report) {
     return (
-      <section className="min-h-[calc(100vh-1rem)] rounded-2xl border border-[#dfdcc9] bg-white p-8">
-        <div className="h-10 w-40 animate-pulse rounded bg-[#efeee7]" />
-        <div className="mt-8 grid gap-6 2xl:grid-cols-[minmax(0,1fr)_36rem]">
-          <div className="aspect-video animate-pulse rounded-2xl bg-[#efeee7]" />
-          <div className="animate-pulse rounded-2xl bg-[#efeee7]" />
+      <section className="min-h-[calc(100dvh-3.5rem)] bg-[var(--bg)] p-4 sm:p-6">
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-9 animate-pulse rounded-md bg-[var(--surface-deep)]" />
+          <div className="h-5 w-48 animate-pulse rounded bg-[var(--surface-deep)]" />
+        </div>
+        <div className="mt-6 grid gap-6 2xl:grid-cols-[minmax(0,1fr)_34rem]">
+          <div className="aspect-video animate-pulse rounded-xl border border-[var(--border)] bg-[var(--surface)]" />
+          <div className="h-64 animate-pulse rounded-xl border border-[var(--border)] bg-[var(--surface)]" />
         </div>
       </section>
     );

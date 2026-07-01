@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Play } from 'lucide-react';
 import { WeevilMark } from '@/components/brand/weevil-mark';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
 import { StatusBadge } from './status-badge';
 import type { ReportSummary } from '@/lib/api/types';
 import { apiClient } from '@/lib/api/client';
@@ -11,10 +12,24 @@ import { apiClient } from '@/lib/api/client';
 interface CaptureCardGridProps {
   reports: ReportSummary[];
   isLoading: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
   onSelect: (report: ReportSummary) => void;
 }
 
-export function CaptureCardGrid({ reports, isLoading, onSelect }: CaptureCardGridProps) {
+export function CaptureCardGrid({ reports, isLoading, isError, onRetry, onSelect }: CaptureCardGridProps) {
+  // Error takes priority over "empty" — a failed load must never look like an
+  // empty workspace.
+  if (isError && reports.length === 0) {
+    return (
+      <ErrorState
+        title="Couldn’t load captures"
+        description="We couldn’t reach the workspace. Check your connection and try again."
+        onRetry={onRetry}
+      />
+    );
+  }
+
   if (isLoading) {
     return (
       <div

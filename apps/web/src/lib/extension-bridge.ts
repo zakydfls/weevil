@@ -37,6 +37,43 @@ export function getExtensionStatus() {
   return sendExtensionBridgeCommand(ExtensionBridgeCommands.GetStatus);
 }
 
+/**
+ * Lightweight presence check: ping the content script and resolve true/false.
+ * Uses a SHORT timeout (the extension replies in a few ms if present; if it's
+ * not installed, nothing answers and we resolve false). Never rejects.
+ */
+export function detectExtension(timeoutMs = 1_500): Promise<boolean> {
+  if (typeof window === 'undefined') return Promise.resolve(false);
+
+  const requestId = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+
+  return new Promise<boolean>((resolve) => {
+    const timeout = window.setTimeout(() => {
+      window.removeEventListener('message', handleMessage);
+      resolve(false);
+    }, timeoutMs);
+
+    function handleMessage(event: MessageEvent<ExtensionBridgeResult>) {
+      if (event.source !== window || event.data?.type !== ExtensionBridgeMessageTypes.Result) {
+        return;
+      }
+      if (event.data.requestId !== requestId) return;
+      window.clearTimeout(timeout);
+      window.removeEventListener('message', handleMessage);
+      resolve(true);
+    }
+
+    window.addEventListener('message', handleMessage);
+    window.postMessage(
+      {
+        type: ExtensionBridgeMessageTypes.Command,
+        payload: { requestId, command: ExtensionBridgeCommands.GetStatus },
+      },
+      '*',
+    );
+  });
+}
+
 export function updateExtensionSettings(settings: Record<string, unknown>) {
   return sendExtensionBridgeCommand(ExtensionBridgeCommands.UpdateSettings, settings);
 }

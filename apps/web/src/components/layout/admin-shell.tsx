@@ -5,7 +5,9 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Check, ChevronDown, KanbanSquare, LayoutGrid, LogOut, Plus, Search, Settings, ShieldCheck } from 'lucide-react';
 import { WeevilLogo } from '@/components/brand/weevil-mark';
 import { Button } from '@/components/ui/button';
+import { Tooltip } from '@/components/ui/tooltip';
 import { startExtensionCapture } from '@/lib/extension-bridge';
+import { useExtensionInstalled } from '@/lib/use-extension-installed';
 import { useAuth } from '@/features/auth/auth-context';
 
 const navigation = [
@@ -18,6 +20,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { status: extStatus } = useExtensionInstalled();
+  const extMissing = extStatus === 'missing';
   const [isStartingCapture, setIsStartingCapture] = useState(false);
 
   // Captures is the home of the capture artifact, so the capture-detail route
@@ -151,16 +155,38 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           >
             <Search className="h-4 w-4" aria-hidden />
           </button>
-          <Button
-            type="button"
-            variant="primary"
-            className="h-9"
-            disabled={isStartingCapture}
-            onClick={() => void handleNewCapture()}
-          >
-            <Plus className="h-4 w-4" aria-hidden />
-            <span className="hidden sm:inline">New capture</span>
-          </Button>
+          {extMissing ? (
+            <Tooltip
+              content={
+                <>
+                  No extension, no capture. The <strong>Weevil extension</strong> isn’t
+                  installed (or is taking a nap). Add it to Chrome, then this button wakes right up.
+                </>
+              }
+            >
+              <Button
+                type="button"
+                variant="primary"
+                className="h-9 pointer-events-none opacity-60"
+                disabled
+                aria-label="New capture — Weevil extension required"
+              >
+                <Plus className="h-4 w-4" aria-hidden />
+                <span className="hidden sm:inline">New capture</span>
+              </Button>
+            </Tooltip>
+          ) : (
+            <Button
+              type="button"
+              variant="primary"
+              className="h-9"
+              disabled={isStartingCapture || extStatus === 'checking'}
+              onClick={() => void handleNewCapture()}
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              <span className="hidden sm:inline">New capture</span>
+            </Button>
+          )}
           <Button
             type="button"
             variant={isSettings ? 'secondary' : 'ghost'}

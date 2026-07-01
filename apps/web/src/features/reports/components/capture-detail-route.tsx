@@ -21,6 +21,8 @@ export function CaptureDetailRoute({ id }: { id: string }) {
     <CaptureDetailView
       report={detailQuery.data}
       isLoading={detailQuery.isLoading}
+      isError={detailQuery.isError}
+      onRetry={() => void detailQuery.refetch()}
       onBack={handleBack}
     />
   );

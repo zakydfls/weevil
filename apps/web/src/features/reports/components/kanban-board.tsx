@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { WeevilMark } from '@/components/brand/weevil-mark';
 import { Button } from '@/components/ui/button';
+import { ErrorState } from '@/components/ui/error-state';
 import { Input, Textarea } from '@/components/ui/input';
 import type { ReportStatus, ReportSummary } from '@/lib/api/types';
 import { StatusBadge } from './status-badge';
@@ -23,6 +24,8 @@ import { StatusBadge } from './status-badge';
 interface KanbanBoardProps {
   reports: ReportSummary[];
   isLoading: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
   onOpenReport: (report: ReportSummary) => void;
   /**
    * Persist a report's column assignment. The parent should update the report's status (or
@@ -216,7 +219,7 @@ function deriveState(reports: ReportSummary[], persisted: PersistedBoard): Board
   return { columns, assignments, byReportId };
 }
 
-export function KanbanBoard({ reports, isLoading, onOpenReport, onMoveReport }: KanbanBoardProps) {
+export function KanbanBoard({ reports, isLoading, isError, onRetry, onOpenReport, onMoveReport }: KanbanBoardProps) {
   // Persisted user customizations — the SINGLE source of truth across reloads.
   const [persisted, setPersisted] = useState<PersistedBoard>(loadPersisted);
   const [isAddingColumn, setIsAddingColumn] = useState(false);
@@ -311,6 +314,24 @@ export function KanbanBoard({ reports, isLoading, onOpenReport, onMoveReport }: 
     () => reports.reduce((total, report) => total + (report.runtimeErrorCount ?? 0), 0),
     [reports],
   );
+
+  // Failed load with nothing cached → clear error + retry, not empty columns.
+  if (isError && reports.length === 0) {
+    return (
+      <div className="mx-auto flex h-[calc(100dvh-11rem)] w-full min-w-0 max-w-[100rem] flex-col sm:h-[calc(100dvh-3.5rem)]">
+        <BoardHeader totalReports={0} totalErrors={0} onAddColumn={() => undefined} onReset={() => undefined} />
+        <div className="grid flex-1 place-items-center px-4 sm:px-6">
+          <div className="w-full max-w-md">
+            <ErrorState
+              title="Couldn’t load the board"
+              description="We couldn’t reach the workspace. Check your connection and try again."
+              onRetry={onRetry}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     // Height-bounded to the viewport with overflow-hidden so ONLY the columns

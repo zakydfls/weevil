@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useReports } from '@/features/reports/queries';
 import { startExtensionCapture } from '@/lib/extension-bridge';
+import { useExtensionInstalled } from '@/lib/use-extension-installed';
 
 type CommandKind = 'view' | 'capture' | 'action';
 
@@ -34,6 +35,8 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const reportsQuery = useReports({ page: 1, pageSize: 24, search: query.trim() || undefined });
   const reports = reportsQuery.data?.items ?? [];
+  const { status: extStatus } = useExtensionInstalled();
+  const extMissing = extStatus === 'missing';
 
   useEffect(() => {
     function handleKey(event: KeyboardEvent) {
@@ -100,10 +103,12 @@ export function CommandPalette() {
       {
         id: 'action-new-capture',
         kind: 'action',
-        label: 'Start new capture',
-        hint: 'Triggers the browser extension',
+        label: extMissing ? 'Start new capture (extension required)' : 'Start new capture',
+        hint: extMissing ? 'Install the Weevil extension first' : 'Triggers the browser extension',
         icon: Plus,
         perform: () => {
+          // No extension = nothing to trigger; the hint tells the user why.
+          if (extMissing) return;
           void startExtensionCapture({ redactSensitiveData: true }).catch(() => undefined);
         },
       },
@@ -126,7 +131,7 @@ export function CommandPalette() {
       const haystack = `${item.label} ${item.hint ?? ''}`.toLowerCase();
       return haystack.includes(normalized);
     });
-  }, [query, reports, router]);
+  }, [query, reports, router, extMissing]);
 
   useEffect(() => {
     setSelectedIndex((current) => Math.min(current, Math.max(items.length - 1, 0)));
