@@ -11,6 +11,10 @@ export function BoardView() {
   // large page rather than paginating.
   const reportsQuery = useReports({ page: 1, pageSize: 100 });
   const reports = reportsQuery.data?.items ?? [];
+  // Cover every not-yet-settled state (see CapturesView) so the board shows a
+  // skeleton, never an empty flash, on a slow/cold backend.
+  const isLoadingBoard =
+    reportsQuery.isPending || (reportsQuery.isFetching && reports.length === 0);
 
   function openCapture(report: ReportSummary) {
     router.push(`/c/${report.id}`);
@@ -19,7 +23,7 @@ export function BoardView() {
   return (
     <KanbanBoard
       reports={reports}
-      isLoading={reportsQuery.isLoading}
+      isLoading={isLoadingBoard}
       isError={reportsQuery.isError}
       onRetry={() => void reportsQuery.refetch()}
       onOpenReport={openCapture}

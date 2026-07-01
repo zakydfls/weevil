@@ -37,6 +37,14 @@ export function CapturesView() {
   const totalItems = reportsQuery.data?.total ?? 0;
   const totalPages = reportsQuery.data?.totalPages ?? 1;
 
+  // "Loading" must cover EVERY not-yet-settled state, not just isLoading
+  // (which is isPending && isFetching — it goes false in the gap between retries
+  // and would flash the empty state on a slow/cold backend). isPending = "no data
+  // in cache yet"; also treat any fetch-without-data as loading. Empty only shows
+  // once the query has genuinely settled with zero items.
+  const isLoadingList =
+    reportsQuery.isPending || (reportsQuery.isFetching && reports.length === 0);
+
   useEffect(() => {
     setPage(1);
   }, [pageSize, debouncedSearchTerm]);
@@ -75,7 +83,7 @@ export function CapturesView() {
       <div className="flex flex-1 flex-col gap-5 px-4 pb-10 sm:px-6">
         <CaptureCardGrid
           reports={reports}
-          isLoading={reportsQuery.isLoading}
+          isLoading={isLoadingList}
           isError={reportsQuery.isError}
           onRetry={() => void reportsQuery.refetch()}
           onSelect={openCapture}

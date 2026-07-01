@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Play } from 'lucide-react';
-import { WeevilMark } from '@/components/brand/weevil-mark';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { StatusBadge } from './status-badge';
@@ -31,25 +30,32 @@ export function CaptureCardGrid({ reports, isLoading, isError, onRetry, onSelect
   }
 
   if (isLoading) {
+    // Skeleton grid that mirrors the real cards, so the load reads as "content
+    // arriving" (not an empty/placeholder message) and swaps in seamlessly.
     return (
-      <div
-        role="status"
-        aria-live="polite"
-        className="flex min-h-72 flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center sm:p-10"
-      >
-        <div className="rounded-xl bg-[var(--primary-subtle)] p-2">
-          <WeevilMark size={44} tone="primary" className="weevil-mascot" />
-        </div>
-        <div className="max-w-sm">
-          <h2 className="text-base font-semibold text-[var(--ink)]">Checking captures</h2>
-          <p className="mt-2 text-sm leading-6 text-[var(--ink-muted)]">
-            Looking through this workspace before we show the capture grid.
-          </p>
-        </div>
-        <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
-          <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--primary)]" />
-          loading workspace captures
-        </div>
+      <div className="grid gap-6 sm:grid-cols-2 2xl:grid-cols-3" role="status" aria-label="Loading captures">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div
+            key={index}
+            className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)]"
+          >
+            <div className="aspect-[16/9] animate-pulse border-b border-[var(--border)] bg-[var(--surface-deep)]" />
+            <div className="flex flex-col gap-3 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="h-4 w-2/3 animate-pulse rounded bg-[var(--surface-deep)]" />
+                  <div className="h-3 w-1/2 animate-pulse rounded bg-[var(--surface)]" />
+                </div>
+                <div className="h-3 w-9 shrink-0 animate-pulse rounded bg-[var(--surface)]" />
+              </div>
+              <div className="flex items-center gap-4 border-t border-[var(--divider)] pt-3">
+                {Array.from({ length: 4 }).map((_, statIndex) => (
+                  <div key={statIndex} className="h-3 w-8 animate-pulse rounded bg-[var(--surface)]" />
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
