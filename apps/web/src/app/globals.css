@@ -259,11 +259,17 @@ button[aria-label='Open Next.js Dev Tools'] {
 }
 
 .weevil-card-hover {
-  transition: border-color 180ms var(--ease-out-quart), background-color 180ms var(--ease-out-quart);
+  transition:
+    border-color 180ms var(--ease-out-quart),
+    background-color 180ms var(--ease-out-quart),
+    box-shadow 180ms var(--ease-out-quart),
+    transform 180ms var(--ease-out-quart);
 }
 
 .weevil-card-hover:hover {
   border-color: var(--border-strong);
+  box-shadow: 0 2px 8px rgb(26 29 18 / 0.08);
+  transform: translateY(-1px);
 }
 
 .weevil-metric-card {

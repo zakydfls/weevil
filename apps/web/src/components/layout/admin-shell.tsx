@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Building2,
   Check,
@@ -37,9 +38,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Tooltip } from '@/components/ui/tooltip';
+import { toast } from '@/components/ui/toaster';
 import { ApiError } from '@/lib/api/client';
 import { useExtensionInstalled } from '@/lib/use-extension-installed';
 import { useAuth } from '@/features/auth/auth-context';
+import { reportKeys } from '@/features/reports/queries';
 
 const navigation = [
   { href: '/captures', label: 'Captures', icon: LayoutGrid },
@@ -300,6 +303,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
 function WorkspaceSwitcher() {
   const auth = useAuth();
+  const queryClient = useQueryClient();
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -312,6 +316,26 @@ function WorkspaceSwitcher() {
   }, [auth.workspaces, query]);
 
   if (!auth.workspace) return null;
+
+  async function switchWorkspace(slug: string, name: string) {
+    const toastId = toast.loading('Switching workspace…', {
+      description: `Opening ${name}.`,
+    });
+
+    try {
+      await auth.switchWorkspace(slug);
+      await queryClient.invalidateQueries({ queryKey: reportKeys.all });
+      toast.success('Workspace switched', {
+        id: toastId,
+        description: `${name} is active now.`,
+      });
+    } catch (error) {
+      toast.error('Could not switch workspace', {
+        id: toastId,
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
+    }
+  }
 
   return (
     <div className="ml-2">
@@ -374,7 +398,7 @@ function WorkspaceSwitcher() {
                       event.preventDefault();
                       setIsSwitcherOpen(false);
                       setQuery('');
-                      if (!isActive) void auth.switchWorkspace(ws.slug);
+                      if (!isActive) void switchWorkspace(ws.slug, ws.name);
                     }}
                     className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors ${
                       isActive ? 'bg-[var(--primary-subtle)]' : 'focus:bg-[var(--surface)]'
@@ -454,6 +478,7 @@ function WorkspaceAvatar({
 
 function CreateWorkspaceModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const auth = useAuth();
+  const queryClient = useQueryClient();
   const nameRef = useRef<HTMLInputElement | null>(null);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
@@ -523,11 +548,24 @@ function CreateWorkspaceModal({ open, onClose }: { open: boolean; onClose: () =>
 
     setError('');
     setIsSubmitting(true);
+    const toastId = toast.loading('Creating workspace…', {
+      description: `${workspaceName} will become your active workspace.`,
+    });
     try {
       await auth.createWorkspace({ name: workspaceName, slug: workspaceSlug });
+      await queryClient.invalidateQueries({ queryKey: reportKeys.all });
+      toast.success('Workspace created', {
+        id: toastId,
+        description: `${workspaceName} is active now.`,
+      });
       onClose();
     } catch (err) {
-      setError(formatCreateWorkspaceError(err, workspaceSlug));
+      const message = formatCreateWorkspaceError(err, workspaceSlug);
+      setError(message);
+      toast.error('Could not create workspace', {
+        id: toastId,
+        description: message,
+      });
     } finally {
       setIsSubmitting(false);
     }

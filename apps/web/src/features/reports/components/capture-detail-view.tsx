@@ -32,6 +32,7 @@ import {
   Smartphone,
   Terminal,
   TextCursorInput,
+  UserRound,
   Wifi,
   X,
   Zap,
@@ -320,7 +321,7 @@ export function CaptureDetailView({
         <div className="thin-scrollbar min-h-0 overflow-auto">
           <div className={isDevToolsOpen ? '' : 'mx-auto max-w-[108rem]'}>
             <div className="border-b border-[var(--border)] bg-[var(--bg)] px-4 pb-4 pt-4 lg:px-6">
-              <div className="mx-auto w-full max-w-[74rem]">
+              <div className="mx-auto w-full max-w-[88rem]">
                 <RecordingHero
                   report={report}
                   seekTargetMs={seekTargetMs}
@@ -339,8 +340,9 @@ export function CaptureDetailView({
               </div>
             </div>
 
-            <div className="mx-auto w-full max-w-[74rem] px-4 py-8 lg:px-6">
+            <div className="mx-auto w-full max-w-[82rem] px-4 py-8 lg:px-6">
               <CaptureStats report={report} />
+              <CaptureContextBar report={report} />
 
               <div className="mt-8">
                 <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.02em] text-[var(--ink)]">
@@ -369,13 +371,27 @@ export function CaptureDetailView({
                     {comments.length} {comments.length === 1 ? 'reply' : 'replies'}
                   </span>
                 </div>
-                <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-4 transition-colors focus-within:border-[var(--primary)]">
-                  <Textarea
-                    value={commentBody}
-                    onChange={(event) => setCommentBody(event.target.value)}
-                    className="min-h-24 border-0 p-0 text-sm shadow-none focus:ring-0"
-                    placeholder="Write a comment, paste a fix, or @mention…"
-                  />
+                <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] p-4 transition-colors focus-within:border-[var(--primary)]">
+                  <div className="flex gap-3">
+                    <CommentAvatar name="You" />
+                    <Textarea
+                      value={commentBody}
+                      onChange={(event) => setCommentBody(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (
+                          (event.metaKey || event.ctrlKey) &&
+                          event.key === 'Enter' &&
+                          commentBody.trim() &&
+                          !isPostingComment
+                        ) {
+                          event.preventDefault();
+                          void handleCreateComment();
+                        }
+                      }}
+                      className="min-h-24 border-0 p-0 text-sm shadow-none focus:ring-0"
+                      placeholder="Write a comment, paste a fix, or @mention…"
+                    />
+                  </div>
                   <div className="mt-2 flex items-center justify-between text-[var(--ink-faint)]">
                     <span className="font-mono text-[10px] uppercase tracking-wider">cmd + enter</span>
                     <Button
@@ -390,20 +406,21 @@ export function CaptureDetailView({
                   </div>
                 </div>
                 {comments.length > 0 ? (
-                  <ol className="mt-6 space-y-4 border-l border-[var(--border)] pl-5">
+                  <ol className="mt-6 space-y-5 border-l border-[var(--border)] pl-5">
                     {comments.map((comment) => (
                       <li key={comment.id} className="relative">
-                        <span
-                          className="absolute -left-[27px] top-2 grid h-5 w-5 place-items-center rounded-full bg-[var(--primary)] text-[10px] font-semibold text-white ring-4 ring-[var(--bg)]"
-                          aria-hidden
-                        >
-                          {comment.authorName.slice(0, 1).toUpperCase()}
+                        <span className="absolute -left-[29px] top-1.5" aria-hidden>
+                          <CommentAvatar name={comment.authorName} size="sm" />
                         </span>
-                        <div className="flex items-baseline justify-between gap-3">
-                          <span className="text-sm font-semibold text-[var(--ink)]">{comment.authorName}</span>
+                        <div className="flex flex-wrap items-baseline justify-between gap-3">
+                          <span className="text-sm font-semibold text-[var(--ink)]">
+                            {comment.authorName}
+                          </span>
                           <time className="font-mono text-[11px] text-[var(--ink-faint)]">{formatDate(comment.createdAt)}</time>
                         </div>
-                        <div className="mt-1 text-sm leading-6 text-[var(--ink-muted)]">{comment.body}</div>
+                        <div className="mt-1 max-w-[72ch] text-sm leading-6 text-[var(--ink-muted)]">
+                          {comment.body}
+                        </div>
                       </li>
                     ))}
                   </ol>
@@ -720,6 +737,91 @@ function CaptureStats({ report }: { report: ReportDetail }) {
   );
 }
 
+function CaptureContextBar({ report }: { report: ReportDetail }) {
+  const session = report.captureSessions?.[0];
+  const reporterName = report.reporter?.displayName || report.reporter?.email || 'Unknown reporter';
+  const browser = [
+    report.browserName ?? session?.browserName,
+    report.browserVersion ?? session?.browserVersion,
+  ].filter(Boolean).join(' ') || 'n/a';
+  const osName = report.osName ?? session?.osName ?? inferOsName(report.userAgent ?? session?.userAgent ?? '') ?? 'n/a';
+  const viewport =
+    report.viewportWidth && report.viewportHeight
+      ? `${report.viewportWidth} × ${report.viewportHeight}`
+      : session?.viewportWidth && session.viewportHeight
+        ? `${session.viewportWidth} × ${session.viewportHeight}`
+        : 'n/a';
+
+  const items = [
+    {
+      icon: UserRound,
+      label: 'Reporter',
+      value: reporterName,
+    },
+    {
+      icon: Globe,
+      label: 'Page',
+      value: formatHost(report.pageUrl ?? session?.pageUrl) ?? 'n/a',
+    },
+    {
+      icon: Monitor,
+      label: 'Browser',
+      value: browser,
+    },
+    {
+      icon: AppWindow,
+      label: 'Viewport',
+      value: viewport,
+    },
+    {
+      icon: Clock,
+      label: 'Duration',
+      value: formatDuration(session?.durationMs),
+    },
+    {
+      icon: osIconForName(osName),
+      label: 'OS',
+      value: osName,
+    },
+  ];
+
+  return (
+    <div className="mt-5 grid gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] p-2 sm:grid-cols-2 xl:grid-cols-3">
+      {items.map(({ icon: Icon, label, value }) => (
+        <div key={label} className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--surface)]">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-[var(--primary-subtle)] text-[var(--primary)]">
+            <Icon className="h-4 w-4" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+              {label}
+            </div>
+            <div className="truncate text-sm font-medium text-[var(--ink)]">{value}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CommentAvatar({
+  name,
+  size = 'md',
+}: {
+  name: string;
+  size?: 'sm' | 'md';
+}) {
+  const dimensions = size === 'sm' ? 'h-6 w-6 text-[10px]' : 'h-8 w-8 text-xs';
+  return (
+    <span
+      className={`grid shrink-0 place-items-center rounded-full bg-[var(--primary)] font-semibold text-white ring-4 ring-[var(--bg)] ${dimensions}`}
+      title={name}
+    >
+      {initialsFor(name)}
+    </span>
+  );
+}
+
 function RecordingHero({
   report,
   seekTargetMs,
@@ -865,7 +967,7 @@ function RecordingHero({
 
   return (
     <div
-      className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--ink-strong)]"
+      className="relative aspect-[16/9] w-full overflow-hidden rounded-[14px] border border-[var(--border-strong)] bg-[var(--ink-strong)] shadow-[0_2px_8px_rgb(26_29_18_/_0.10)]"
     >
       {sourceUrl ? (
         <>
@@ -1369,6 +1471,29 @@ function readableUrl(value?: string | null): string | null {
   } catch {
     return value;
   }
+}
+
+function formatHost(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return new URL(value).host.replace(/^www\./, '');
+  } catch {
+    return value;
+  }
+}
+
+function initialsFor(value: string): string {
+  const initials = value
+    .split(/[\s@._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+
+  return initials || 'W';
 }
 
 function BackendPanel({ traces }: { traces: BackendTraceEntry[] }) {
@@ -2457,6 +2582,29 @@ function OsGlyph({ value }: { value: string }) {
   }
 
   return <Monitor className="h-3.5 w-3.5 text-[var(--ink-muted)]" aria-hidden />;
+}
+
+function osIconForName(value: string): typeof Monitor {
+  const normalized = value.toLowerCase();
+
+  if (
+    normalized.includes('mac') ||
+    normalized.includes('ios') ||
+    normalized.includes('iphone') ||
+    normalized.includes('ipad')
+  ) {
+    return Apple;
+  }
+
+  if (normalized.includes('android')) {
+    return Smartphone;
+  }
+
+  if (normalized.includes('windows') || normalized.includes('linux')) {
+    return Monitor;
+  }
+
+  return AppWindow;
 }
 
 function ChromeGlyph() {

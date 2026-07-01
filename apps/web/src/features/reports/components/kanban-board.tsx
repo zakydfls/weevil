@@ -9,7 +9,10 @@ import {
   Clock3,
   FileText,
   GripVertical,
+  MessageSquare,
   MoreHorizontal,
+  MousePointer2,
+  Network,
   Plus,
   Trash2,
   X,
@@ -314,12 +317,28 @@ export function KanbanBoard({ reports, isLoading, isError, onRetry, onOpenReport
     () => reports.reduce((total, report) => total + (report.runtimeErrorCount ?? 0), 0),
     [reports],
   );
+  const activeReports = useMemo(
+    () => reports.filter((report) => report.status === 'PROCESSING' || report.status === 'UPLOADING').length,
+    [reports],
+  );
+  const readyReports = useMemo(
+    () => reports.filter((report) => report.status === 'READY').length,
+    [reports],
+  );
 
   // Failed load with nothing cached → clear error + retry, not empty columns.
   if (isError && reports.length === 0) {
     return (
       <div className="mx-auto flex h-[calc(100dvh-11rem)] w-full min-w-0 max-w-[100rem] flex-col sm:h-[calc(100dvh-3.5rem)]">
-        <BoardHeader totalReports={0} totalErrors={0} onAddColumn={() => undefined} onReset={() => undefined} />
+        <BoardHeader
+          totalReports={0}
+          totalErrors={0}
+          activeReports={0}
+          readyReports={0}
+          columnCount={0}
+          onAddColumn={() => undefined}
+          onReset={() => undefined}
+        />
         <div className="grid flex-1 place-items-center px-4 sm:px-6">
           <div className="w-full max-w-md">
             <ErrorState
@@ -342,6 +361,9 @@ export function KanbanBoard({ reports, isLoading, isError, onRetry, onOpenReport
       <BoardHeader
         totalReports={totalReports}
         totalErrors={totalErrors}
+        activeReports={activeReports}
+        readyReports={readyReports}
+        columnCount={state.columns.length}
         onAddColumn={() => setIsAddingColumn(true)}
         onReset={() => {
           if (typeof window !== 'undefined') {
@@ -389,42 +411,72 @@ export function KanbanBoard({ reports, isLoading, isError, onRetry, onOpenReport
 function BoardHeader({
   totalReports,
   totalErrors,
+  activeReports,
+  readyReports,
+  columnCount,
   onAddColumn,
   onReset,
 }: {
   totalReports: number;
   totalErrors: number;
+  activeReports: number;
+  readyReports: number;
+  columnCount: number;
   onAddColumn: () => void;
   onReset: () => void;
 }) {
   return (
-    <header className="flex flex-col items-start justify-between gap-3 px-4 pb-4 pt-6 sm:flex-row sm:items-end sm:px-6 sm:pb-5 sm:pt-8">
-      <div>
-        <h1 className="weevil-page-title text-2xl font-semibold tracking-[-0.02em] text-[var(--ink)]">Board</h1>
-        <p className="mt-1 text-sm text-[var(--ink-muted)]">
-          Drag captures across columns. Columns are customizable and persist locally.
-        </p>
-      </div>
-      <div className="flex w-full items-center justify-between gap-2 sm:w-auto">
-        <div className="flex items-center gap-4 font-mono text-[11px] text-[var(--ink-faint)]">
-          <span>
-            <span className="font-semibold text-[var(--ink)]">{totalReports}</span> total
-          </span>
-          {totalErrors > 0 ? (
-            <span className="text-[var(--danger)]">
-              <span className="font-semibold">{totalErrors}</span> errors
-            </span>
-          ) : null}
+    <header className="px-4 pb-4 pt-6 sm:px-6 sm:pb-5 sm:pt-8">
+      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+          <h1 className="weevil-page-title text-2xl font-semibold tracking-[-0.02em] text-[var(--ink)]">Board</h1>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--ink-muted)]">
+            Triage captures by investigation stage. Drag cards to reshape the queue; columns stay local to your workspace view.
+          </p>
         </div>
-        <Button type="button" variant="secondary" size="sm" onClick={onReset}>
-          Reset board
-        </Button>
-        <Button type="button" variant="primary" size="sm" onClick={onAddColumn}>
-          <Plus className="h-3.5 w-3.5" aria-hidden />
-          Column
-        </Button>
+        <div className="flex w-full items-center justify-between gap-2 sm:w-auto">
+          <Button type="button" variant="secondary" size="sm" onClick={onReset}>
+            Reset board
+          </Button>
+          <Button type="button" variant="primary" size="sm" onClick={onAddColumn}>
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            Column
+          </Button>
+        </div>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        <BoardSignal label="Captures" value={totalReports} tone="neutral" />
+        <BoardSignal label="Active" value={activeReports} tone="primary" />
+        <BoardSignal label="Ready" value={readyReports} tone="success" />
+        <BoardSignal label="Errors" value={totalErrors} tone={totalErrors > 0 ? 'danger' : 'neutral'} />
+        <BoardSignal label="Columns" value={columnCount} tone="cool" />
       </div>
     </header>
+  );
+}
+
+function BoardSignal({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: 'neutral' | 'primary' | 'success' | 'danger' | 'cool';
+}) {
+  const toneClass = {
+    neutral: 'border-[var(--border)] bg-[var(--surface-elevated)] text-[var(--ink-muted)]',
+    primary: 'border-[var(--primary-soft)] bg-[var(--primary-subtle)] text-[var(--primary)]',
+    success: 'border-[var(--success-bg)] bg-[var(--success-bg)] text-[var(--success)]',
+    danger: 'border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger)]',
+    cool: 'border-[var(--border-cool)] bg-[var(--surface-cool)] text-[var(--accent-cool)]',
+  }[tone];
+
+  return (
+    <div className={`flex min-w-0 items-baseline justify-between gap-3 rounded-lg border px-3 py-2 sm:min-w-28 ${toneClass}`}>
+      <span className="font-mono text-[10px] uppercase tracking-wider">{label}</span>
+      <span className="font-mono text-sm font-semibold tabular-nums">{value}</span>
+    </div>
   );
 }
 
@@ -538,11 +590,21 @@ function BoardColumnView({
   const renderedReports = reportIds
     .map((id) => reportMap.get(id))
     .filter((report): report is ReportSummary => Boolean(report));
+  const columnErrors = renderedReports.reduce(
+    (total, report) => total + (report.runtimeErrorCount ?? 0),
+    0,
+  );
+  const columnComments = renderedReports.reduce(
+    (total, report) => total + (report.commentCount ?? 0),
+    0,
+  );
 
   return (
     <div
-      className={`weevil-panel-in flex min-h-0 w-[20rem] shrink-0 flex-col overflow-hidden rounded-xl border bg-[var(--surface-elevated)] transition-colors ${
-        isDraggingOver ? 'border-[var(--primary)]' : 'border-[var(--border)]'
+      className={`weevil-panel-in flex min-h-0 w-[21rem] shrink-0 flex-col overflow-hidden rounded-xl border bg-[var(--surface-elevated)] shadow-[0_1px_2px_rgb(26_29_18_/_0.04)] transition-[border-color,background-color,box-shadow] ${
+        isDraggingOver
+          ? 'border-[var(--primary)] bg-[var(--primary-subtle)] shadow-[0_2px_8px_rgb(26_29_18_/_0.08)]'
+          : 'border-[var(--border)]'
       }`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -690,8 +752,14 @@ function BoardColumnView({
 
       <div
         ref={listRef}
-        className="thin-scrollbar relative min-h-0 flex-1 space-y-2 overflow-y-auto bg-[var(--surface)] p-2"
+        className="thin-scrollbar relative min-h-0 flex-1 space-y-2 overflow-y-auto bg-[var(--surface)] p-2.5"
       >
+        {!isLoading && renderedReports.length > 0 ? (
+          <div className="mb-2 flex items-center justify-between gap-2 px-1 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+            <span>{columnErrors > 0 ? `${columnErrors} errors` : 'clear lane'}</span>
+            <span>{columnComments} comments</span>
+          </div>
+        ) : null}
         {isLoading ? <ColumnSkeleton /> : null}
         {renderedReports.map((report, index) => (
           <KanbanCard
@@ -760,6 +828,9 @@ function KanbanCard({
   const [isDragging, setIsDragging] = useState(false);
   const hasErrors = (report.runtimeErrorCount ?? 0) > 0;
   const isArchived = report.status === 'ARCHIVED';
+  const reporterName = report.reporter?.displayName || report.reporter?.email || 'Unknown reporter';
+  const reporterInitials = initialsFor(reporterName);
+  const host = formatHost(report.pageUrl);
 
   return (
     <>
@@ -772,7 +843,7 @@ function KanbanCard({
           setIsDragging(true);
         }}
         onDragEnd={() => setIsDragging(false)}
-        className={`weevil-card-hover weevil-fade-in group relative rounded-lg border border-[var(--border)] bg-[var(--bg)] p-3 transition-opacity ${
+        className={`weevil-card-hover weevil-fade-in group relative rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3 transition-opacity ${
           isDragging ? 'opacity-40' : ''
         }`}
       >
@@ -785,37 +856,51 @@ function KanbanCard({
         <button
           type="button"
           onClick={onOpen}
-          className="block w-full pl-3 text-left"
+          className="block w-full pl-3 text-left focus-visible:outline-none"
         >
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 items-center gap-2">
                 <span
-                  className="h-2 w-2 shrink-0 rounded-full"
+                  className="h-2 w-2 shrink-0 rounded-full ring-4 ring-[var(--surface)]"
                   style={{ backgroundColor: hasErrors ? 'var(--danger)' : 'var(--success)' }}
                 />
-                <h3 className="line-clamp-2 text-sm font-semibold leading-5 text-[var(--ink)]">{report.title}</h3>
+                <h3 className="line-clamp-2 text-sm font-semibold leading-5 text-[var(--ink)]">
+                  {report.title}
+                </h3>
               </div>
-              <p className="mt-1.5 truncate font-mono text-[11px] text-[var(--ink-faint)]">
-                {report.pageUrl ?? report.id}
-              </p>
-              {report.description ? (
-                <p className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--ink-muted)]">
-                  {report.description}
-                </p>
-              ) : null}
             </div>
             <StatusBadge status={report.status} />
           </div>
 
-          <div className="mt-3 grid grid-cols-3 gap-1.5">
-            <CardStat label="net" value={report.networkRequestCount ?? 0} />
-            <CardStat label="act" value={report.actionCount ?? 0} />
+          <div className="mt-2 flex min-w-0 items-center gap-2 rounded-lg bg-[var(--surface)] px-2 py-1.5">
+            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--primary-subtle)] font-mono text-[10px] font-semibold text-[var(--primary)]">
+              {reporterInitials}
+            </span>
+            <div className="min-w-0">
+              <div className="truncate text-xs font-medium text-[var(--ink)]">{reporterName}</div>
+              <div className="truncate font-mono text-[10px] text-[var(--ink-faint)]">
+                {host ?? report.id}
+              </div>
+            </div>
+          </div>
+
+          {report.description ? (
+            <p className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--ink-muted)]">
+              {report.description}
+            </p>
+          ) : null}
+
+          <div className="mt-3 grid grid-cols-4 gap-1.5">
+            <CardStat icon={Network} label="net" value={report.networkRequestCount ?? 0} />
+            <CardStat icon={MousePointer2} label="act" value={report.actionCount ?? 0} />
             <CardStat
+              icon={AlertTriangle}
               label="err"
               value={report.runtimeErrorCount ?? 0}
               tone={hasErrors ? 'danger' : 'default'}
             />
+            <CardStat icon={MessageSquare} label="com" value={report.commentCount ?? 0} />
           </div>
 
           <div className="mt-3 flex items-center justify-between gap-2 font-mono text-[11px] text-[var(--ink-faint)]">
@@ -834,10 +919,12 @@ function KanbanCard({
 }
 
 function CardStat({
+  icon: Icon,
   label,
   value,
   tone = 'default',
 }: {
+  icon: typeof Network;
   label: string;
   value: number;
   tone?: 'default' | 'danger';
@@ -845,11 +932,16 @@ function CardStat({
   return (
     <div
       className={`rounded-md px-2 py-1.5 font-mono ${
-        tone === 'danger' ? 'bg-[var(--danger-bg)] text-[var(--danger)]' : 'bg-[var(--surface)] text-[var(--ink-muted)]'
+        tone === 'danger'
+          ? 'bg-[var(--danger-bg)] text-[var(--danger)]'
+          : 'bg-[var(--surface)] text-[var(--ink-muted)]'
       }`}
     >
-      <div className="text-[9px] font-semibold uppercase tracking-wider opacity-75">{label}</div>
-      <div className="text-sm font-semibold">{value}</div>
+      <div className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider opacity-75">
+        <Icon className="h-2.5 w-2.5" aria-hidden />
+        {label}
+      </div>
+      <div className="mt-0.5 text-sm font-semibold">{value}</div>
     </div>
   );
 }
@@ -989,4 +1081,22 @@ function formatBoardDate(value: string) {
     month: 'short',
     day: 'numeric',
   }).format(new Date(value));
+}
+
+function formatHost(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    return new URL(value).host.replace(/^www\./, '');
+  } catch {
+    return value;
+  }
+}
+
+function initialsFor(value: string): string {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'W';
 }

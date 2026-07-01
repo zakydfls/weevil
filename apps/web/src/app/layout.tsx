@@ -4,6 +4,7 @@ import { GeistSans } from 'geist/font/sans';
 import { CommandPalette } from '@/components/command-palette';
 import { QueryProvider } from '@/components/providers/query-provider';
 import { DialogProvider } from '@/components/ui/dialog';
+import { AppToaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/features/auth/auth-context';
 import './globals.css';
 
@@ -28,6 +29,7 @@ export default function RootLayout({
             <AuthProvider>
               {children}
               <CommandPalette />
+              <AppToaster />
             </AuthProvider>
           </DialogProvider>
         </QueryProvider>
