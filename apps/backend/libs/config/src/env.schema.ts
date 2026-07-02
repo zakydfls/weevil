@@ -28,9 +28,16 @@ const baseEnvSchema = z.object({
   PUBLIC_ASSET_URL: z.string().optional().default(''),
 
   // ── Web / CORS / cookie ──────────────────────────────────────────────────
+  // ENABLE_CORS=false keeps CORS headers active but disables origin allowlist
+  // enforcement by reflecting any browser origin. Use only for emergency/debug.
+  ENABLE_CORS: booleanFromString.default(true),
+  ENABLE_CSRF: booleanFromString.default(true),
   // Comma-separated list of allowed browser origins (the Vercel FE, etc).
   // Empty = reflect any origin (dev convenience only — set this in prod).
   WEB_ORIGIN: z.string().optional().default(''),
+  // Comma-separated trusted browser-extension origins allowed to make
+  // credentialed capture requests, e.g. chrome-extension://<extension-id>.
+  EXTENSION_ORIGINS: z.string().optional().default(''),
   // Session-cookie attributes. Driven by env (NOT NODE_ENV) so a homeserver
   // running NODE_ENV=development behind HTTPS can still issue cross-site cookies.
   // Cross-site (FE on a different host than the API) REQUIRES SameSite=None+Secure.
@@ -52,11 +59,11 @@ const baseEnvSchema = z.object({
 
 export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
   if (env.NODE_ENV !== 'production') return;
-  if (!env.WEB_ORIGIN.trim()) {
+  if (env.ENABLE_CORS && !env.WEB_ORIGIN.trim()) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['WEB_ORIGIN'],
-      message: 'WEB_ORIGIN must be set in production.',
+      message: 'WEB_ORIGIN must be set in production when ENABLE_CORS=true.',
     });
   }
   if (env.AUTH_OTP_SECRET.trim().length < 32) {

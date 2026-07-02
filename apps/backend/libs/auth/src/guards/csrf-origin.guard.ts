@@ -15,6 +15,8 @@ export class CsrfOriginGuard implements CanActivate {
   constructor(private readonly config: AppConfigService) {}
 
   canActivate(context: ExecutionContext): boolean {
+    if (!this.config.enableCsrf) return true;
+
     const request = context.switchToHttp().getRequest<Request>();
     const method = request.method.toUpperCase();
     if (SAFE_METHODS.has(method)) return true;
@@ -41,7 +43,7 @@ export class CsrfOriginGuard implements CanActivate {
 
   private allowedOrigins(request: Request): Set<string> {
     const origins = new Set(
-      this.config.webOrigins
+      this.config.browserOrigins
         .map((origin) => originOf(origin))
         .filter((origin): origin is string => Boolean(origin)),
     );
@@ -70,12 +72,19 @@ function headerValue(value: string | string[] | undefined): string | undefined {
 }
 
 function isAllowedOrigin(origin: string | undefined, allowedOrigins: Set<string>): boolean {
-  return Boolean(origin && allowedOrigins.has(origin));
+  return Boolean(origin && allowedOrigins.has(originOf(origin) ?? origin));
 }
 
 function originOf(value: string): string | undefined {
   try {
-    return new URL(value).origin;
+    const url = new URL(value);
+    if (url.origin !== 'null') {
+      return url.origin;
+    }
+    if (url.protocol === 'chrome-extension:' || url.protocol === 'moz-extension:') {
+      return `${url.protocol}//${url.hostname}`;
+    }
+    return undefined;
   } catch {
     return undefined;
   }

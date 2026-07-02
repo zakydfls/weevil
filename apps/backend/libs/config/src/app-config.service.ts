@@ -58,6 +58,14 @@ export class AppConfigService {
     return this.configService.get('PUBLIC_ASSET_URL', { infer: true }) || undefined;
   }
 
+  get enableCors(): boolean {
+    return this.configService.get('ENABLE_CORS', { infer: true });
+  }
+
+  get enableCsrf(): boolean {
+    return this.configService.get('ENABLE_CSRF', { infer: true });
+  }
+
   /** Allowed browser origins for CORS. Empty array = reflect any origin (dev). */
   get webOrigins(): string[] {
     return this.configService
@@ -65,6 +73,19 @@ export class AppConfigService {
       .split(',')
       .map((origin) => origin.trim())
       .filter(Boolean);
+  }
+
+  /** Trusted extension origins allowed to use cookie-authenticated capture APIs. */
+  get extensionOrigins(): string[] {
+    return this.configService
+      .get('EXTENSION_ORIGINS', { infer: true })
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean);
+  }
+
+  get browserOrigins(): string[] {
+    return [...this.webOrigins, ...this.extensionOrigins];
   }
 
   get cookieSameSite(): 'lax' | 'none' | 'strict' {

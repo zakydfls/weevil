@@ -210,11 +210,28 @@ export class WeevilApiClient {
     const payload = text ? safeJsonParse(text) : null;
 
     if (!response.ok) {
-      throw new ApiError(`API request failed with status ${response.status}`, response.status, payload);
+      throw new ApiError(apiErrorMessage(payload, response.status), response.status, payload);
     }
 
     return payload as T;
   }
+}
+
+function apiErrorMessage(payload: unknown, status: number) {
+  if (payload && typeof payload === 'object') {
+    const record = payload as Record<string, unknown>;
+    const message = Array.isArray(record.message) ? record.message.join(', ') : record.message;
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+    if (typeof record.error === 'string' && record.error.trim()) {
+      return record.error;
+    }
+  }
+  if (typeof payload === 'string' && payload.trim()) {
+    return payload;
+  }
+  return `API request failed with status ${status}`;
 }
 
 function networkErrorMessage(url: string, error: unknown) {

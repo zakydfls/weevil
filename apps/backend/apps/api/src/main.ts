@@ -13,11 +13,12 @@ async function bootstrap(): Promise<void> {
 
   app.setGlobalPrefix(API_PREFIX);
   app.use(helmet());
-  // Lock CORS to the configured web origin(s) in prod; reflect any origin when
-  // WEB_ORIGIN is unset (dev). credentials:true is required for the session cookie.
-  const webOrigins = config.webOrigins;
+  // Lock CORS to configured browser origins by default. ENABLE_CORS=false is
+  // an emergency/debug bypass that reflects any origin while still emitting
+  // credentials-capable CORS headers.
+  const browserOrigins = config.browserOrigins;
   app.enableCors({
-    origin: webOrigins.length > 0 ? webOrigins : true,
+    origin: !config.enableCors || browserOrigins.length === 0 ? true : browserOrigins,
     credentials: true,
   });
   app.useGlobalPipes(
