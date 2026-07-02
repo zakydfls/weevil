@@ -66,8 +66,15 @@ export function SettingsView() {
   const [syncState, setSyncState] = useState<'idle' | 'synced' | 'failed'>('idle');
   const [syncError, setSyncError] = useState<string | null>(null);
   const [notificationSyncState, setNotificationSyncState] =
-    useState<'idle' | 'synced' | 'failed'>('idle');
-  const [notificationSyncError, setNotificationSyncError] = useState<string | null>(null);
+    useState<Record<keyof NotificationPreferences, 'idle' | 'synced' | 'failed'>>({
+      emailOnNewCapture: 'idle',
+      emailOnNewComment: 'idle',
+    });
+  const [notificationSyncError, setNotificationSyncError] =
+    useState<Record<keyof NotificationPreferences, string | null>>({
+      emailOnNewCapture: null,
+      emailOnNewComment: null,
+    });
 
   useEffect(() => {
     const stored = window.localStorage.getItem('weevil.redact-sensitive-data');
@@ -99,8 +106,8 @@ export function SettingsView() {
   useEffect(() => {
     let isMounted = true;
     setIsNotificationLoading(true);
-    setNotificationSyncState('idle');
-    setNotificationSyncError(null);
+    setNotificationSyncState({ emailOnNewCapture: 'idle', emailOnNewComment: 'idle' });
+    setNotificationSyncError({ emailOnNewCapture: null, emailOnNewComment: null });
 
     void apiClient
       .getNotificationPreferences()
@@ -110,8 +117,11 @@ export function SettingsView() {
       })
       .catch((error) => {
         if (!isMounted) return;
-        setNotificationSyncState('failed');
-        setNotificationSyncError(error instanceof Error ? error.message : String(error));
+        setNotificationSyncState({ emailOnNewCapture: 'failed', emailOnNewComment: 'failed' });
+        setNotificationSyncError({
+          emailOnNewCapture: error instanceof Error ? error.message : String(error),
+          emailOnNewComment: error instanceof Error ? error.message : String(error),
+        });
       })
       .finally(() => {
         if (isMounted) setIsNotificationLoading(false);
@@ -150,16 +160,19 @@ export function SettingsView() {
     const nextValue = { ...notificationPreferences, [key]: value };
     setNotificationPreferences(nextValue);
     setSavingNotificationKey(key);
-    setNotificationSyncState('idle');
-    setNotificationSyncError(null);
+    setNotificationSyncState((current) => ({ ...current, [key]: 'idle' }));
+    setNotificationSyncError((current) => ({ ...current, [key]: null }));
     try {
       const saved = await apiClient.updateNotificationPreferences({ [key]: value });
       setNotificationPreferences(saved);
-      setNotificationSyncState('synced');
+      setNotificationSyncState((current) => ({ ...current, [key]: 'synced' }));
     } catch (error) {
       setNotificationPreferences(previousValue);
-      setNotificationSyncState('failed');
-      setNotificationSyncError(error instanceof Error ? error.message : String(error));
+      setNotificationSyncState((current) => ({ ...current, [key]: 'failed' }));
+      setNotificationSyncError((current) => ({
+        ...current,
+        [key]: error instanceof Error ? error.message : String(error),
+      }));
     } finally {
       setSavingNotificationKey(null);
     }
@@ -228,8 +241,8 @@ export function SettingsView() {
                   <NotificationPreferenceStatus
                     isLoading={isNotificationLoading}
                     isSaving={savingNotificationKey === 'emailOnNewCapture'}
-                    syncState={notificationSyncState}
-                    error={notificationSyncError}
+                    syncState={notificationSyncState.emailOnNewCapture}
+                    error={notificationSyncError.emailOnNewCapture}
                   />
                 }
               />
@@ -254,8 +267,8 @@ export function SettingsView() {
                   <NotificationPreferenceStatus
                     isLoading={isNotificationLoading}
                     isSaving={savingNotificationKey === 'emailOnNewComment'}
-                    syncState={notificationSyncState}
-                    error={notificationSyncError}
+                    syncState={notificationSyncState.emailOnNewComment}
+                    error={notificationSyncError.emailOnNewComment}
                   />
                 }
               />

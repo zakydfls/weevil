@@ -403,7 +403,7 @@ async function stopCapture() {
     title: state.title ?? 'Untitled capture',
     description: 'Recording captured from the Weevil browser extension.',
     pageUrl: state.pageUrl,
-    dashboardUrl: buildDashboardUrl(state.reportId),
+    dashboardUrl: buildDashboardUrl(state.reportId, state.shareToken),
     dataUrl: recording?.dataUrl,
     contentType: recording?.contentType ?? RECORDING_UPLOAD_CONTENT_TYPE,
     byteSize: recording?.byteSize,
@@ -501,7 +501,7 @@ async function captureScreenshot(tab: chrome.tabs.Tab) {
     title,
     description: 'Screenshot captured from the Weevil browser extension.',
     pageUrl,
-    dashboardUrl: buildDashboardUrl(report.id),
+    dashboardUrl: buildDashboardUrl(report.id, report.shareToken),
     dataUrl,
     contentType: screenshotBlob.type || 'image/png',
     durationMs: 0,
@@ -1502,15 +1502,23 @@ async function createCaptureApi(apiBaseUrl: string) {
   }
 }
 
-function buildDashboardUrl(reportId: string) {
+function buildDashboardUrl(reportId: string, shareToken?: string | null) {
   try {
     const url = new URL(DEFAULT_WEB_BASE_URL);
-    url.pathname = '/';
-    url.search = `capture=${encodeURIComponent(reportId)}`;
+    if (shareToken) {
+      url.pathname = `/c/share/${encodeURIComponent(shareToken)}`;
+      url.search = '';
+    } else {
+      url.pathname = '/';
+      url.search = `capture=${encodeURIComponent(reportId)}`;
+    }
     url.hash = '';
     return url.toString();
   } catch {
     const base = DEFAULT_WEB_BASE_URL.replace(/\/+$/, '');
+    if (shareToken) {
+      return `${base}/c/share/${encodeURIComponent(shareToken)}`;
+    }
     return `${base}/?capture=${encodeURIComponent(reportId)}`;
   }
 }

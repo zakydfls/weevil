@@ -1,4 +1,16 @@
-import { Body, Controller, Get, Headers, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiRoutes,
   CompleteCaptureSessionDto,
@@ -77,6 +89,18 @@ export class ReportsController {
       canUpdateAny: auth?.workspace?.permissions.has(Permission.REPORT_UPDATE_ANY) ?? false,
       canUpdateOwn: auth?.workspace?.permissions.has(Permission.REPORT_UPDATE_OWN) ?? false,
       reportToken,
+    });
+  }
+
+  @Delete(`:${RouteParams.ReportId}`)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions([Permission.REPORT_DELETE_ANY, Permission.REPORT_DELETE_OWN], 'any')
+  async remove(@CurrentAuth() auth: AuthContext, @Param(RouteParams.ReportId) reportId: string) {
+    await this.reportsService.softDelete(reportId, {
+      workspaceId: auth.workspace?.id,
+      actorUserId: auth.user.id,
+      canDeleteAny: auth.workspace?.permissions.has(Permission.REPORT_DELETE_ANY) ?? false,
+      canDeleteOwn: auth.workspace?.permissions.has(Permission.REPORT_DELETE_OWN) ?? false,
     });
   }
 

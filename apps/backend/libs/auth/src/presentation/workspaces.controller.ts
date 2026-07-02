@@ -157,6 +157,23 @@ export class WorkspacesController {
     );
   }
 
+  @Post('current/join-requests/:memberId/approve')
+  @RequirePermissions(Permission.MEMBER_INVITE)
+  approveJoinRequest(@CurrentAuth() auth: AuthContext, @Param('memberId') memberId: string) {
+    return this.workspaceService.approveJoinRequest(
+      auth.workspace!.id,
+      memberId,
+      auth.user.id,
+    );
+  }
+
+  @Delete('current/join-requests/:memberId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions(Permission.MEMBER_INVITE)
+  async rejectJoinRequest(@CurrentAuth() auth: AuthContext, @Param('memberId') memberId: string) {
+    await this.workspaceService.rejectJoinRequest(auth.workspace!.id, memberId);
+  }
+
   @Delete('current/members/:memberId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequirePermissions(Permission.MEMBER_REMOVE)

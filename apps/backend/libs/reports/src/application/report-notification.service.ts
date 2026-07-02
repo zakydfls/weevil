@@ -183,8 +183,11 @@ export class ReportNotificationService {
   }
 
   private async loadReport(reportId: string) {
-    return this.prisma.bugReport.findUnique({
-      where: { id: reportId },
+    return this.prisma.bugReport.findFirst({
+      where: {
+        id: reportId,
+        deletedAt: null,
+      },
       include: {
         workspace: {
           select: {

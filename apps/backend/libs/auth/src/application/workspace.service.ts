@@ -10,11 +10,16 @@ import { PrismaService } from '@weevil/database';
 import {
   MembershipStatus,
   Permission,
+  UserStatus,
   WorkspaceRole,
   WorkspaceStatus,
 } from '@weevil/prisma-client';
 import { resolveEffectivePermissions } from '../domain/permissions';
-import { WorkspaceEvents, type WorkspaceInviteCreatedEvent } from '../domain/workspace-events';
+import {
+  WorkspaceEvents,
+  type WorkspaceInviteCreatedEvent,
+  type WorkspaceJoinApprovedEvent,
+} from '../domain/workspace-events';
 import { PermissionService } from './permission.service';
 import { TokenService } from './token.service';
 import { WorkspaceInviteNotificationService } from './workspace-invite-notification.service';
@@ -126,7 +131,7 @@ export class WorkspaceService {
   async listMembers(workspaceId: string) {
     const [members, pendingInvites] = await Promise.all([
       this.prisma.workspaceMember.findMany({
-        where: { workspaceId },
+        where: { workspaceId, status: { not: MembershipStatus.REVOKED } },
         include: { user: true },
         orderBy: [{ role: 'asc' }, { user: { displayName: 'asc' } }],
       }),
@@ -155,6 +160,8 @@ export class WorkspaceService {
       ),
       joinedAt: m.joinedAt?.toISOString() ?? null,
       lastActiveAt: m.lastActiveAt?.toISOString() ?? null,
+      requestKind:
+        m.status === MembershipStatus.INVITED && !m.invitedById ? 'JOIN_REQUEST' : 'MEMBER',
     }));
     const pendingRows = pendingInvites.map((invite) => ({
       id: invite.id,
@@ -171,6 +178,7 @@ export class WorkspaceService {
       lastActiveAt: null,
       expiresAt: invite.expiresAt.toISOString(),
       inviteUrl: this.workspaceInviteNotification.buildInviteUrl(invite.token),
+      requestKind: 'INVITE',
     }));
 
     return [...memberRows, ...pendingRows];
@@ -305,6 +313,81 @@ export class WorkspaceService {
       where: { id: memberId },
       data: { extraPermissions, deniedPermissions },
     });
+  }
+
+  async approveJoinRequest(workspaceId: string, memberId: string, actingUserId: string) {
+    const member = await this.prisma.workspaceMember.findUnique({
+      where: { id: memberId },
+      include: { user: true, workspace: true },
+    });
+    if (!member || member.workspaceId !== workspaceId) {
+      throw new NotFoundException('Join request not found.');
+    }
+    if (
+      member.status !== MembershipStatus.INVITED ||
+      member.invitedById ||
+      member.user.status !== UserStatus.INVITED
+    ) {
+      throw new BadRequestException('This member is not waiting for workspace approval.');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: member.userId },
+        data: {
+          status: UserStatus.ACTIVE,
+          defaultWorkspaceId: member.workspaceId,
+        },
+      }),
+      this.prisma.workspaceMember.update({
+        where: { id: member.id },
+        data: {
+          status: MembershipStatus.ACTIVE,
+          invitedById: actingUserId,
+          joinedAt: new Date(),
+        },
+      }),
+    ]);
+
+    this.eventEmitter.emit(WorkspaceEvents.JoinApproved, {
+      workspaceName: member.workspace.name,
+      workspaceSlug: member.workspace.slug,
+      requesterEmail: member.user.email,
+      requesterName: member.user.displayName,
+    } satisfies WorkspaceJoinApprovedEvent);
+
+    return {
+      id: member.id,
+      userId: member.userId,
+      email: member.user.email,
+      displayName: member.user.displayName,
+      avatarUrl: member.user.avatarUrl,
+      role: member.role,
+      status: MembershipStatus.ACTIVE,
+      requestKind: 'MEMBER',
+    };
+  }
+
+  async rejectJoinRequest(workspaceId: string, memberId: string) {
+    const member = await this.prisma.workspaceMember.findUnique({
+      where: { id: memberId },
+      include: { user: true },
+    });
+    if (!member || member.workspaceId !== workspaceId) {
+      throw new NotFoundException('Join request not found.');
+    }
+    if (
+      member.status !== MembershipStatus.INVITED ||
+      member.invitedById ||
+      member.user.status !== UserStatus.INVITED
+    ) {
+      throw new BadRequestException('This member is not waiting for workspace approval.');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.workspaceMember.delete({ where: { id: member.id } }),
+      this.prisma.user.delete({ where: { id: member.userId } }),
+    ]);
   }
 
   async removeMember(workspaceId: string, memberId: string, actingUserId: string) {

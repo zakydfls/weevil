@@ -60,10 +60,11 @@ export class RequestSignupOtpDto {
   @MaxLength(120)
   displayName?: string;
 
+  @IsOptional()
   @IsString()
   @MinLength(2, { message: 'Workspace name must be at least 2 characters.' })
   @MaxLength(120)
-  workspaceName: string;
+  workspaceName?: string;
 
   @IsOptional()
   @IsString()
@@ -72,6 +73,14 @@ export class RequestSignupOtpDto {
     message: 'Slug must be 2-40 lowercase letters, numbers, or hyphens.',
   })
   workspaceSlug?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  @Matches(/^[a-z0-9-]{2,40}$/, {
+    message: 'Workspace slug must be 2-40 lowercase letters, numbers, or hyphens.',
+  })
+  joinWorkspaceSlug?: string;
 }
 
 export class VerifySignupOtpDto {

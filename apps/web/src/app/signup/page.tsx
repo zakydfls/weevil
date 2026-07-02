@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import {
   ArrowLeft,
+  Building2,
   CheckCircle2,
   Clock3,
   Eye,
@@ -12,6 +13,7 @@ import {
   Loader2,
   MailCheck,
   ShieldCheck,
+  UserPlus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,6 +47,12 @@ interface OtpState {
 }
 
 type SignupStep = 'details' | 'otp';
+type SignupMode = 'create' | 'join';
+
+interface PendingApprovalState {
+  email: string;
+  workspace: { slug: string; name: string };
+}
 
 export default function SignupPage() {
   const auth = useAuth();
@@ -61,15 +69,19 @@ export default function SignupPage() {
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('');
   const [workspaceSlug, setWorkspaceSlug] = useState('');
+  const [signupMode, setSignupMode] = useState<SignupMode>('create');
+  const [joinWorkspaceSlug, setJoinWorkspaceSlug] = useState('');
   const [step, setStep] = useState<SignupStep>('details');
   const [otpCode, setOtpCode] = useState('');
   const [otpState, setOtpState] = useState<OtpState | null>(null);
+  const [pendingApproval, setPendingApproval] = useState<PendingApprovalState | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState<SignupErrorState | null>(null);
 
   const isInviteMode = Boolean(inviteToken);
+  const isJoinRequestMode = !isInviteMode && signupMode === 'join';
   const loginHref = buildAuthHref('/login', { inviteToken, next: nextPath });
 
   const otpExpiresInMs = otpState ? new Date(otpState.expiresAt).getTime() - nowMs : 0;
@@ -82,7 +94,10 @@ export default function SignupPage() {
     email.trim().length > 0 &&
     password.length >= 8 &&
     passwordsMatch &&
-    (isInviteMode || (workspaceName.trim().length >= 2 && isValidWorkspaceSlug(workspaceSlug.trim())));
+    (isInviteMode ||
+      (isJoinRequestMode
+        ? isValidWorkspaceSlug(joinWorkspaceSlug.trim())
+        : workspaceName.trim().length >= 2 && isValidWorkspaceSlug(workspaceSlug.trim())));
   const canVerifyOtp = otpCode.length === 6 && Boolean(otpState) && otpExpiresInMs > 0;
 
   useEffect(() => {
@@ -136,6 +151,7 @@ export default function SignupPage() {
       setStep('details');
       setOtpCode('');
       setOtpState(null);
+      setPendingApproval(null);
     }
   }, [isInviteMode]);
 
@@ -212,8 +228,12 @@ export default function SignupPage() {
         email: email.trim(),
         password,
         displayName: displayName.trim() || undefined,
-        workspaceName: workspaceName.trim(),
-        workspaceSlug: workspaceSlug.trim(),
+        ...(isJoinRequestMode
+          ? { joinWorkspaceSlug: joinWorkspaceSlug.trim().toLowerCase() }
+          : {
+              workspaceName: workspaceName.trim(),
+              workspaceSlug: workspaceSlug.trim(),
+            }),
       });
       setOtpState(result);
       setOtpCode('');
@@ -235,11 +255,19 @@ export default function SignupPage() {
     setIsSubmitting(true);
     setError(null);
     try {
-      await auth.verifySignupOtp(
+      const result = await auth.verifySignupOtp(
         email.trim(),
         otpCode,
         nextPath ? { redirectTo: nextPath } : undefined,
       );
+      if (result.status === 'PENDING_APPROVAL') {
+        setPendingApproval({
+          email: result.email,
+          workspace: result.workspace,
+        });
+        setOtpCode('');
+        setOtpState(null);
+      }
     } catch (err) {
       setError(formatSignupError(err, {
         email: email.trim(),
@@ -261,18 +289,26 @@ export default function SignupPage() {
   return (
     <AuthShell
       title={
-        isInviteMode
+        pendingApproval
+          ? 'Request sent'
+          : isInviteMode
           ? `Join ${invitePreview?.workspace.name ?? 'workspace'}`
           : step === 'otp'
             ? 'Verify your email'
-            : 'Start a workspace'
+            : isJoinRequestMode
+              ? 'Request workspace access'
+              : 'Start a workspace'
       }
       subtitle={
-        isInviteMode
+        pendingApproval
+          ? `${pendingApproval.workspace.name} will review your access request.`
+          : isInviteMode
           ? 'Create your account to accept the workspace invitation.'
           : step === 'otp'
             ? `We sent a 6-digit code to ${email.trim()}.`
-            : 'Create an account and your first workspace.'
+            : isJoinRequestMode
+              ? 'Create your account and ask an admin to approve it.'
+              : 'Create an account and your first workspace.'
       }
       footer={
         <span>
@@ -283,6 +319,9 @@ export default function SignupPage() {
         </span>
       }
     >
+      {pendingApproval ? (
+        <PendingApprovalPanel approval={pendingApproval} loginHref={loginHref} />
+      ) : (
       <form onSubmit={handleSubmit} className="space-y-4">
         {!isInviteMode ? <SignupProgress step={step} /> : null}
 
@@ -338,7 +377,7 @@ export default function SignupPage() {
               </Button>
               <Button type="submit" className="h-10 min-w-36" disabled={isSubmitting || !canVerifyOtp}>
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
-                Verify and enter
+                {isJoinRequestMode ? 'Verify and request access' : 'Verify and enter'}
               </Button>
             </div>
           </div>
@@ -406,30 +445,51 @@ export default function SignupPage() {
                 inviteError={inviteError}
               />
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
-                    Workspace name
-                  </label>
-                  <Input
-                    value={workspaceName}
-                    onChange={(e) => handleWorkspaceNameChange(e.target.value)}
-                    required
-                    placeholder="Acme Labs"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
-                    Slug
-                  </label>
-                  <Input
-                    value={workspaceSlug}
-                    onChange={(e) => setWorkspaceSlug(slugify(e.target.value))}
-                    required
-                    placeholder="acme-labs"
-                    className="font-mono"
-                  />
-                </div>
+              <div className="space-y-3">
+                <SignupModeChooser mode={signupMode} onChange={setSignupMode} />
+                {isJoinRequestMode ? (
+                  <div className="space-y-1.5">
+                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
+                      Workspace slug
+                    </label>
+                    <Input
+                      value={joinWorkspaceSlug}
+                      onChange={(e) => setJoinWorkspaceSlug(slugify(e.target.value))}
+                      required
+                      placeholder="acme-labs"
+                      className="font-mono"
+                    />
+                    <p className="text-xs leading-5 text-[var(--ink-muted)]">
+                      An owner or admin will review the request before this account can sign in.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
+                        Workspace name
+                      </label>
+                      <Input
+                        value={workspaceName}
+                        onChange={(e) => handleWorkspaceNameChange(e.target.value)}
+                        required
+                        placeholder="Acme Labs"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
+                        Slug
+                      </label>
+                      <Input
+                        value={workspaceSlug}
+                        onChange={(e) => setWorkspaceSlug(slugify(e.target.value))}
+                        required
+                        placeholder="acme-labs"
+                        className="font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             <Button
@@ -438,7 +498,11 @@ export default function SignupPage() {
               disabled={isSubmitting || isInviteLoading || Boolean(inviteError) || !canSubmitDetails}
             >
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {isInviteMode ? 'Join workspace' : 'Send verification code'}
+              {isInviteMode
+                ? 'Join workspace'
+                : isJoinRequestMode
+                  ? 'Send access code'
+                  : 'Send verification code'}
             </Button>
           </div>
         )}
@@ -447,7 +511,80 @@ export default function SignupPage() {
           <ErrorNotice message={error.message} action={error.action} />
         ) : null}
       </form>
+      )}
     </AuthShell>
+  );
+}
+
+function SignupModeChooser({
+  mode,
+  onChange,
+}: {
+  mode: SignupMode;
+  onChange: (mode: SignupMode) => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1">
+      <button
+        type="button"
+        onClick={() => onChange('create')}
+        className={`flex min-w-0 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+          mode === 'create'
+            ? 'bg-[var(--bg)] text-[var(--ink)] shadow-[inset_0_0_0_1px_var(--border)]'
+            : 'text-[var(--ink-muted)] hover:bg-[var(--primary-subtle)] hover:text-[var(--ink)]'
+        }`}
+      >
+        <Building2 className="h-4 w-4 shrink-0" aria-hidden />
+        <span className="truncate">New workspace</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange('join')}
+        className={`flex min-w-0 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+          mode === 'join'
+            ? 'bg-[var(--bg)] text-[var(--ink)] shadow-[inset_0_0_0_1px_var(--border)]'
+            : 'text-[var(--ink-muted)] hover:bg-[var(--primary-subtle)] hover:text-[var(--ink)]'
+        }`}
+      >
+        <UserPlus className="h-4 w-4 shrink-0" aria-hidden />
+        <span className="truncate">Request access</span>
+      </button>
+    </div>
+  );
+}
+
+function PendingApprovalPanel({
+  approval,
+  loginHref,
+}: {
+  approval: PendingApprovalState;
+  loginHref: string;
+}) {
+  return (
+    <div className="weevil-step-enter space-y-4">
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
+        <div className="flex gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--success-bg)] text-[var(--success)]">
+            <CheckCircle2 className="h-5 w-5" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-[var(--ink)]">
+              Waiting for admin approval
+            </div>
+            <p className="mt-1 text-sm leading-6 text-[var(--ink-muted)]">
+              We verified <span className="font-medium text-[var(--ink)]">{approval.email}</span> and sent the request to{' '}
+              <span className="font-medium text-[var(--ink)]">{approval.workspace.name}</span>.
+            </p>
+            <div className="mt-3 rounded-md border border-[var(--divider)] bg-[var(--bg)] px-3 py-2 font-mono text-[11px] text-[var(--ink-muted)]">
+              workspace · {approval.workspace.slug}
+            </div>
+          </div>
+        </div>
+      </div>
+      <Button asChild variant="secondary" className="h-10 w-full">
+        <Link href={loginHref}>Back to sign in</Link>
+      </Button>
+    </div>
   );
 }
 
@@ -675,6 +812,12 @@ function formatSignupError(
       };
     }
 
+    if (error.status === 409 && message.includes('access request')) {
+      return {
+        message: 'That email already has a workspace access request waiting for approval.',
+      };
+    }
+
     if (error.status === 409 && message.includes('slug')) {
       return {
         message: 'That workspace slug is already taken. Try a different slug.',
@@ -684,6 +827,12 @@ function formatSignupError(
     if (error.status === 401 && message.includes('invite')) {
       return {
         message: 'This invite was sent to a different email. Use the invited email or ask for a new invite.',
+      };
+    }
+
+    if (error.status === 404 && message.includes('workspace')) {
+      return {
+        message: 'No active workspace was found with that slug. Check the slug and try again.',
       };
     }
 

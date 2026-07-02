@@ -287,6 +287,11 @@ export interface CreateReportInput {
   metadata?: Record<string, unknown>;
 }
 
+export interface UpdateReportInput {
+  title?: string;
+  description?: string;
+}
+
 export interface CreateUploadInput {
   kind: 'SCREEN_RECORDING' | 'CONSOLE_LOGS' | 'NETWORK_LOGS' | 'SCREENSHOT' | 'DOM_SNAPSHOT' | 'HAR' | 'OTHER';
   contentType: string;

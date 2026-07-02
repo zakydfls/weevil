@@ -20,6 +20,7 @@ import type {
   ReportSummary,
   RuntimeErrorEntry,
   TimelineEntry,
+  UpdateReportInput,
 } from './types';
 import { appEnv, readPublicEnv } from '@/lib/env';
 
@@ -134,6 +135,17 @@ export const apiClient = {
     request<ReportSummary>('/reports', {
       method: 'POST',
       body: JSON.stringify(input),
+    }),
+
+  updateReport: (reportId: string, input: UpdateReportInput) =>
+    request<ReportSummary>(`/reports/${reportId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+
+  deleteReport: (reportId: string) =>
+    request<void>(`/reports/${reportId}`, {
+      method: 'DELETE',
     }),
 
   createUpload: (reportId: string, input: CreateUploadInput) =>
@@ -253,8 +265,9 @@ export const apiClient = {
     email: string;
     password: string;
     displayName?: string;
-    workspaceName: string;
+    workspaceName?: string;
     workspaceSlug?: string;
+    joinWorkspaceSlug?: string;
   }) =>
     request<{
       recipient: string;
@@ -267,13 +280,23 @@ export const apiClient = {
     }>('/auth/signup/request-otp', { method: 'POST', body: JSON.stringify(body) }),
 
   verifySignupOtp: (body: { email: string; code: string }) =>
-    request<{
-      token: string;
-      sessionId: string;
-      userId: string;
-      workspaceId: string;
-      expiresAt: string;
-    }>('/auth/signup/verify-otp', { method: 'POST', body: JSON.stringify(body) }),
+    request<
+      | {
+          status: 'ACTIVE';
+          token: string;
+          sessionId: string;
+          userId: string;
+          workspaceId: string;
+          expiresAt: string;
+        }
+      | {
+          status: 'PENDING_APPROVAL';
+          userId: string;
+          workspaceId: string;
+          email: string;
+          workspace: { slug: string; name: string };
+        }
+    >('/auth/signup/verify-otp', { method: 'POST', body: JSON.stringify(body) }),
 
   login: (body: { email: string; password: string }) =>
     request<{
@@ -364,6 +387,7 @@ export const apiClient = {
         lastActiveAt: string | null;
         expiresAt?: string;
         inviteUrl?: string;
+        requestKind?: 'MEMBER' | 'INVITE' | 'JOIN_REQUEST';
       }>
     >('/workspaces/current/members'),
 
@@ -390,6 +414,16 @@ export const apiClient = {
 
   removeMember: (memberId: string) =>
     request<void>(`/workspaces/current/members/${memberId}`, {
+      method: 'DELETE',
+    }),
+
+  approveJoinRequest: (memberId: string) =>
+    request(`/workspaces/current/join-requests/${memberId}/approve`, {
+      method: 'POST',
+    }),
+
+  rejectJoinRequest: (memberId: string) =>
+    request<void>(`/workspaces/current/join-requests/${memberId}`, {
       method: 'DELETE',
     }),
 

@@ -34,6 +34,20 @@ interface WorkspaceSummary {
   role: string;
 }
 
+type SignupOtpVerificationResult =
+  | {
+      status: 'ACTIVE';
+      userId: string;
+      workspaceId: string;
+    }
+  | {
+      status: 'PENDING_APPROVAL';
+      userId: string;
+      workspaceId: string;
+      email: string;
+      workspace: { slug: string; name: string };
+    };
+
 interface AuthContextValue {
   status: 'loading' | 'authenticated' | 'unauthenticated';
   user: AuthUser | null;
@@ -53,7 +67,11 @@ interface AuthContextValue {
     workspaceSlug?: string;
     inviteToken?: string;
   }, options?: { redirectTo?: string }) => Promise<void>;
-  verifySignupOtp: (email: string, code: string, options?: { redirectTo?: string }) => Promise<void>;
+  verifySignupOtp: (
+    email: string,
+    code: string,
+    options?: { redirectTo?: string },
+  ) => Promise<SignupOtpVerificationResult>;
   logout: (options?: { redirectTo?: string }) => Promise<void>;
   acceptInvite: (inviteToken: string) => Promise<void>;
   createWorkspace: (input: { name: string; slug: string }) => Promise<void>;
@@ -234,10 +252,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const verifySignupOtp = useCallback<AuthContextValue['verifySignupOtp']>(
     async (email, code, options) => {
       const result = await apiClient.verifySignupOtp({ email, code });
+      if (result.status === 'PENDING_APPROVAL') {
+        return result;
+      }
       saveToken(result.token);
       setAuthToken(result.token);
       await refresh();
       router.push(resolveRedirectTo(options?.redirectTo));
+      return {
+        status: 'ACTIVE',
+        userId: result.userId,
+        workspaceId: result.workspaceId,
+      };
     },
     [refresh, router],
   );

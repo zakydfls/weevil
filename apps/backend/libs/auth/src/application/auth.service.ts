@@ -4,8 +4,10 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CacheService } from '@weevil/cache';
 import { PrismaService } from '@weevil/database';
 import {
@@ -23,6 +25,10 @@ import {
 import { OtpService, type OtpChallengeState } from './otp.service';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
+import {
+  WorkspaceEvents,
+  type WorkspaceJoinRequestedEvent,
+} from '../domain/workspace-events';
 
 type TxClient = Prisma.TransactionClient;
 
@@ -54,8 +60,9 @@ export interface RequestSignupOtpInput {
   email: string;
   password: string;
   displayName?: string;
-  workspaceName: string;
+  workspaceName?: string;
   workspaceSlug?: string;
+  joinWorkspaceSlug?: string;
   userAgent?: string;
   ipAddress?: string;
 }
@@ -74,6 +81,24 @@ export interface IssuedSession {
   expiresAt: Date;
 }
 
+export type VerifySignupOtpResult =
+  | {
+      status: 'ACTIVE';
+      session: IssuedSession;
+      userId: string;
+      workspaceId: string;
+    }
+  | {
+      status: 'PENDING_APPROVAL';
+      userId: string;
+      workspaceId: string;
+      email: string;
+      workspace: {
+        slug: string;
+        name: string;
+      };
+    };
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -82,6 +107,7 @@ export class AuthService {
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
     private readonly otpService: OtpService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async signup(
@@ -170,7 +196,58 @@ export class AuthService {
     const normalizedEmail = input.email.trim().toLowerCase();
     await this.assertRateLimit('signup-otp', `${normalizedEmail}:${input.ipAddress ?? 'unknown'}`, 8, 60 * 60);
 
-    const cleanWorkspaceName = input.workspaceName.trim();
+    const existingUser = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (existingUser) {
+      if (existingUser.status === UserStatus.INVITED) {
+        throw new ConflictException('Your workspace access request is already waiting for approval.');
+      }
+      throw new ConflictException('An account with that email already exists.');
+    }
+
+    const passwordHash = await this.passwordService.hash(input.password);
+    if (input.joinWorkspaceSlug) {
+      const cleanJoinSlug = input.joinWorkspaceSlug.trim().toLowerCase();
+      if (!isValidWorkspaceSlug(cleanJoinSlug)) {
+        throw new BadRequestException('Workspace slug must be 2-40 lowercase letters, numbers, or hyphens.');
+      }
+      const workspace = await this.prisma.workspace.findUnique({ where: { slug: cleanJoinSlug } });
+      if (!workspace || workspace.status !== WorkspaceStatus.ACTIVE) {
+        throw new NotFoundException('No active workspace found with that slug.');
+      }
+
+      return this.otpService.issue({
+        purpose: OtpPurpose.SIGNUP,
+        recipient: normalizedEmail,
+        payload: {
+          kind: 'JOIN_WORKSPACE',
+          passwordHash,
+          displayName: input.displayName?.trim() || null,
+          workspaceId: workspace.id,
+          workspaceName: workspace.name,
+          workspaceSlug: workspace.slug,
+        },
+        ipAddress: input.ipAddress,
+        userAgent: input.userAgent,
+        buildEmail: ({ code, expiresAt }) => ({
+          to: normalizedEmail,
+          subject: otpEmailSubject({ purposeLabel: 'workspace access' }),
+          html: renderOtpEmail({
+            code,
+            title: 'Verify your email',
+            purposeLabel: 'workspace access',
+            description: `Use this code to request access to ${workspace.name}.`,
+            expiresAt,
+          }),
+          metadata: {
+            purpose: 'workspace_join_request',
+            workspace_id: workspace.id,
+            from_name: 'Weevil',
+          },
+        }),
+      });
+    }
+
+    const cleanWorkspaceName = input.workspaceName?.trim() ?? '';
     const cleanWorkspaceSlug = (input.workspaceSlug ?? slugify(cleanWorkspaceName)).trim().toLowerCase();
 
     if (cleanWorkspaceName.length < 2) {
@@ -180,22 +257,16 @@ export class AuthService {
       throw new BadRequestException('Slug must be 2-40 lowercase letters, numbers, or hyphens.');
     }
 
-    const [existingUser, existingWorkspace] = await Promise.all([
-      this.prisma.user.findUnique({ where: { email: normalizedEmail } }),
-      this.prisma.workspace.findUnique({ where: { slug: cleanWorkspaceSlug } }),
-    ]);
-    if (existingUser) {
-      throw new ConflictException('An account with that email already exists.');
-    }
+    const existingWorkspace = await this.prisma.workspace.findUnique({ where: { slug: cleanWorkspaceSlug } });
     if (existingWorkspace) {
       throw new ConflictException('That workspace slug is already taken.');
     }
 
-    const passwordHash = await this.passwordService.hash(input.password);
     return this.otpService.issue({
       purpose: OtpPurpose.SIGNUP,
       recipient: normalizedEmail,
       payload: {
+        kind: 'CREATE_WORKSPACE',
         passwordHash,
         displayName: input.displayName?.trim() || null,
         workspaceName: cleanWorkspaceName,
@@ -223,7 +294,7 @@ export class AuthService {
 
   async verifySignupOtp(
     input: VerifySignupOtpInput,
-  ): Promise<{ session: IssuedSession; userId: string; workspaceId: string }> {
+  ): Promise<VerifySignupOtpResult> {
     const normalizedEmail = input.email.trim().toLowerCase();
     const challenge = await this.otpService.verify({
       purpose: OtpPurpose.SIGNUP,
@@ -231,6 +302,10 @@ export class AuthService {
       code: input.code,
     });
     const payload = parseSignupOtpPayload(challenge.payload);
+
+    if (payload.kind === 'JOIN_WORKSPACE') {
+      return this.verifyJoinWorkspaceOtp(normalizedEmail, challenge.id, payload);
+    }
 
     const [existingUser, existingWorkspace] = await Promise.all([
       this.prisma.user.findUnique({ where: { email: normalizedEmail } }),
@@ -282,8 +357,75 @@ export class AuthService {
         input.userAgent,
         input.ipAddress,
       );
-      return { session, userId: user.id, workspaceId: workspace.id };
+      return { status: 'ACTIVE' as const, session, userId: user.id, workspaceId: workspace.id };
     });
+  }
+
+  private async verifyJoinWorkspaceOtp(
+    normalizedEmail: string,
+    challengeId: string,
+    payload: JoinWorkspaceSignupOtpPayload,
+  ): Promise<VerifySignupOtpResult> {
+    const [existingUser, workspace] = await Promise.all([
+      this.prisma.user.findUnique({ where: { email: normalizedEmail } }),
+      this.prisma.workspace.findUnique({ where: { id: payload.workspaceId } }),
+    ]);
+    if (existingUser) {
+      if (existingUser.status === UserStatus.INVITED) {
+        throw new ConflictException('Your workspace access request is already waiting for approval.');
+      }
+      throw new ConflictException('An account with that email already exists.');
+    }
+    if (!workspace || workspace.status !== WorkspaceStatus.ACTIVE) {
+      throw new NotFoundException('No active workspace found for this request.');
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email: normalizedEmail,
+          displayName: payload.displayName,
+          emailVerified: new Date(),
+          passwordHash: payload.passwordHash,
+          status: UserStatus.INVITED,
+        },
+      });
+      const member = await tx.workspaceMember.create({
+        data: {
+          workspaceId: workspace.id,
+          userId: user.id,
+          role: WorkspaceRole.MEMBER,
+          status: MembershipStatus.INVITED,
+        },
+      });
+      await this.otpService.consume(tx, challengeId);
+
+      return {
+        user,
+        member,
+        response: {
+          status: 'PENDING_APPROVAL' as const,
+          userId: user.id,
+          workspaceId: workspace.id,
+          email: normalizedEmail,
+          workspace: {
+            slug: workspace.slug,
+            name: workspace.name,
+          },
+        },
+      };
+    });
+
+    this.eventEmitter.emit(WorkspaceEvents.JoinRequested, {
+      workspaceId: workspace.id,
+      workspaceName: workspace.name,
+      workspaceSlug: workspace.slug,
+      memberId: result.member.id,
+      requesterEmail: result.user.email,
+      requesterName: result.user.displayName,
+    } satisfies WorkspaceJoinRequestedEvent);
+
+    return result.response;
   }
 
   async getInvitePreview(inviteToken: string) {
@@ -505,12 +647,24 @@ function slugify(value: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-interface SignupOtpPayload {
+interface CreateWorkspaceSignupOtpPayload {
+  kind: 'CREATE_WORKSPACE';
   passwordHash: string;
   displayName: string | null;
   workspaceName: string;
   workspaceSlug: string;
 }
+
+interface JoinWorkspaceSignupOtpPayload {
+  kind: 'JOIN_WORKSPACE';
+  passwordHash: string;
+  displayName: string | null;
+  workspaceId: string;
+  workspaceName: string;
+  workspaceSlug: string;
+}
+
+type SignupOtpPayload = CreateWorkspaceSignupOtpPayload | JoinWorkspaceSignupOtpPayload;
 
 function parseSignupOtpPayload(payload: unknown): SignupOtpPayload {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
@@ -528,7 +682,21 @@ function parseSignupOtpPayload(payload: unknown): SignupOtpPayload {
   if (!isValidWorkspaceSlug(record.workspaceSlug)) {
     throw new UnauthorizedException('Verification code is invalid or expired.');
   }
+  if (record.kind === 'JOIN_WORKSPACE') {
+    if (typeof record.workspaceId !== 'string') {
+      throw new UnauthorizedException('Verification code is invalid or expired.');
+    }
+    return {
+      kind: 'JOIN_WORKSPACE',
+      passwordHash: record.passwordHash,
+      displayName,
+      workspaceId: record.workspaceId,
+      workspaceName: record.workspaceName,
+      workspaceSlug: record.workspaceSlug,
+    };
+  }
   return {
+    kind: 'CREATE_WORKSPACE',
     passwordHash: record.passwordHash,
     displayName,
     workspaceName: record.workspaceName,

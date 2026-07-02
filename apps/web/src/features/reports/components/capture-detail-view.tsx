@@ -13,6 +13,7 @@ import {
   Check,
   Clock,
   Copy,
+  Edit3,
   FileCode2,
   FileText,
   Globe,
@@ -35,6 +36,7 @@ import {
   Smartphone,
   Terminal,
   TextCursorInput,
+  Trash2,
   UserRound,
   Wifi,
   X,
@@ -43,6 +45,15 @@ import {
 import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  useDialog,
+} from '@/components/ui/dialog';
 import { ErrorState } from '@/components/ui/error-state';
 import { Textarea } from '@/components/ui/input';
 import { Input } from '@/components/ui/input';
@@ -58,7 +69,8 @@ import type {
   TimelineEntry,
 } from '@/lib/api/types';
 import { apiClient } from '@/lib/api/client';
-import { formatBytes, formatDate } from '@/lib/utils';
+import { toast } from '@/components/ui/toaster';
+import { cn, formatBytes, formatDate } from '@/lib/utils';
 import { reportKeys } from '../queries';
 import { StatusBadge } from './status-badge';
 
@@ -73,6 +85,9 @@ interface CaptureDetailViewProps {
   canComment?: boolean;
   commentGateReason?: 'auth' | 'workspace';
   authReturnPath?: string;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  onDeleted?: () => void;
 }
 
 type DevToolsTab =
@@ -124,6 +139,9 @@ export function CaptureDetailView({
   canComment = true,
   commentGateReason = 'auth',
   authReturnPath,
+  canEdit = false,
+  canDelete = false,
+  onDeleted,
 }: CaptureDetailViewProps) {
   const [activeTab, setActiveTab] = useState<DevToolsTab>('Info');
   const [commentBody, setCommentBody] = useState('');
@@ -135,12 +153,24 @@ export function CaptureDetailView({
   const [videoDurationMs, setVideoDurationMs] = useState(0);
   const [seekTargetMs, setSeekTargetMs] = useState<number | null>(null);
   const [commentError, setCommentError] = useState<string | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isDeletingReport, setIsDeletingReport] = useState(false);
   const queryClient = useQueryClient();
+  const dialog = useDialog();
   const comments = report?.comments ?? [];
   const returnPath = authReturnPath ?? (report ? `/c/share/${encodeURIComponent(report.shareToken)}` : '/');
 
   const seekTo = (ms: number) => setSeekTargetMs(ms);
   const handleSeekComplete = () => setSeekTargetMs(null);
+
+  useEffect(() => {
+    if (!report) return;
+    setEditTitle(report.title);
+    setEditDescription(report.description ?? '');
+  }, [report?.id, report?.title, report?.description]);
 
   useEffect(() => {
     function handleKey(event: KeyboardEvent) {
@@ -221,6 +251,55 @@ export function CaptureDetailView({
     await writeClipboard(markdown);
     setCopyFeedback('send');
     window.setTimeout(() => setCopyFeedback(null), 1_400);
+  }
+
+  async function handleSaveReportEdits() {
+    if (!report || !editTitle.trim()) return;
+    setIsSavingEdit(true);
+    try {
+      await apiClient.updateReport(report.id, {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: reportKeys.detail(report.id) }),
+        queryClient.invalidateQueries({ queryKey: reportKeys.publicDetail(report.shareToken) }),
+        queryClient.invalidateQueries({ queryKey: reportKeys.all }),
+      ]);
+      setIsEditOpen(false);
+      toast.success('Capture updated.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not update capture.');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }
+
+  async function handleDeleteReport() {
+    if (!report || isDeletingReport) return;
+    const ok = await dialog.confirm({
+      title: 'Delete capture?',
+      description: (
+        <>
+          <strong className="text-[var(--ink)]">{report.title}</strong> will be removed from this workspace.
+          Shared links will stop opening this capture.
+        </>
+      ),
+      confirmLabel: 'Delete capture',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    setIsDeletingReport(true);
+    try {
+      await apiClient.deleteReport(report.id);
+      await queryClient.invalidateQueries({ queryKey: reportKeys.all });
+      toast.success('Capture deleted.');
+      onDeleted?.();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not delete capture.');
+    } finally {
+      setIsDeletingReport(false);
+    }
   }
 
   function handleDevToolsResize(event: ReactPointerEvent<HTMLDivElement>) {
@@ -313,6 +392,32 @@ export function CaptureDetailView({
                 DevTools
               </Button>
             ) : null}
+            {canEdit ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsEditOpen(true)}
+                aria-label="Edit capture"
+              >
+                <Edit3 className="h-3.5 w-3.5" aria-hidden />
+                <span className="hidden sm:inline">Edit</span>
+              </Button>
+            ) : null}
+            {canDelete ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => void handleDeleteReport()}
+                disabled={isDeletingReport}
+                aria-label="Delete capture"
+                className="text-[var(--danger)] hover:border-[var(--danger-border)] hover:bg-[var(--danger-bg)] hover:text-[var(--danger)]"
+              >
+                {isDeletingReport ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Trash2 className="h-3.5 w-3.5" aria-hidden />}
+                <span className="hidden sm:inline">Delete</span>
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="secondary"
@@ -344,6 +449,9 @@ export function CaptureDetailView({
       <div className="grid min-h-0 grid-rows-[1fr_auto] overflow-hidden bg-[var(--bg)]">
         <ScrollArea className="min-h-0">
           <div className={isDevToolsOpen ? '' : 'mx-auto max-w-[108rem]'}>
+            {isPublicShare && commentGateReason === 'auth' ? (
+              <GuestShareBanner returnPath={returnPath} />
+            ) : null}
             <div className="border-b border-[var(--border)] bg-[var(--bg)] px-4 pb-4 pt-4 lg:px-6">
               <div className="mx-auto w-full max-w-[88rem]">
                 <RecordingHero
@@ -498,7 +606,87 @@ export function CaptureDetailView({
         />
       </aside>
       ) : null}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit capture</DialogTitle>
+            <DialogDescription>
+              Update the title and notes shown to teammates opening this report.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 px-4 pb-4">
+            <label className="grid gap-1.5 text-sm font-medium text-[var(--ink)]">
+              <span>Title</span>
+              <Input
+                value={editTitle}
+                onChange={(event) => setEditTitle(event.target.value)}
+                maxLength={180}
+                autoFocus
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm font-medium text-[var(--ink)]">
+              <span>Description</span>
+              <Textarea
+                value={editDescription}
+                onChange={(event) => setEditDescription(event.target.value)}
+                maxLength={4000}
+                className="min-h-28"
+              />
+            </label>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsEditOpen(false)}
+              disabled={isSavingEdit}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => void handleSaveReportEdits()}
+              disabled={isSavingEdit || !editTitle.trim()}
+            >
+              {isSavingEdit ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
+              Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
+  );
+}
+
+function GuestShareBanner({ returnPath }: { returnPath: string }) {
+  const next = encodeURIComponent(returnPath);
+
+  return (
+    <div className="border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3 lg:px-6">
+      <div className="mx-auto flex w-full max-w-[88rem] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-md bg-[var(--primary-subtle)] text-[var(--primary)]">
+            <UserRound className="h-4 w-4" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-[var(--ink)]">Viewing as guest</div>
+            <p className="mt-0.5 max-w-[70ch] text-sm leading-6 text-[var(--ink-muted)]">
+              Sign in or create an account to open your dashboard, keep captures organized, and join the discussion.
+            </p>
+          </div>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <Button asChild variant="secondary" size="sm">
+            <Link href={`/login?next=${next}`}>Sign in</Link>
+          </Button>
+          <Button asChild size="sm">
+            <Link href={`/signup?next=${next}`}>Create account</Link>
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -542,7 +730,7 @@ function DevToolsShell({
           devtools
         </div>
         <div className="my-2 hidden w-px shrink-0 bg-[var(--border)] sm:block" />
-        <TabsList className="scrollbar-none flex h-auto min-w-0 flex-1 items-stretch justify-start gap-0.5 overflow-x-auto rounded-none border-0 bg-transparent p-0 pl-1.5">
+        <TabsList className="thin-scrollbar-x flex h-auto min-w-0 flex-1 items-stretch justify-start gap-1 overflow-x-auto rounded-none border-0 bg-transparent p-0 pl-1.5">
           {devToolsTabItems.map(({ id: tab, icon: Icon }) => {
             const isActive = activeTab === tab;
             const count = counts[tab];
@@ -550,13 +738,13 @@ function DevToolsShell({
               <TabsTrigger
                 key={tab}
                 value={tab}
-                className="relative h-11 shrink-0 rounded-none border-0 bg-transparent px-3 text-[11px] data-[state=active]:bg-transparent data-[state=active]:text-[var(--ink)] data-[state=active]:shadow-none"
+                className="relative my-1 h-9 shrink-0 rounded-md border-0 bg-transparent px-2.5 text-xs text-[var(--ink-muted)] data-[state=active]:bg-[var(--surface-elevated)] data-[state=active]:text-[var(--ink)] data-[state=active]:shadow-none"
               >
-                <Icon className="h-3 w-3" aria-hidden />
-                {tab}
+                <Icon className="h-3.5 w-3.5" aria-hidden />
+                <span className="whitespace-nowrap">{tab}</span>
                 {typeof count === 'number' && count > 0 ? (
                   <span
-                    className={`min-w-4 rounded px-1 text-center font-mono text-[10px] ${
+                    className={`min-w-4 rounded-full px-1.5 text-center font-mono text-[10px] leading-4 ${
                       isActive
                         ? 'bg-[var(--primary-subtle)] text-[var(--primary)]'
                         : 'text-[var(--ink-faint)]'
@@ -566,7 +754,7 @@ function DevToolsShell({
                   </span>
                 ) : null}
                 {isActive ? (
-                  <span className="absolute inset-x-2 -bottom-px h-[2px] rounded-t-full bg-[var(--primary)]" />
+                  <span className="absolute inset-x-2 -bottom-1 h-[2px] rounded-t-full bg-[var(--primary)]" />
                 ) : null}
               </TabsTrigger>
             );
@@ -1893,9 +2081,9 @@ interface ConsoleRow {
 }
 
 const consoleGroupOptions = [
-  { value: 'page-navigation', label: 'Page navigations', icon: Globe },
-  { value: 'network-error', label: 'Network errors', icon: AlertTriangle },
-  { value: 'user-activity', label: 'User activity', icon: MousePointer },
+  { value: 'page-navigation', label: 'Pages', icon: Globe },
+  { value: 'network-error', label: 'Network', icon: AlertTriangle },
+  { value: 'user-activity', label: 'Activity', icon: MousePointer },
 ] satisfies Array<{ value: ConsoleRowGroup; label: string; icon: typeof Clock }>;
 
 function ConsoleActivityPanel({
@@ -1937,12 +2125,18 @@ function ConsoleActivityPanel({
     });
   }, [activeGroups, levelFilter, rows, searchTerm]);
 
-  const levelOptions: ConsoleLevelFilter[] = ['All levels', 'Errors', 'Warnings', 'Info', 'Debug'];
+  const levelOptions = [
+    { value: 'All levels', label: 'All' },
+    { value: 'Errors', label: 'Errors' },
+    { value: 'Warnings', label: 'Warnings' },
+    { value: 'Info', label: 'Info' },
+    { value: 'Debug', label: 'Debug' },
+  ] satisfies Array<{ value: ConsoleLevelFilter; label: string }>;
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_1fr] overflow-hidden bg-[var(--bg)]">
-      <div className="border-b border-[var(--border)] bg-[var(--bg)]">
-        <div className="grid gap-2 bg-[var(--surface)] px-3 py-2.5 sm:grid-cols-[1fr_8.5rem] sm:items-center">
-          <div className="relative">
+      <div className="border-b border-[var(--border)] bg-[var(--surface)] px-3 py-2.5">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 flex-1">
             <Search
               className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--ink-faint)]"
               aria-hidden
@@ -1950,18 +2144,18 @@ function ConsoleActivityPanel({
             <Input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              className="h-8 border-transparent bg-[var(--surface-deep)] pl-8 font-mono text-xs focus:border-[var(--primary)]"
+              className="h-8 border-transparent bg-[var(--surface-deep)] pl-8 pr-3 text-sm focus:border-[var(--primary)]"
               placeholder="Filter"
             />
           </div>
           <Select value={levelFilter} onValueChange={(value) => setLevelFilter(value as ConsoleLevelFilter)}>
-            <SelectTrigger className="h-8 border-transparent bg-[var(--surface-deep)] font-mono text-xs">
+            <SelectTrigger className="h-8 w-full shrink-0 whitespace-nowrap border-transparent bg-[var(--surface-deep)] text-sm sm:w-32 [&>span]:truncate">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent align="end">
+            <SelectContent align="end" className="min-w-32">
               {levelOptions.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {option}
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1971,14 +2165,14 @@ function ConsoleActivityPanel({
           type="multiple"
           value={activeGroups}
           onValueChange={(value) => setActiveGroups(value as ConsoleRowGroup[])}
-          className="scrollbar-none flex justify-start gap-2 overflow-x-auto border-0 bg-transparent px-3 py-2.5"
+          className="thin-scrollbar-x mt-2 flex justify-start gap-1.5 overflow-x-auto border-0 bg-transparent pb-1"
           aria-label="Console event groups"
         >
           {consoleGroupOptions.map(({ value, label, icon: Icon }) => (
             <ToggleGroupItem
               key={value}
               value={value}
-              className="h-7 shrink-0 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-xs font-medium data-[state=on]:border-[var(--border-strong)] data-[state=on]:bg-[var(--primary-subtle)] data-[state=on]:text-[var(--primary)] data-[state=on]:shadow-none"
+              className="h-7 shrink-0 rounded-full border border-[var(--border)] bg-[var(--bg)] px-2.5 text-xs font-medium text-[var(--ink-muted)] data-[state=on]:border-[var(--primary)] data-[state=on]:bg-[var(--primary-subtle)] data-[state=on]:text-[var(--primary)] data-[state=on]:shadow-none"
             >
               <Icon className="h-3.5 w-3.5" aria-hidden />
               {label}
@@ -1993,31 +2187,36 @@ function ConsoleActivityPanel({
         />
         {filteredRows.map((row) => {
           const isActive = currentTimeMs > 0 && row.offsetMs != null && Math.abs(row.offsetMs - currentTimeMs) < 1500;
-          const rowClass = `group grid w-full grid-cols-[3.25rem_1.25rem_minmax(0,1fr)_auto] items-start gap-2.5 border-b px-3 py-2 text-left font-mono text-[11px] transition-colors ${consoleRowClass(row.tone)} ${
-            isActive ? 'border-l-2 border-l-[var(--primary)] bg-[var(--primary-subtle)]' : 'border-l-2 border-l-transparent'
-          }`;
+          const rowClass = cn(
+            'group relative grid w-full grid-cols-[3rem_1.75rem_minmax(0,1fr)] items-start gap-2 border-b px-3 py-2.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--primary)]',
+            consoleRowClass(row.tone),
+            row.offsetMs != null ? 'hover:bg-[var(--surface)]' : '',
+            isActive ? 'bg-[var(--primary-subtle)] shadow-[inset_0_0_0_1px_var(--primary)]' : '',
+          );
           const content = (
             <>
-              <div className="pt-0.5 text-right tabular-nums text-[var(--ink-faint)]">{formatConsoleOffset(row.offsetMs)}</div>
-              <div className="pt-0.5">
+              <div className="pt-0.5 text-right font-mono text-[11px] tabular-nums text-[var(--ink-faint)]">
+                {formatConsoleOffset(row.offsetMs)}
+              </div>
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--surface-deep)]">
                 <ConsoleRowIcon row={row} />
               </div>
               <div className="min-w-0">
-                <div className="flex flex-wrap items-baseline gap-x-1.5">
-                  <span className="font-semibold">{row.title}</span>
-                  {row.meta ? <span className="text-[var(--ink-faint)]">{row.meta}</span> : null}
+                <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 pr-12">
+                  <span className="font-semibold leading-5 text-[var(--ink-strong)]">{row.title}</span>
+                  {row.meta ? <span className="font-mono text-[11px] text-[var(--ink-faint)]">{row.meta}</span> : null}
                 </div>
                 {row.message ? (
-                  <div className="mt-1 whitespace-pre-wrap break-all leading-5 text-[var(--ink-muted)]">
+                  <div className="mt-0.5 whitespace-pre-wrap break-words font-mono text-[12px] leading-5 text-[var(--ink-muted)]">
                     {row.message}
                   </div>
                 ) : null}
                 {row.url && row.url !== row.message ? (
-                  <div className="mt-0.5 break-all leading-5 text-[var(--ink-faint)]">{row.url}</div>
+                  <div className="mt-0.5 break-all font-mono text-[11px] leading-5 text-[var(--ink-faint)]">{row.url}</div>
                 ) : null}
               </div>
               {row.offsetMs != null ? (
-                <span className="self-start rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--ink-faint)] opacity-0 transition-opacity group-focus-visible:opacity-100 group-hover:opacity-100">
+                <span className="absolute right-3 top-2.5 rounded-full bg-[var(--surface-elevated)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--ink-faint)] opacity-0 shadow-[inset_0_0_0_1px_var(--border)] transition-opacity group-focus-visible:opacity-100 group-hover:opacity-100">
                   jump
                 </span>
               ) : null}
@@ -2173,11 +2372,15 @@ function ConsoleRowIcon({ row }: { row: ConsoleRow }) {
 
 function consoleRowClass(tone: ConsoleRow['tone']) {
   if (tone === 'danger') {
-    return 'border-[var(--divider)] bg-[var(--danger-bg)]/35 text-[var(--danger-strong)]';
+    return 'border-[var(--divider)] bg-[var(--danger-bg)]/45 text-[var(--danger-strong)]';
   }
 
   if (tone === 'warning') {
-    return 'border-[var(--divider)] bg-[var(--accent-soft)]/35 text-[#a13c19]';
+    return 'border-[var(--divider)] bg-[var(--warning-bg)]/40 text-[#8b3a12]';
+  }
+
+  if (tone === 'info') {
+    return 'border-[var(--divider)] bg-[var(--surface-cool)]/45 text-[var(--ink)]';
   }
 
   return 'border-[var(--divider)] bg-[var(--bg)] text-[var(--ink)]';

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Check, Copy, Loader2, MoreHorizontal, Trash2, UserPlus } from 'lucide-react';
+import { Check, CheckCircle2, Copy, Loader2, MoreHorizontal, Trash2, UserPlus, XCircle } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,7 @@ interface Member {
   status: string;
   expiresAt?: string;
   inviteUrl?: string;
+  requestKind?: 'MEMBER' | 'INVITE' | 'JOIN_REQUEST';
 }
 
 const ROLES = ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'] as const;
@@ -117,6 +118,36 @@ export function MembersPanel() {
     }
   }
 
+  async function handleApproveJoinRequest(memberId: string) {
+    try {
+      await apiClient.approveJoinRequest(memberId);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to approve access request.');
+    }
+  }
+
+  async function handleRejectJoinRequest(memberId: string, label: string) {
+    const ok = await dialog.confirm({
+      title: 'Reject access request?',
+      description: (
+        <>
+          <strong className="text-[var(--ink)]">{label}</strong> will not be able to sign in to this workspace.
+          They can request access again later.
+        </>
+      ),
+      confirmLabel: 'Reject',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await apiClient.rejectJoinRequest(memberId);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reject access request.');
+    }
+  }
+
   const sorted = useMemo(() => {
     const order = { OWNER: 0, ADMIN: 1, MEMBER: 2, VIEWER: 3 } as const;
     return [...members].sort((a, b) => {
@@ -194,11 +225,24 @@ export function MembersPanel() {
                 key={member.id}
                 member={member}
                 canManageRoles={
-                  canManageRoles && Boolean(member.userId) && member.userId !== auth.user?.id
+                  canManageRoles &&
+                  member.status === 'ACTIVE' &&
+                  Boolean(member.userId) &&
+                  member.userId !== auth.user?.id
                 }
-                canRemove={canRemove && Boolean(member.userId) && member.userId !== auth.user?.id}
+                canRemove={
+                  canRemove &&
+                  member.status === 'ACTIVE' &&
+                  Boolean(member.userId) &&
+                  member.userId !== auth.user?.id
+                }
+                canApproveJoinRequest={canInvite && member.requestKind === 'JOIN_REQUEST'}
                 onChangeRole={(role) => handleChangeRole(member.id, role)}
                 onRemove={() => handleRemove(member.id, member.displayName ?? member.email)}
+                onApproveJoinRequest={() => handleApproveJoinRequest(member.id)}
+                onRejectJoinRequest={() =>
+                  handleRejectJoinRequest(member.id, member.displayName ?? member.email)
+                }
                 isSelf={member.userId === auth.user?.id}
               />
             ))}
@@ -213,18 +257,25 @@ function MemberRow({
   member,
   canManageRoles,
   canRemove,
+  canApproveJoinRequest,
   onChangeRole,
   onRemove,
+  onApproveJoinRequest,
+  onRejectJoinRequest,
   isSelf,
 }: {
   member: Member;
   canManageRoles: boolean;
   canRemove: boolean;
+  canApproveJoinRequest: boolean;
   onChangeRole: (role: string) => Promise<void>;
   onRemove: () => Promise<void>;
+  onApproveJoinRequest: () => Promise<void>;
+  onRejectJoinRequest: () => Promise<void>;
   isSelf: boolean;
 }) {
   const [copiedInvite, setCopiedInvite] = useState(false);
+  const isJoinRequest = member.requestKind === 'JOIN_REQUEST';
   const isPendingInvite = member.status === 'INVITED' && !member.userId;
   const initials = (member.displayName ?? member.email).slice(0, 2).toUpperCase();
 
@@ -254,6 +305,9 @@ function MemberRow({
             {isPendingInvite ? (
               <Badge tone="warning" className="h-5 px-1.5 font-mono text-[10px]">pending invitation</Badge>
             ) : null}
+            {isJoinRequest ? (
+              <Badge tone="warning" className="h-5 px-1.5 font-mono text-[10px]">join request</Badge>
+            ) : null}
           </div>
           <div className="truncate font-mono text-[11px] text-[var(--ink-faint)]">
             {member.email}
@@ -261,13 +315,30 @@ function MemberRow({
         </div>
       </div>
       <div className="flex items-center justify-end gap-2">
+        {canApproveJoinRequest ? (
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => void onRejectJoinRequest()}
+            >
+              <XCircle className="h-3.5 w-3.5" aria-hidden />
+              Reject
+            </Button>
+            <Button type="button" size="sm" onClick={() => void onApproveJoinRequest()}>
+              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+              Approve
+            </Button>
+          </>
+        ) : null}
         {isPendingInvite && member.inviteUrl ? (
           <Button type="button" variant="ghost" size="sm" onClick={() => void handleCopyInvite()}>
             {copiedInvite ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
             {copiedInvite ? 'Copied' : 'Copy link'}
           </Button>
         ) : null}
-        {canManageRoles && !isPendingInvite ? (
+        {canManageRoles && !isPendingInvite && !isJoinRequest ? (
           <Select value={member.role} onValueChange={(value) => void onChangeRole(value)}>
             <SelectTrigger className="h-8 w-28 rounded-md px-2 font-mono text-[11px]">
               <SelectValue />
@@ -285,7 +356,7 @@ function MemberRow({
             {member.role.toLowerCase()}
           </span>
         )}
-        {canRemove && !isPendingInvite ? (
+        {canRemove && !isPendingInvite && !isJoinRequest ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button

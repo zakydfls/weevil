@@ -113,7 +113,7 @@ export class ReportsService {
         },
       },
     });
-    if (!report) {
+    if (!report || report.deletedAt) {
       throw new NotFoundException(`Report ${reportId} not found.`);
     }
     assertWorkspaceAccess(report, workspaceId);
@@ -137,9 +137,10 @@ export class ReportsService {
         shareToken: true,
         ingestToken: true,
         createdById: true,
+        deletedAt: true,
       },
     });
-    if (!current) {
+    if (!current || current.deletedAt) {
       throw new NotFoundException(`Report ${reportId} not found.`);
     }
     assertReportAccess(current, options);
@@ -172,6 +173,42 @@ export class ReportsService {
     });
 
     return this.mapper.toSummary(report);
+  }
+
+  async softDelete(
+    reportId: string,
+    options: {
+      workspaceId?: string;
+      actorUserId?: string;
+      canDeleteAny?: boolean;
+      canDeleteOwn?: boolean;
+    } = {},
+  ): Promise<void> {
+    const current = await this.prisma.bugReport.findUnique({
+      where: { id: reportId },
+      select: {
+        workspaceId: true,
+        createdById: true,
+        deletedAt: true,
+      },
+    });
+    if (!current || current.deletedAt) {
+      throw new NotFoundException(`Report ${reportId} not found.`);
+    }
+    assertWorkspaceAccess(current, options.workspaceId);
+    if (
+      !options.canDeleteAny &&
+      !(options.canDeleteOwn && current.createdById === options.actorUserId)
+    ) {
+      throw new ForbiddenException('Missing permission to delete this report.');
+    }
+
+    await this.prisma.bugReport.update({
+      where: { id: reportId },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
   }
 
   async list(
@@ -262,9 +299,9 @@ export class ReportsService {
     // First, lightweight existence + ownership check — clear errors instead of a 500.
     const reportRow = await this.prisma.bugReport.findUnique({
       where: { id: reportId },
-      select: { id: true, workspaceId: true },
+      select: { id: true, workspaceId: true, deletedAt: true },
     });
-    if (!reportRow) {
+    if (!reportRow || reportRow.deletedAt) {
       throw new NotFoundException(`Report ${reportId} not found.`);
     }
     assertWorkspaceAccess(reportRow, workspaceId);

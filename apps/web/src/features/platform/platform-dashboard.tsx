@@ -268,23 +268,26 @@ function StatTile({
 }
 
 function CapturesChart({ data }: { data: Array<{ day: string; count: number }> }) {
-  const max = useMemo(() => Math.max(1, ...data.map((d) => d.count)), [data]);
   const days = useMemo(() => {
-    // Fill in missing days for a continuous 30-day chart
     const map = new Map<string, number>();
+    let latestTimestamp = Number.NEGATIVE_INFINITY;
     data.forEach((point) => {
-      const key = new Date(point.day).toISOString().slice(0, 10);
+      const parsed = parseChartDate(point.day);
+      if (!parsed) return;
+      latestTimestamp = Math.max(latestTimestamp, parsed.getTime());
+      const key = chartDateKey(parsed);
       map.set(key, point.count);
     });
     const out: Array<{ day: Date; count: number }> = [];
-    const today = new Date();
+    const end = Number.isFinite(latestTimestamp) ? new Date(latestTimestamp) : startOfLocalDay(new Date());
     for (let i = 29; i >= 0; i--) {
-      const date = new Date(today.getTime() - i * 24 * 60 * 60 * 1_000);
-      const key = date.toISOString().slice(0, 10);
+      const date = new Date(end.getTime() - i * 24 * 60 * 60 * 1_000);
+      const key = chartDateKey(date);
       out.push({ day: date, count: map.get(key) ?? 0 });
     }
     return out;
   }, [data]);
+  const max = useMemo(() => Math.max(1, ...days.map((d) => d.count)), [days]);
 
   return (
     <Card className="overflow-hidden bg-[var(--bg)]">
@@ -300,17 +303,17 @@ function CapturesChart({ data }: { data: Array<{ day: string; count: number }> }
       <CardContent>
         <div className="flex h-40 items-end gap-[3px] sm:gap-1">
           {days.map((point) => {
-            const heightPct = (point.count / max) * 100;
-            const isToday = point.day.toDateString() === new Date().toDateString();
+            const heightPct = point.count === 0 ? 0 : Math.max(8, (point.count / max) * 100);
+            const isLast = point.day.toDateString() === days[days.length - 1]?.day.toDateString();
             return (
               <div
                 key={point.day.toISOString()}
-                className="group flex flex-1 flex-col items-center justify-end"
+                className="group flex flex-1 flex-col items-center justify-end rounded-t bg-[var(--surface)]/55"
                 title={`${point.day.toDateString()}: ${point.count}`}
               >
                 <div
                   className={`w-full rounded-t transition-colors ${
-                    isToday
+                    isLast
                       ? 'bg-[var(--primary)]'
                       : 'bg-[var(--primary-soft)] group-hover:bg-[var(--primary)]'
                   }`}
@@ -324,11 +327,31 @@ function CapturesChart({ data }: { data: Array<{ day: string; count: number }> }
           <span>
             {days[0].day.toLocaleDateString('en', { month: 'short', day: 'numeric' })}
           </span>
-          <span>today</span>
+          <span>{days[days.length - 1]?.day.toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>
         </div>
       </CardContent>
     </Card>
   );
+}
+
+function parseChartDate(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (match) {
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : startOfLocalDay(parsed);
+}
+
+function startOfLocalDay(value: Date): Date {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+function chartDateKey(value: Date): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function RecentActivity({ items }: { items: ActivityItem[] }) {

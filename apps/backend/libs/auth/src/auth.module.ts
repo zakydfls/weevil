@@ -10,6 +10,7 @@ import { PermissionService } from './application/permission.service';
 import { PlatformAdminService } from './application/platform-admin.service';
 import { TokenService } from './application/token.service';
 import { WorkspaceInviteNotificationService } from './application/workspace-invite-notification.service';
+import { WorkspaceJoinRequestNotificationService } from './application/workspace-join-request-notification.service';
 import { WorkspaceService } from './application/workspace.service';
 import { AuthGuard } from './guards/auth.guard';
 import { CsrfOriginGuard } from './guards/csrf-origin.guard';
@@ -30,6 +31,7 @@ import { WorkspacesController } from './presentation/workspaces.controller';
     PlatformAdminService,
     TokenService,
     WorkspaceInviteNotificationService,
+    WorkspaceJoinRequestNotificationService,
     WorkspaceService,
     { provide: APP_GUARD, useClass: CsrfOriginGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
@@ -44,6 +46,7 @@ import { WorkspacesController } from './presentation/workspaces.controller';
     PlatformAdminService,
     TokenService,
     WorkspaceInviteNotificationService,
+    WorkspaceJoinRequestNotificationService,
     WorkspaceService,
   ],
 })
