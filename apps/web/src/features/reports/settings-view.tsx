@@ -10,7 +10,6 @@ import {
   MessageSquareText,
   Rows3,
   ShieldCheck,
-  Sparkles,
   Users,
   Video,
 } from 'lucide-react';
@@ -179,12 +178,6 @@ export function SettingsView() {
       <PageHeader
         title="Settings"
         subtitle="Workspace preferences, access, and capture behavior."
-        rightSlot={
-          <span className="hidden items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--ink-muted)] sm:inline-flex">
-            <Sparkles className="h-3.5 w-3.5 text-[var(--primary)]" aria-hidden />
-            Radix powered
-          </span>
-        }
       />
       <Tabs
         value={activeSection}
@@ -323,7 +316,7 @@ export function SettingsView() {
                   </div>
                 </div>
                 <p className="mt-4 max-w-md text-sm leading-6 text-[var(--ink-muted)]">
-                  Weevil turns a bug report into a debuggable session. Capture once, share once, fix faster.
+                  Capture recordings, console logs, network activity, actions, and comments in one workspace.
                 </p>
               </CardContent>
             </Card>

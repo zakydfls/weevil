@@ -40,7 +40,6 @@ const responseHeaderCaptures: ResponseHeaderCapture[] = [];
 const requestHeaderCaptureTtlMs = 30_000;
 const responseHeaderCaptureTtlMs = 30_000;
 const preparingCountdownMs = 3_000;
-const consoleDebuggerProtocolVersion = '1.3';
 const maxTelemetryTextChars = 8_000;
 const maxTelemetryBodyChars = 20_000;
 const maxTelemetryUrlChars = 2_048;
@@ -73,6 +72,8 @@ interface BrowserCaptureContext {
   screenHeight?: number | undefined;
   devicePixelRatio?: number | undefined;
 }
+
+type ConsoleCaptureMode = 'debugger' | 'page' | 'off';
 
 chrome.runtime.onInstalled.addListener(async () => {
   await resetRecorderState();
@@ -113,7 +114,7 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
 chrome.debugger.onDetach.addListener((source) => {
   if (attachedConsoleDebuggee?.tabId === source.tabId) {
     attachedConsoleDebuggee = null;
-    void notifyConsoleCaptureMode(source.tabId, 'page');
+    void notifyConsoleCaptureMode(source.tabId, 'off');
   }
 });
 
@@ -256,7 +257,7 @@ async function startCapture(tab: chrome.tabs.Tab, captureSettings?: ExtensionSet
   await assertCaptureableTab(tab);
 
   const settings = captureSettings ?? await getSettings();
-  const api = new WeevilApiClient(settings.apiBaseUrl);
+  const api = await createCaptureApi(settings.apiBaseUrl);
   const manifest = chrome.runtime.getManifest();
   const pageUrl = tab.url;
   const title = tab.title || pageUrl || 'Weevil capture';
@@ -346,14 +347,13 @@ async function startCapture(tab: chrome.tabs.Tab, captureSettings?: ExtensionSet
 
     await saveRecorderState(state);
     rememberActiveRecorder(state);
-    const isDebuggerConsoleEnabled = await attachConsoleDebugger(tab.id);
     await notifyTab(tab.id, {
       type: RuntimeMessageTypes.CaptureStarted,
       payload: {
         sessionId: session.id,
         startedAt: startedAt.toISOString(),
         reportId: report.id,
-        consoleCaptureMode: isDebuggerConsoleEnabled ? 'debugger' : 'page',
+        consoleCaptureMode: 'off' satisfies ConsoleCaptureMode,
       },
     });
     chrome.alarms.create(flushAlarmName, { periodInMinutes: Math.max(0.1, settings.flushIntervalMs / 60_000) });
@@ -434,7 +434,7 @@ async function captureScreenshot(tab: chrome.tabs.Tab) {
   await assertCaptureableTab(tab);
 
   const settings = await getSettings();
-  const api = new WeevilApiClient(settings.apiBaseUrl);
+  const api = await createCaptureApi(settings.apiBaseUrl);
   const capturedAt = new Date();
   const manifest = chrome.runtime.getManifest();
   const pageUrl = tab.url;
@@ -707,25 +707,6 @@ async function appendPageTelemetry(message: { type: string; payload: unknown }, 
 
   if (bufferSize() >= DEFAULT_MAX_BATCH_SIZE) {
     await flushTelemetry();
-  }
-}
-
-async function attachConsoleDebugger(tabId: number) {
-  const debuggee = { tabId };
-  try {
-    if (attachedConsoleDebuggee?.tabId && attachedConsoleDebuggee.tabId !== tabId) {
-      await detachConsoleDebugger(attachedConsoleDebuggee.tabId);
-    }
-
-    await chrome.debugger.attach(debuggee, consoleDebuggerProtocolVersion);
-    attachedConsoleDebuggee = debuggee;
-    await chrome.debugger.sendCommand(debuggee, 'Runtime.enable');
-    await chrome.debugger.sendCommand(debuggee, 'Log.enable');
-    return true;
-  } catch (error) {
-    attachedConsoleDebuggee = null;
-    await markError(`Console debugger unavailable: ${getErrorMessage(error)}`);
-    return false;
   }
 }
 
@@ -1166,7 +1147,7 @@ async function notifyTab(tabId: number | null, message: RuntimeMessage) {
 
 async function notifyConsoleCaptureMode(
   tabId: number | null | undefined,
-  consoleCaptureMode: 'debugger' | 'page',
+  consoleCaptureMode: ConsoleCaptureMode,
 ) {
   const state = await getRecorderState();
   if (!tabId || !state.isRecording || state.tabId !== tabId || !state.sessionId || !state.startedAt) {
@@ -1198,7 +1179,7 @@ async function refreshRecordingTab(tabId: number) {
       sessionId: state.sessionId,
       startedAt: state.startedAt,
       reportId: state.reportId ?? undefined,
-      consoleCaptureMode: attachedConsoleDebuggee?.tabId === tabId ? 'debugger' : 'page',
+      consoleCaptureMode: 'off' satisfies ConsoleCaptureMode,
     },
   });
 }
@@ -1336,7 +1317,7 @@ async function appendBrowserNetworkEntry(
 }
 
 function shouldSkipBrowserNetworkEntry(type: string) {
-  return type === 'xmlhttprequest' || type === 'websocket' || type === 'ping';
+  return type === 'websocket' || type === 'ping';
 }
 
 function mergeCapturedNetworkHeaders(
@@ -1509,6 +1490,16 @@ function sendRuntimeMessage<TResponse>(message: RuntimeMessage) {
 async function dataUrlToBlob(dataUrl: string) {
   const response = await fetch(dataUrl);
   return response.blob();
+}
+
+async function createCaptureApi(apiBaseUrl: string) {
+  const sessionApi = new WeevilApiClient(apiBaseUrl);
+  try {
+    const auth = await sessionApi.getCurrentAuth();
+    return sessionApi.withWorkspaceSlug(auth.workspace?.slug ?? null);
+  } catch {
+    return sessionApi;
+  }
 }
 
 function buildDashboardUrl(reportId: string) {

@@ -80,6 +80,7 @@ let lastScrollActionAt = 0;
 let lastScrollActionKey = '';
 
 type OverlayMode = 'idle' | 'preparing' | 'recording' | 'stopping' | 'done' | 'failed';
+type ConsoleCaptureMode = 'debugger' | 'page' | 'off';
 
 if (!window[contentInstalledFlag]) {
   window[contentInstalledFlag] = true;
@@ -107,7 +108,7 @@ function connectRuntime() {
         sessionId: string;
         startedAt: string;
         reportId?: string;
-        consoleCaptureMode?: 'debugger' | 'page';
+        consoleCaptureMode?: ConsoleCaptureMode;
       };
       startLocalRecording(payload.sessionId, payload.startedAt, payload.reportId, payload.consoleCaptureMode);
       sendResponse({ ok: true });
@@ -337,7 +338,7 @@ function startLocalRecording(
   nextSessionId: string,
   startedAt: string,
   nextReportId?: string,
-  consoleCaptureMode: 'debugger' | 'page' = 'page',
+  consoleCaptureMode: ConsoleCaptureMode = 'off',
 ) {
   if (stopRequested && stoppedSessionId === nextSessionId) {
     return;
@@ -368,7 +369,7 @@ function startLocalRecording(
   startFlushTimer();
   startStateSyncTimer();
   mountRecorderOverlay();
-  setPageTelemetryPatchEnabled(true);
+  setPageTelemetryEnabled(true);
   setPageConsolePatchEnabled(consoleCaptureMode === 'page');
   flushPendingPageTelemetry();
 }
@@ -389,7 +390,7 @@ async function stopLocalRecording() {
   stopFlushTimer();
   stopStateSyncTimer();
   unmountRecorderOverlay();
-  setPageTelemetryPatchEnabled(false);
+  setPageTelemetryEnabled(false);
   setPageConsolePatchEnabled(false);
   void sendTelemetryBatch(batch);
   reportId = undefined;
@@ -412,7 +413,7 @@ function beginStoppingOverlay() {
   stopFlushTimer();
   stopStateSyncTimer();
   mountRecorderOverlay();
-  setPageTelemetryPatchEnabled(false);
+  setPageTelemetryEnabled(false);
   setPageConsolePatchEnabled(false);
   updateOverlay();
   void sendTelemetryBatch(batch);
@@ -440,7 +441,7 @@ function showCompletedOverlay(payload: CaptureCompletedPayload) {
   stopFlushTimer();
   stopStateSyncTimer();
   mountRecorderOverlay();
-  setPageTelemetryPatchEnabled(false);
+  setPageTelemetryEnabled(false);
   setPageConsolePatchEnabled(false);
   updateOverlay();
 }
@@ -461,7 +462,7 @@ function showFailedOverlay(error: string | undefined) {
   stopFlushTimer();
   stopStateSyncTimer();
   mountRecorderOverlay();
-  setPageTelemetryPatchEnabled(false);
+  setPageTelemetryEnabled(false);
   setPageConsolePatchEnabled(false);
   updateOverlay();
 }
@@ -802,7 +803,7 @@ function setPageConsolePatchEnabled(enabled: boolean) {
   }, '*');
 }
 
-function setPageTelemetryPatchEnabled(enabled: boolean) {
+function setPageTelemetryEnabled(enabled: boolean) {
   window.postMessage({
     type: pageTelemetryControlMessageType,
     enabled,

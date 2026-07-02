@@ -267,11 +267,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const switchWorkspace = useCallback(
     async (slug: string) => {
-      saveWorkspaceSlug(slug);
-      setActiveWorkspaceSlug(slug);
-      await refresh();
+      const previousSlug = workspace?.slug ?? loadWorkspaceSlug();
+      setActiveWorkspaceSlug(null);
+      try {
+        const workspace = await apiClient.switchWorkspace({ slug });
+        saveWorkspaceSlug(workspace.slug);
+        setActiveWorkspaceSlug(workspace.slug);
+        await refresh();
+      } catch (error) {
+        setActiveWorkspaceSlug(previousSlug);
+        throw error;
+      }
     },
-    [refresh],
+    [refresh, workspace?.slug],
   );
 
   const can = useCallback(

@@ -9,6 +9,7 @@ import {
   Apple,
   AppWindow,
   ArrowLeft,
+  Camera,
   Check,
   Clock,
   Copy,
@@ -21,6 +22,7 @@ import {
   ListTree,
   Loader2,
   Monitor,
+  MousePointer,
   MousePointerClick,
   MousePointer2,
   MoveVertical,
@@ -45,6 +47,7 @@ import { ErrorState } from '@/components/ui/error-state';
 import { Textarea } from '@/components/ui/input';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type {
@@ -517,7 +520,7 @@ function DevToolsShell({
   seekTo: (ms: number) => void;
 }) {
   const counts: Partial<Record<DevToolsTab, number>> = {
-    Console: report.consoleLogs.length,
+    Console: countConsoleActivityRows(report),
     Network: report.networkRequests.length,
     Actions: report.pageActions.length,
     Errors: report.runtimeErrors.length,
@@ -1869,18 +1872,31 @@ function PanelEmptyState({ isEmpty, label }: { isEmpty: boolean; label: string }
   );
 }
 
-type ConsoleLevelFilter = 'All levels' | 'Errors' | 'Warnings' | 'Info';
+type ConsoleLevelFilter = 'All levels' | 'Errors' | 'Warnings' | 'Info' | 'Debug';
+type ConsoleRowKind = 'capture' | 'console' | 'runtime-error' | 'network-error' | 'navigation' | 'action';
+type ConsoleRowGroup = 'page-navigation' | 'network-error' | 'user-activity';
+type ConsoleRowLevel = 'error' | 'warning' | 'info' | 'debug';
 
 interface ConsoleRow {
   id: string;
-  kind: 'console' | 'runtime-error';
+  kind: ConsoleRowKind;
+  group?: ConsoleRowGroup;
+  actionKind?: string;
   title: string;
   message: string;
+  meta?: string | null;
   timestamp: string;
   offsetMs?: number | null;
   url?: string | null;
+  level: ConsoleRowLevel;
   tone: 'neutral' | 'danger' | 'info' | 'warning';
 }
+
+const consoleGroupOptions = [
+  { value: 'page-navigation', label: 'Page navigations', icon: Globe },
+  { value: 'network-error', label: 'Network errors', icon: AlertTriangle },
+  { value: 'user-activity', label: 'User activity', icon: MousePointer },
+] satisfies Array<{ value: ConsoleRowGroup; label: string; icon: typeof Clock }>;
 
 function ConsoleActivityPanel({
   report,
@@ -1893,6 +1909,11 @@ function ConsoleActivityPanel({
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [levelFilter, setLevelFilter] = useState<ConsoleLevelFilter>('All levels');
+  const [activeGroups, setActiveGroups] = useState<ConsoleRowGroup[]>([
+    'page-navigation',
+    'network-error',
+    'user-activity',
+  ]);
   const rows = useMemo(() => buildConsoleRows(report), [report]);
   const filteredRows = useMemo(() => {
     const normalizedQuery = searchTerm.trim().toLowerCase();
@@ -1900,93 +1921,116 @@ function ConsoleActivityPanel({
     return rows.filter((row) => {
       const matchesLevel =
         levelFilter === 'All levels' ||
-        (levelFilter === 'Errors' && row.tone === 'danger') ||
-        (levelFilter === 'Warnings' && row.tone === 'warning') ||
-        (levelFilter === 'Info' && (row.tone === 'info' || row.tone === 'neutral'));
+        (levelFilter === 'Errors' && row.level === 'error') ||
+        (levelFilter === 'Warnings' && row.level === 'warning') ||
+        (levelFilter === 'Info' && row.level === 'info') ||
+        (levelFilter === 'Debug' && row.level === 'debug');
+      const matchesGroup = !row.group || activeGroups.includes(row.group);
       const matchesSearch =
         normalizedQuery.length === 0 ||
-        [row.title, row.message, row.url ?? ''].join(' ').toLowerCase().includes(normalizedQuery);
+        [row.title, row.message, row.meta ?? '', row.url ?? '']
+          .join(' ')
+          .toLowerCase()
+          .includes(normalizedQuery);
 
-      return matchesLevel && matchesSearch;
+      return matchesLevel && matchesGroup && matchesSearch;
     });
-  }, [levelFilter, rows, searchTerm]);
+  }, [activeGroups, levelFilter, rows, searchTerm]);
 
-  const levelOptions: ConsoleLevelFilter[] = ['All levels', 'Errors', 'Warnings', 'Info'];
+  const levelOptions: ConsoleLevelFilter[] = ['All levels', 'Errors', 'Warnings', 'Info', 'Debug'];
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_1fr] overflow-hidden bg-[var(--bg)]">
-      <div className="grid grid-cols-[1fr_auto] gap-2 border-b border-[var(--border)] bg-[var(--bg)] px-3 py-2.5">
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--ink-faint)]"
-            aria-hidden
-          />
-          <Input
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            className="h-8 border-[var(--border)] bg-[var(--surface)] pl-8 font-mono text-xs"
-            placeholder="Filter message, URL, stack…"
-          />
+      <div className="border-b border-[var(--border)] bg-[var(--bg)]">
+        <div className="grid gap-2 bg-[var(--surface)] px-3 py-2.5 sm:grid-cols-[1fr_8.5rem] sm:items-center">
+          <div className="relative">
+            <Search
+              className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--ink-faint)]"
+              aria-hidden
+            />
+            <Input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              className="h-8 border-transparent bg-[var(--surface-deep)] pl-8 font-mono text-xs focus:border-[var(--primary)]"
+              placeholder="Filter"
+            />
+          </div>
+          <Select value={levelFilter} onValueChange={(value) => setLevelFilter(value as ConsoleLevelFilter)}>
+            <SelectTrigger className="h-8 border-transparent bg-[var(--surface-deep)] font-mono text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              {levelOptions.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <ToggleGroup
-          type="single"
-          value={levelFilter}
-          onValueChange={(value) => {
-            if (value) setLevelFilter(value as ConsoleLevelFilter);
-          }}
-          aria-label="Console level"
-          className="rounded-md"
+          type="multiple"
+          value={activeGroups}
+          onValueChange={(value) => setActiveGroups(value as ConsoleRowGroup[])}
+          className="scrollbar-none flex justify-start gap-2 overflow-x-auto border-0 bg-transparent px-3 py-2.5"
+          aria-label="Console event groups"
         >
-          {levelOptions.map((option) => {
-            return (
-              <ToggleGroupItem
-                key={option}
-                value={option}
-                className="h-7 rounded-[5px] px-2 font-mono text-[10px] uppercase tracking-wider data-[state=on]:font-semibold data-[state=on]:text-[var(--ink)]"
-              >
-                {option === 'All levels' ? 'all' : option.toLowerCase()}
-              </ToggleGroupItem>
-            );
-          })}
+          {consoleGroupOptions.map(({ value, label, icon: Icon }) => (
+            <ToggleGroupItem
+              key={value}
+              value={value}
+              className="h-7 shrink-0 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 text-xs font-medium data-[state=on]:border-[var(--border-strong)] data-[state=on]:bg-[var(--primary-subtle)] data-[state=on]:text-[var(--primary)] data-[state=on]:shadow-none"
+            >
+              <Icon className="h-3.5 w-3.5" aria-hidden />
+              {label}
+            </ToggleGroupItem>
+          ))}
         </ToggleGroup>
       </div>
       <ScrollArea className="min-h-0 bg-[var(--bg)]">
         <PanelEmptyState
           isEmpty={filteredRows.length === 0}
-          label={rows.length === 0 ? 'No console logs yet.' : 'No matching console logs.'}
+          label={rows.length === 0 ? 'No console activity yet.' : 'No matching console activity.'}
         />
         {filteredRows.map((row) => {
           const isActive = currentTimeMs > 0 && row.offsetMs != null && Math.abs(row.offsetMs - currentTimeMs) < 1500;
-          return (
-            <div
-              key={row.id}
-              className={`group grid grid-cols-[3.5rem_1rem_1fr_auto] items-start gap-2.5 border-b px-3 py-2 font-mono text-[11px] transition-colors ${consoleRowClass(row.tone)} ${
-                isActive ? 'border-l-2 border-l-[var(--primary)] bg-[var(--primary-subtle)]' : 'border-l-2 border-l-transparent'
-              }`}
-            >
-              <div className="pt-0.5 text-right tabular-nums text-[var(--ink-faint)]">{formatOffset(row.offsetMs)}</div>
+          const rowClass = `group grid w-full grid-cols-[3.25rem_1.25rem_minmax(0,1fr)_auto] items-start gap-2.5 border-b px-3 py-2 text-left font-mono text-[11px] transition-colors ${consoleRowClass(row.tone)} ${
+            isActive ? 'border-l-2 border-l-[var(--primary)] bg-[var(--primary-subtle)]' : 'border-l-2 border-l-transparent'
+          }`;
+          const content = (
+            <>
+              <div className="pt-0.5 text-right tabular-nums text-[var(--ink-faint)]">{formatConsoleOffset(row.offsetMs)}</div>
               <div className="pt-0.5">
                 <ConsoleRowIcon row={row} />
               </div>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-baseline gap-x-1.5">
                   <span className="font-semibold">{row.title}</span>
-                  {row.url ? <span className="break-all text-[var(--ink-faint)]">{row.url}</span> : null}
+                  {row.meta ? <span className="text-[var(--ink-faint)]">{row.meta}</span> : null}
                 </div>
                 {row.message ? (
                   <div className="mt-1 whitespace-pre-wrap break-all leading-5 text-[var(--ink-muted)]">
                     {row.message}
                   </div>
                 ) : null}
+                {row.url && row.url !== row.message ? (
+                  <div className="mt-0.5 break-all leading-5 text-[var(--ink-faint)]">{row.url}</div>
+                ) : null}
               </div>
               {row.offsetMs != null ? (
-                <button
-                  type="button"
-                  onClick={() => seekTo(row.offsetMs!)}
-                  className="self-start rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--ink-faint)] opacity-0 transition-opacity hover:bg-[var(--primary-subtle)] hover:text-[var(--primary)] focus:opacity-100 group-hover:opacity-100"
-                >
+                <span className="self-start rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--ink-faint)] opacity-0 transition-opacity group-focus-visible:opacity-100 group-hover:opacity-100">
                   jump
-                </button>
+                </span>
               ) : null}
+            </>
+          );
+
+          return row.offsetMs != null ? (
+            <button key={row.id} type="button" onClick={() => seekTo(row.offsetMs!)} className={rowClass}>
+              {content}
+            </button>
+          ) : (
+            <div key={row.id} className={rowClass}>
+              {content}
             </div>
           );
         })}
@@ -1995,8 +2039,43 @@ function ConsoleActivityPanel({
   );
 }
 
+function countConsoleActivityRows(report: ReportDetail) {
+  const navigationCount = report.pageActions.filter(isNavigationAction).length;
+  const userActionCount = report.pageActions.length - navigationCount;
+  const networkErrorCount = report.networkRequests.filter(isNetworkErrorRequest).length;
+  const captureCount = report.captureSessions.length > 0 ? 1 : 0;
+
+  return (
+    captureCount +
+    report.consoleLogs.length +
+    report.runtimeErrors.length +
+    networkErrorCount +
+    navigationCount +
+    userActionCount
+  );
+}
+
 function buildConsoleRows(report: ReportDetail): ConsoleRow[] {
+  const session = report.captureSessions?.[0];
+  const captureRows: ConsoleRow[] = session
+    ? [
+        {
+          id: `capture-${session.id}`,
+          kind: 'capture',
+          group: 'user-activity',
+          title: 'Video started',
+          message: session.title ?? readableUrl(session.pageUrl ?? report.pageUrl) ?? '',
+          timestamp: session.recordingStartedAt ?? session.startedAt ?? report.createdAt,
+          offsetMs: 0,
+          url: session.pageUrl ?? report.pageUrl,
+          level: 'info',
+          tone: 'neutral',
+        },
+      ]
+    : [];
+
   return [
+    ...captureRows,
     ...report.runtimeErrors.map((entry): ConsoleRow => ({
       id: `runtime-${entry.id}`,
       kind: 'runtime-error',
@@ -2005,27 +2084,85 @@ function buildConsoleRows(report: ReportDetail): ConsoleRow[] {
       timestamp: entry.occurredAt,
       offsetMs: entry.offsetMs,
       url: entry.sourceUrl ?? entry.pageUrl,
+      level: 'error',
       tone: 'danger',
     })),
-    ...report.consoleLogs.map((entry): ConsoleRow => ({
-      id: `console-${entry.id}`,
-      kind: 'console',
-      title: entry.level,
-      message: entry.message,
-      timestamp: entry.timestamp,
+    ...report.networkRequests.filter(isNetworkErrorRequest).map((entry): ConsoleRow => ({
+      id: `network-error-${entry.id}`,
+      kind: 'network-error',
+      group: 'network-error',
+      title: `${entry.method} ${entry.error ? 'net error' : entry.statusCode ?? 'failed'}`,
+      message: entry.error ?? readableUrl(entry.url) ?? entry.url,
+      meta: entry.durationMs === null || entry.durationMs === undefined ? null : `${entry.durationMs}ms`,
+      timestamp: entry.endedAt ?? entry.startedAt,
+      offsetMs: entry.offsetMs,
+      url: entry.url,
+      level: 'error',
+      tone: 'danger',
+    })),
+    ...report.consoleLogs.map((entry): ConsoleRow => {
+      const level = consoleLevel(entry.level);
+      return {
+        id: `console-${entry.id}`,
+        kind: 'console',
+        title: entry.level,
+        message: [entry.message, entry.stack].filter(Boolean).join('\n'),
+        timestamp: entry.timestamp,
+        offsetMs: entry.offsetMs,
+        url: entry.pageUrl,
+        level,
+        tone: level === 'error' ? 'danger' : level === 'warning' ? 'warning' : 'neutral',
+      };
+    }),
+    ...report.pageActions.filter(isNavigationAction).map((entry): ConsoleRow => ({
+      id: `navigation-${entry.id}`,
+      kind: 'navigation',
+      group: 'page-navigation',
+      title: 'Navigated to',
+      message: entry.pageUrl ?? actionTitle(entry),
+      meta: entry.label ? `via ${entry.label}` : null,
+      timestamp: entry.occurredAt,
       offsetMs: entry.offsetMs,
       url: entry.pageUrl,
-      tone: entry.level === 'ERROR' ? 'danger' : entry.level === 'WARN' ? 'warning' : 'neutral',
+      level: 'info',
+      tone: 'info',
+    })),
+    ...report.pageActions.filter((entry) => !isNavigationAction(entry)).map((entry): ConsoleRow => ({
+      id: `action-${entry.id}`,
+      kind: 'action',
+      group: 'user-activity',
+      actionKind: entry.kind,
+      title: consoleActionTitle(entry),
+      message: actionCaption(entry) ?? '',
+      timestamp: entry.occurredAt,
+      offsetMs: entry.offsetMs,
+      url: entry.pageUrl,
+      level: 'info',
+      tone: 'neutral',
     })),
   ].sort((first, second) => {
-    const firstOffset = first.offsetMs ?? new Date(first.timestamp).getTime();
-    const secondOffset = second.offsetMs ?? new Date(second.timestamp).getTime();
-    return firstOffset - secondOffset;
+    return consoleSortValue(first) - consoleSortValue(second);
   });
 }
 
 function ConsoleRowIcon({ row }: { row: ConsoleRow }) {
   const className = 'h-3.5 w-3.5';
+
+  if (row.kind === 'capture') {
+    return <Camera className={`${className} text-[var(--ink-muted)]`} aria-hidden />;
+  }
+
+  if (row.kind === 'network-error') {
+    return <AlertTriangle className={`${className} text-[var(--danger)]`} aria-hidden />;
+  }
+
+  if (row.kind === 'navigation') {
+    return <Globe className={`${className} text-[var(--primary)]`} aria-hidden />;
+  }
+
+  if (row.kind === 'action') {
+    return <ActionKindIcon kind={row.actionKind ?? 'CLICK'} />;
+  }
 
   if (row.kind === 'runtime-error') {
     return <AlertTriangle className={`${className} text-[var(--danger)]`} aria-hidden />;
@@ -2044,6 +2181,53 @@ function consoleRowClass(tone: ConsoleRow['tone']) {
   }
 
   return 'border-[var(--divider)] bg-[var(--bg)] text-[var(--ink)]';
+}
+
+function isNetworkErrorRequest(request: NetworkRequestEntry) {
+  return Boolean(request.error || (request.statusCode ?? 0) >= 400);
+}
+
+function isNavigationAction(entry: PageActionEntry) {
+  return entry.kind === 'NAVIGATION' || entry.kind === 'ROUTE_CHANGE';
+}
+
+function consoleLevel(level: string): ConsoleRowLevel {
+  const normalized = level.toLowerCase();
+  if (normalized.includes('error')) return 'error';
+  if (normalized.includes('warn')) return 'warning';
+  if (normalized.includes('debug')) return 'debug';
+  return 'info';
+}
+
+function consoleSortValue(row: ConsoleRow) {
+  if (typeof row.offsetMs === 'number') {
+    return row.offsetMs;
+  }
+
+  const timestamp = Date.parse(row.timestamp);
+  return Number.isNaN(timestamp) ? Number.MAX_SAFE_INTEGER : timestamp;
+}
+
+function formatConsoleOffset(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return '--:--';
+  }
+
+  const totalSeconds = Math.max(0, Math.floor(value / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function consoleActionTitle(entry: PageActionEntry) {
+  if (entry.kind === 'SCROLL') return entry.label && entry.label !== 'Window scroll' ? `Scrolled ${entry.label}` : 'Scrolled page';
+  if (entry.kind === 'KEY_PRESS') return entry.label ? `Pressed ${entry.label}` : 'Pressed a key';
+  if (entry.kind === 'INPUT') return `Typed in ${actionTitle(entry)}`;
+  if (entry.kind === 'FORM_SUBMIT') return `Submitted ${actionTitle(entry)}`;
+  if (entry.kind === 'DOUBLE_CLICK') return `Double-clicked ${actionTitle(entry)}`;
+  if (entry.kind === 'CLICK') return `Clicked ${actionTitle(entry)}`;
+  return actionTitle(entry);
 }
 
 function backendStatusDotClass(trace: BackendTraceEntry) {
@@ -2444,102 +2628,26 @@ function NetworkTypeIcon({ category, className }: { category: NetworkFilter; cla
 }
 
 function networkFilterButtonClass(category: NetworkFilter, active: boolean) {
+  void category;
   if (active) {
-    switch (category) {
-      case 'Fetch/XHR':
-        return 'border border-[var(--primary)] bg-[var(--primary)] text-white';
-      case 'WS':
-        return 'border border-[var(--accent-cool)] bg-[var(--accent-cool)] text-white';
-      case 'JS':
-        return 'border border-[#b7791f] bg-[#b7791f] text-white';
-      case 'CSS':
-        return 'border border-[#7c3aed] bg-[#7c3aed] text-white';
-      case 'Media':
-        return 'border border-[var(--success)] bg-[var(--success)] text-white';
-      case 'Font':
-        return 'border border-[#4f46e5] bg-[#4f46e5] text-white';
-      case 'Doc':
-        return 'border border-[var(--ink-muted)] bg-[var(--ink-muted)] text-white';
-      case 'Other':
-        return 'border border-[#64748b] bg-[#64748b] text-white';
-      case 'All':
-      default:
-        return 'border border-[var(--primary)] bg-[var(--primary)] text-white';
-    }
+    return 'border border-[var(--primary)] bg-[var(--primary)] text-white';
   }
 
-  switch (category) {
-    case 'Fetch/XHR':
-      return 'border border-transparent text-[var(--primary)] hover:border-[var(--primary-soft)] hover:bg-[var(--primary-subtle)]';
-    case 'WS':
-      return 'border border-transparent text-[var(--accent-cool)] hover:border-[var(--accent-cool-soft)] hover:bg-[var(--accent-cool-soft)]';
-    case 'JS':
-      return 'border border-transparent text-[#9a5b00] hover:border-[#f2d38a] hover:bg-[#fff4d6]';
-    case 'CSS':
-      return 'border border-transparent text-[#6d28d9] hover:border-[#ddd6fe] hover:bg-[#f3e8ff]';
-    case 'Media':
-      return 'border border-transparent text-[var(--success)] hover:border-[#b7e4c4] hover:bg-[var(--success-bg)]';
-    case 'Font':
-      return 'border border-transparent text-[#4338ca] hover:border-[#c7d2fe] hover:bg-[#eef2ff]';
-    case 'Doc':
-      return 'border border-transparent text-[var(--ink-muted)] hover:border-[var(--border)] hover:bg-[var(--surface)] hover:text-[var(--ink)]';
-    case 'Other':
-      return 'border border-transparent text-[#64748b] hover:border-[#cbd5e1] hover:bg-[#f1f5f9]';
-    case 'All':
-    default:
-      return 'border border-transparent text-[var(--ink-muted)] hover:border-[var(--primary-soft)] hover:bg-[var(--primary-subtle)] hover:text-[var(--primary)]';
-  }
+  return 'border border-transparent text-[var(--ink-muted)] hover:border-[var(--border)] hover:bg-[var(--surface)] hover:text-[var(--ink)]';
 }
 
 function networkTypeIconClass(category: NetworkFilter, active = false) {
+  void category;
   if (active) {
     return 'text-current';
   }
 
-  switch (category) {
-    case 'Fetch/XHR':
-      return 'text-[var(--primary)]';
-    case 'WS':
-      return 'text-[var(--accent-cool)]';
-    case 'JS':
-      return 'text-[#b7791f]';
-    case 'CSS':
-      return 'text-[#7c3aed]';
-    case 'Media':
-      return 'text-[var(--success)]';
-    case 'Font':
-      return 'text-[#4f46e5]';
-    case 'Doc':
-      return 'text-[var(--ink-muted)]';
-    case 'Other':
-      return 'text-[#64748b]';
-    case 'All':
-    default:
-      return 'text-[var(--primary)]';
-  }
+  return 'text-[var(--ink-muted)]';
 }
 
 function networkIconFrameClass(category: NetworkFilter) {
-  switch (category) {
-    case 'Fetch/XHR':
-      return 'bg-[var(--primary-subtle)] text-[var(--primary)] ring-[var(--primary-soft)]';
-    case 'WS':
-      return 'bg-[var(--accent-cool-soft)] text-[var(--accent-cool)] ring-[var(--border-cool)]';
-    case 'JS':
-      return 'bg-[#fff4d6] text-[#9a5b00] ring-[#f2d38a]';
-    case 'CSS':
-      return 'bg-[#f3e8ff] text-[#6d28d9] ring-[#ddd6fe]';
-    case 'Media':
-      return 'bg-[var(--success-bg)] text-[var(--success)] ring-[#b7e4c4]';
-    case 'Font':
-      return 'bg-[#eef2ff] text-[#4338ca] ring-[#c7d2fe]';
-    case 'Doc':
-      return 'bg-[var(--surface)] text-[var(--ink-muted)] ring-[var(--border)]';
-    case 'Other':
-    case 'All':
-    default:
-      return 'bg-[#f1f5f9] text-[#64748b] ring-[#cbd5e1]';
-  }
+  void category;
+  return 'bg-[var(--surface)] text-[var(--ink-muted)] ring-[var(--border)]';
 }
 
 function networkRowAccentClass(category: NetworkFilter, inactive = false) {
@@ -2547,26 +2655,8 @@ function networkRowAccentClass(category: NetworkFilter, inactive = false) {
     return 'border-l-transparent';
   }
 
-  switch (category) {
-    case 'Fetch/XHR':
-      return 'border-l-[var(--primary)]';
-    case 'WS':
-      return 'border-l-[var(--accent-cool)]';
-    case 'JS':
-      return 'border-l-[#b7791f]';
-    case 'CSS':
-      return 'border-l-[#7c3aed]';
-    case 'Media':
-      return 'border-l-[var(--success)]';
-    case 'Font':
-      return 'border-l-[#4f46e5]';
-    case 'Doc':
-      return 'border-l-[var(--ink-muted)]';
-    case 'Other':
-    case 'All':
-    default:
-      return 'border-l-[#64748b]';
-  }
+  void category;
+  return 'border-l-[var(--primary)]';
 }
 
 function networkMethodBadgeClass(method: string) {

@@ -37,6 +37,13 @@ class CreateWorkspaceDto {
   slug: string;
 }
 
+class SwitchWorkspaceDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(40)
+  slug: string;
+}
+
 class InviteMemberDto {
   @IsEmail()
   email: string;
@@ -85,7 +92,13 @@ export class WorkspacesController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   create(@CurrentAuth() auth: AuthContext, @Body() body: CreateWorkspaceDto) {
-    return this.workspaceService.create(auth.user.id, body.name, body.slug);
+    return this.workspaceService.create(auth.user.id, body.name, body.slug, auth.session.id);
+  }
+
+  @Post('current/switch')
+  @HttpCode(HttpStatus.OK)
+  switchCurrent(@CurrentAuth() auth: AuthContext, @Body() body: SwitchWorkspaceDto) {
+    return this.workspaceService.switchActiveWorkspace(auth.user.id, auth.session.id, body.slug);
   }
 
   @Get('current/members')

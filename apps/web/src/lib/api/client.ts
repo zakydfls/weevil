@@ -336,6 +336,17 @@ export const apiClient = {
       body: JSON.stringify(body),
     }),
 
+  switchWorkspace: (body: { slug: string }) =>
+    request<{
+      id: string;
+      slug: string;
+      role: string;
+      permissions: string[];
+    }>('/workspaces/current/switch', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
   listMembers: () =>
     request<
       Array<{

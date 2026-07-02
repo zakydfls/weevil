@@ -39,6 +39,21 @@ export interface CreateReportResponse {
   ingestToken?: Optional<string | null>;
 }
 
+export interface AuthMeResponse {
+  user: {
+    id: string;
+    email: string;
+    displayName?: Optional<string | null>;
+    platformRole: string;
+  };
+  workspace: {
+    id: string;
+    slug: string;
+    role: string;
+    permissions: string[];
+  } | null;
+}
+
 export interface CaptureSessionResponse {
   id: string;
   status: string;

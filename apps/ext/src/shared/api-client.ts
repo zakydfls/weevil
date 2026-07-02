@@ -1,4 +1,5 @@
 import type {
+  AuthMeResponse,
   BackendTraceTelemetryEntry,
   CaptureSessionResponse,
   CompleteCaptureSessionInput,
@@ -32,7 +33,18 @@ export class ApiError extends Error {
 }
 
 export class WeevilApiClient {
-  constructor(private readonly apiBaseUrl: string) {}
+  constructor(
+    private readonly apiBaseUrl: string,
+    private readonly workspaceSlug?: string | null,
+  ) {}
+
+  withWorkspaceSlug(workspaceSlug: string | null | undefined) {
+    return new WeevilApiClient(this.apiBaseUrl, workspaceSlug);
+  }
+
+  getCurrentAuth() {
+    return this.request<AuthMeResponse>('/auth/me', { method: 'POST' });
+  }
 
   createReport(input: CreateReportInput) {
     return this.request<CreateReportResponse>('/reports', {
@@ -190,6 +202,9 @@ export class WeevilApiClient {
       'content-type': 'application/json',
       ...(init?.headers as Record<string, string> | undefined),
     };
+    if (this.workspaceSlug) {
+      headers['x-weevil-workspace'] = this.workspaceSlug;
+    }
 
     // Send the dashboard's session cookie to the API. Combined with the
     // backend's `credentials: true` CORS + the extension's host_permission

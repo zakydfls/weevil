@@ -52,7 +52,7 @@ export class WorkspaceService {
   }
 
   /** Create a brand-new workspace; caller becomes OWNER. */
-  async create(userId: string, name: string, slug: string) {
+  async create(userId: string, name: string, slug: string, sessionId?: string) {
     const cleanSlug = slug.trim().toLowerCase();
     if (!/^[a-z0-9-]{2,40}$/.test(cleanSlug)) {
       throw new BadRequestException('Slug must be 2-40 lowercase letters, numbers, or hyphens.');
@@ -79,8 +79,48 @@ export class WorkspaceService {
         },
       });
       await tx.user.update({ where: { id: userId }, data: { defaultWorkspaceId: workspace.id } });
+      if (sessionId) {
+        await tx.authSession.update({
+          where: { id: sessionId },
+          data: { workspaceId: workspace.id },
+        });
+      }
       return workspace;
     });
+  }
+
+  async switchActiveWorkspace(userId: string, sessionId: string, slug: string) {
+    const cleanSlug = slug.trim().toLowerCase();
+    if (!/^[a-z0-9-]{2,40}$/.test(cleanSlug)) {
+      throw new BadRequestException('Slug must be 2-40 lowercase letters, numbers, or hyphens.');
+    }
+
+    const workspace = await this.prisma.workspace.findUnique({ where: { slug: cleanSlug } });
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found.');
+    }
+
+    const workspaceContext = await this.permissionService.loadWorkspaceContext(userId, workspace.id);
+    if (!workspaceContext) {
+      throw new ForbiddenException('You are not a member of this workspace.');
+    }
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { defaultWorkspaceId: workspace.id },
+      }),
+      this.prisma.authSession.update({
+        where: { id: sessionId },
+        data: { workspaceId: workspace.id },
+      }),
+    ]);
+
+    return {
+      id: workspaceContext.id,
+      slug: workspaceContext.slug,
+      role: workspaceContext.role,
+      permissions: Array.from(workspaceContext.permissions),
+    };
   }
 
   async listMembers(workspaceId: string) {

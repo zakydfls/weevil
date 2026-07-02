@@ -26,7 +26,7 @@ Override the API base URL if production changes:
 ```bash
 pnpm --filter @weevil/extension build:prod -- \
   --api-base-url=https://api-weevil.centurycode.id/v1 \
-  --web-base-url=https://weevil.centurycode.id
+  --web-base-url=https://theweevil.space
 ```
 
 ## Pre-Submit Smoke Test
