@@ -24,6 +24,7 @@ import {
 } from '@weevil/prisma-client';
 import { OtpService, type OtpChallengeState } from './otp.service';
 import { PasswordService } from './password.service';
+import { normalizeWorkspaceSlug } from './permission.service';
 import { TokenService } from './token.service';
 import {
   WorkspaceEvents,
@@ -159,7 +160,7 @@ export class AuthService {
         });
         workspaceId = invite.workspaceId;
       } else if (input.workspaceName) {
-        const slug = (input.workspaceSlug ?? slugify(input.workspaceName)).trim();
+        const slug = normalizeWorkspaceSlug(input.workspaceSlug ?? slugify(input.workspaceName));
         if (!slug) throw new ConflictException('Workspace slug cannot be empty.');
         const workspace = await tx.workspace.create({
           data: {
@@ -206,11 +207,11 @@ export class AuthService {
 
     const passwordHash = await this.passwordService.hash(input.password);
     if (input.joinWorkspaceSlug) {
-      const cleanJoinSlug = input.joinWorkspaceSlug.trim().toLowerCase();
+      const cleanJoinSlug = normalizeWorkspaceSlug(input.joinWorkspaceSlug);
       if (!isValidWorkspaceSlug(cleanJoinSlug)) {
         throw new BadRequestException('Workspace slug must be 2-40 lowercase letters, numbers, or hyphens.');
       }
-      const workspace = await this.prisma.workspace.findUnique({ where: { slug: cleanJoinSlug } });
+      const workspace = await this.findWorkspaceBySlug(cleanJoinSlug);
       if (!workspace || workspace.status !== WorkspaceStatus.ACTIVE) {
         throw new NotFoundException('No active workspace found with that slug.');
       }
@@ -248,7 +249,7 @@ export class AuthService {
     }
 
     const cleanWorkspaceName = input.workspaceName?.trim() ?? '';
-    const cleanWorkspaceSlug = (input.workspaceSlug ?? slugify(cleanWorkspaceName)).trim().toLowerCase();
+    const cleanWorkspaceSlug = normalizeWorkspaceSlug(input.workspaceSlug ?? slugify(cleanWorkspaceName));
 
     if (cleanWorkspaceName.length < 2) {
       throw new BadRequestException('Workspace name must be at least 2 characters.');
@@ -257,7 +258,7 @@ export class AuthService {
       throw new BadRequestException('Slug must be 2-40 lowercase letters, numbers, or hyphens.');
     }
 
-    const existingWorkspace = await this.prisma.workspace.findUnique({ where: { slug: cleanWorkspaceSlug } });
+    const existingWorkspace = await this.findWorkspaceBySlug(cleanWorkspaceSlug);
     if (existingWorkspace) {
       throw new ConflictException('That workspace slug is already taken.');
     }
@@ -309,7 +310,7 @@ export class AuthService {
 
     const [existingUser, existingWorkspace] = await Promise.all([
       this.prisma.user.findUnique({ where: { email: normalizedEmail } }),
-      this.prisma.workspace.findUnique({ where: { slug: payload.workspaceSlug } }),
+      this.findWorkspaceBySlug(payload.workspaceSlug),
     ]);
     if (existingUser) {
       throw new ConflictException('An account with that email already exists.');
@@ -636,6 +637,18 @@ export class AuthService {
       throw new UnauthorizedException('Invite is invalid or expired.');
     }
     return invite;
+  }
+
+  private async findWorkspaceBySlug(slug: string) {
+    const cleanSlug = normalizeWorkspaceSlug(slug);
+    return (
+      (await this.prisma.workspace.findUnique({ where: { slug: cleanSlug } })) ??
+      this.prisma.workspace.findFirst({
+        where: {
+          slug: { equals: cleanSlug, mode: 'insensitive' },
+        },
+      })
+    );
   }
 }
 

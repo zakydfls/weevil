@@ -20,7 +20,7 @@ import {
   type WorkspaceInviteCreatedEvent,
   type WorkspaceJoinApprovedEvent,
 } from '../domain/workspace-events';
-import { PermissionService } from './permission.service';
+import { normalizeWorkspaceSlug, PermissionService } from './permission.service';
 import { TokenService } from './token.service';
 import { WorkspaceInviteNotificationService } from './workspace-invite-notification.service';
 
@@ -58,11 +58,11 @@ export class WorkspaceService {
 
   /** Create a brand-new workspace; caller becomes OWNER. */
   async create(userId: string, name: string, slug: string, sessionId?: string) {
-    const cleanSlug = slug.trim().toLowerCase();
+    const cleanSlug = normalizeWorkspaceSlug(slug);
     if (!/^[a-z0-9-]{2,40}$/.test(cleanSlug)) {
       throw new BadRequestException('Slug must be 2-40 lowercase letters, numbers, or hyphens.');
     }
-    const existing = await this.prisma.workspace.findUnique({ where: { slug: cleanSlug } });
+    const existing = await this.permissionService.findWorkspaceBySlug(cleanSlug);
     if (existing) throw new ConflictException('That slug is already taken.');
 
     return this.prisma.$transaction(async (tx) => {
@@ -95,12 +95,12 @@ export class WorkspaceService {
   }
 
   async switchActiveWorkspace(userId: string, sessionId: string, slug: string) {
-    const cleanSlug = slug.trim().toLowerCase();
+    const cleanSlug = normalizeWorkspaceSlug(slug);
     if (!/^[a-z0-9-]{2,40}$/.test(cleanSlug)) {
       throw new BadRequestException('Slug must be 2-40 lowercase letters, numbers, or hyphens.');
     }
 
-    const workspace = await this.prisma.workspace.findUnique({ where: { slug: cleanSlug } });
+    const workspace = await this.permissionService.findWorkspaceBySlug(cleanSlug);
     if (!workspace) {
       throw new NotFoundException('Workspace not found.');
     }

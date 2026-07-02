@@ -48,7 +48,7 @@ export class PermissionService {
    * middleware when the URL carries `/:workspaceSlug/...`.
    */
   async loadWorkspaceBySlug(userId: string, slug: string): Promise<AuthContext['workspace']> {
-    const workspace = await this.prisma.workspace.findUnique({ where: { slug } });
+    const workspace = await this.findWorkspaceBySlug(slug);
     if (!workspace) throw new NotFoundException('Workspace not found.');
     return this.loadWorkspaceContext(userId, workspace.id);
   }
@@ -83,4 +83,20 @@ export class PermissionService {
     if (!auth.workspace) return false;
     return hasPermission(auth.workspace.permissions, required, mode);
   }
+
+  async findWorkspaceBySlug(slug: string) {
+    const cleanSlug = normalizeWorkspaceSlug(slug);
+    return (
+      (await this.prisma.workspace.findUnique({ where: { slug: cleanSlug } })) ??
+      this.prisma.workspace.findFirst({
+        where: {
+          slug: { equals: cleanSlug, mode: 'insensitive' },
+        },
+      })
+    );
+  }
+}
+
+export function normalizeWorkspaceSlug(slug: string): string {
+  return slug.trim().toLowerCase();
 }

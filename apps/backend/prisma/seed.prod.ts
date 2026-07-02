@@ -50,7 +50,7 @@ if (!databaseUrl) {
 const adminEmail = (process.env.SEED_ADMIN_EMAIL ?? 'zaky.d@triquetra.cc').trim().toLowerCase();
 const adminPassword = process.env.SEED_ADMIN_PASSWORD;
 const adminName = process.env.SEED_ADMIN_NAME ?? 'Zaky Daffa';
-const workspaceSlug = process.env.SEED_WORKSPACE_SLUG ?? 'triquetra';
+const workspaceSlug = normalizeWorkspaceSlug(process.env.SEED_WORKSPACE_SLUG ?? 'triquetra');
 const workspaceName = process.env.SEED_WORKSPACE_NAME ?? 'Triquetra';
 const projectKey = process.env.SEED_PROJECT_KEY ?? 'BUG';
 const projectName = process.env.SEED_PROJECT_NAME ?? 'Bugs';
@@ -59,6 +59,11 @@ if (!adminPassword || adminPassword.length < 10) {
   console.error(
     '❌ SEED_ADMIN_PASSWORD is required (min 10 chars). Refusing to seed prod with a default password.',
   );
+  process.exit(1);
+}
+
+if (!/^[a-z0-9-]{2,40}$/.test(workspaceSlug)) {
+  console.error('❌ SEED_WORKSPACE_SLUG must resolve to 2-40 lowercase letters, numbers, or hyphens.');
   process.exit(1);
 }
 
@@ -73,11 +78,19 @@ async function passwordHash(plain: string) {
 async function main() {
   console.log('🌱 Seeding Weevil (production)…');
 
-  const workspace = await prisma.workspace.upsert({
-    where: { slug: workspaceSlug },
-    create: { slug: workspaceSlug, name: workspaceName },
-    update: { name: workspaceName },
+  const existingWorkspace = await prisma.workspace.findFirst({
+    where: {
+      slug: { equals: workspaceSlug, mode: 'insensitive' },
+    },
   });
+  const workspace = existingWorkspace
+    ? await prisma.workspace.update({
+        where: { id: existingWorkspace.id },
+        data: { slug: workspaceSlug, name: workspaceName },
+      })
+    : await prisma.workspace.create({
+        data: { slug: workspaceSlug, name: workspaceName },
+      });
   console.log(`  📦 Workspace: ${workspace.name} (${workspace.slug})`);
 
   await prisma.project.upsert({
@@ -131,3 +144,12 @@ main()
   .finally(() => {
     void prisma.$disconnect();
   });
+
+function normalizeWorkspaceSlug(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
