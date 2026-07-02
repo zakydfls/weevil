@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/auth-context';
 import { apiClient } from '@/lib/api/client';
-import type { CreateReportInput, ListReportsParams } from '@/lib/api/types';
+import type { CreateReportInput, ListReportsParams, PaginatedReportsResponse } from '@/lib/api/types';
 
 const NO_WORKSPACE_KEY = 'no-workspace';
 
@@ -67,6 +67,43 @@ export function useCreateReport() {
   });
 }
 
+export function useMoveReportOnBoard() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      reportId,
+      boardColumn,
+      targetIndex,
+    }: {
+      reportId: string;
+      boardColumn: string;
+      targetIndex: number;
+    }) => apiClient.moveReportOnBoard(reportId, { boardColumn, targetIndex }),
+    onMutate: async ({ reportId, boardColumn, targetIndex }) => {
+      await queryClient.cancelQueries({ queryKey: reportKeys.lists() });
+      const previousLists = queryClient.getQueriesData<PaginatedReportsResponse>({
+        queryKey: reportKeys.lists(),
+      });
+
+      queryClient.setQueriesData<PaginatedReportsResponse>(
+        { queryKey: reportKeys.lists() },
+        (current) => optimisticMoveReport(current, reportId, boardColumn, targetIndex),
+      );
+
+      return { previousLists };
+    },
+    onError: (_error, _variables, context) => {
+      context?.previousLists.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data);
+      });
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: reportKeys.lists() });
+    },
+  });
+}
+
 export function useDownloadUpload() {
   return useMutation({
     mutationFn: async ({ reportId, uploadId }: { reportId: string; uploadId: string }) => {
@@ -79,4 +116,31 @@ export function useDownloadUpload() {
 function useWorkspaceQueryKey(): string {
   const auth = useAuth();
   return auth.workspace?.slug ?? NO_WORKSPACE_KEY;
+}
+
+function optimisticMoveReport(
+  current: PaginatedReportsResponse | undefined,
+  reportId: string,
+  boardColumn: string,
+  targetIndex: number,
+): PaginatedReportsResponse | undefined {
+  if (!current) return current;
+
+  const moved = current.items.find((report) => report.id === reportId);
+  if (!moved) return current;
+
+  const nextItems = current.items.map((report) =>
+    report.id === reportId
+      ? {
+          ...report,
+          boardColumn,
+          boardOrder: (targetIndex + 1) * 1000,
+        }
+      : report,
+  );
+
+  return {
+    ...current,
+    items: nextItems,
+  };
 }

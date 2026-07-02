@@ -87,6 +87,8 @@ export class ReportMapper {
       pageUrl: this.redactNullableText(report.pageUrl, shouldRedact),
       browserName: report.browserName,
       osName: report.osName,
+      boardColumn: report.boardColumn,
+      boardOrder: report.boardOrder,
       uploadCount: report._count?.uploads,
       consoleLogCount: report._count?.consoleLogs,
       networkRequestCount: report._count?.networkRequests,

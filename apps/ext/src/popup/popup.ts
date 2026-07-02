@@ -4,13 +4,8 @@ import type { RecorderState, RuntimeMessage } from '../shared/types';
 
 const statusElement = document.getElementById('status');
 const startButton = document.getElementById('startButton') as HTMLButtonElement | null;
-const screenshotButton = document.getElementById('screenshotButton') as HTMLButtonElement | null;
 const stopButton = document.getElementById('stopButton') as HTMLButtonElement | null;
 const optionsButton = document.getElementById('optionsButton') as HTMLButtonElement | null;
-const videoStatusElement = document.getElementById('videoStatus');
-const telemetryStatusElement = document.getElementById('telemetryStatus');
-const videoMeter = document.getElementById('videoMeter');
-const telemetryMeter = document.getElementById('telemetryMeter');
 const recordButtonVisual = document.getElementById('recordButtonVisual') as HTMLButtonElement | null;
 const recordTagLabel = document.getElementById('recordTagLabel');
 const durationDisplay = document.getElementById('durationDisplay');
@@ -35,12 +30,6 @@ recordButtonVisual?.addEventListener('click', () => {
   } else {
     void send(RuntimeMessageTypes.StartCapture).catch(reportError);
   }
-  window.close();
-});
-
-screenshotButton?.addEventListener('click', () => {
-  disableActions();
-  void send(RuntimeMessageTypes.CaptureScreenshot).catch(reportError);
   window.close();
 });
 
@@ -74,7 +63,7 @@ async function refresh() {
 }
 
 function render(state: RecorderState) {
-  if (!statusElement || !startButton || !stopButton || !screenshotButton || !recordButtonVisual) {
+  if (!statusElement || !startButton || !stopButton || !recordButtonVisual) {
     return;
   }
 
@@ -84,27 +73,17 @@ function render(state: RecorderState) {
   recordButtonVisual.setAttribute('aria-label', isRecording ? 'Stop recording' : 'Start recording');
 
   startButton.disabled = isRecording;
-  screenshotButton.disabled = isRecording;
   stopButton.disabled = !isRecording;
 
   if (recordTagLabel) {
     recordTagLabel.textContent = isRecording ? 'recording' : 'armed';
   }
 
-  if (videoStatusElement && videoMeter) {
-    videoStatusElement.textContent = isRecording ? 'recording' : 'ready';
-    videoMeter.dataset.state = isRecording ? 'live' : 'armed';
-  }
-  if (telemetryStatusElement && telemetryMeter) {
-    telemetryStatusElement.textContent = isRecording ? 'streaming' : 'armed';
-    telemetryMeter.dataset.state = isRecording ? 'live' : 'armed';
-  }
-
   const escapedTitle = state.title ? escapeHtml(state.title) : 'Current tab';
   const escapedUrl = state.pageUrl ? escapeHtml(state.pageUrl) : '';
   statusElement.innerHTML = isRecording
     ? `<strong>Recording this tab</strong><span>${escapedTitle}</span><em>${escapedUrl}</em>`
-    : `<strong>Ready to capture</strong><span>Records video, console, network, actions, errors, perf, DOM.</span>`;
+    : `<strong>Ready to capture</strong><span>Capture the active tab with recording and debugging context.</span>`;
 
   if (state.lastError) {
     const errorEl = document.createElement('div');
@@ -134,7 +113,6 @@ function renderFatalError(message: string) {
   errorEl.textContent = message;
   statusElement.appendChild(errorEl);
   startButton?.setAttribute('disabled', 'true');
-  screenshotButton?.setAttribute('disabled', 'true');
   stopButton?.setAttribute('disabled', 'true');
 }
 
@@ -166,7 +144,6 @@ function formatDuration(ms: number) {
 
 function disableActions() {
   startButton?.setAttribute('disabled', 'true');
-  screenshotButton?.setAttribute('disabled', 'true');
   stopButton?.setAttribute('disabled', 'true');
 }
 

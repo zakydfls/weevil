@@ -29,11 +29,13 @@ export type AggregateBugReport = {
 export type BugReportAvgAggregateOutputType = {
   viewportWidth: number | null
   viewportHeight: number | null
+  boardOrder: number | null
 }
 
 export type BugReportSumAggregateOutputType = {
   viewportWidth: number | null
   viewportHeight: number | null
+  boardOrder: number | null
 }
 
 export type BugReportMinAggregateOutputType = {
@@ -54,6 +56,8 @@ export type BugReportMinAggregateOutputType = {
   osName: string | null
   viewportWidth: number | null
   viewportHeight: number | null
+  boardColumn: string | null
+  boardOrder: number | null
   failureReason: string | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -78,6 +82,8 @@ export type BugReportMaxAggregateOutputType = {
   osName: string | null
   viewportWidth: number | null
   viewportHeight: number | null
+  boardColumn: string | null
+  boardOrder: number | null
   failureReason: string | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -102,6 +108,8 @@ export type BugReportCountAggregateOutputType = {
   osName: number
   viewportWidth: number
   viewportHeight: number
+  boardColumn: number
+  boardOrder: number
   metadata: number
   failureReason: number
   createdAt: number
@@ -114,11 +122,13 @@ export type BugReportCountAggregateOutputType = {
 export type BugReportAvgAggregateInputType = {
   viewportWidth?: true
   viewportHeight?: true
+  boardOrder?: true
 }
 
 export type BugReportSumAggregateInputType = {
   viewportWidth?: true
   viewportHeight?: true
+  boardOrder?: true
 }
 
 export type BugReportMinAggregateInputType = {
@@ -139,6 +149,8 @@ export type BugReportMinAggregateInputType = {
   osName?: true
   viewportWidth?: true
   viewportHeight?: true
+  boardColumn?: true
+  boardOrder?: true
   failureReason?: true
   createdAt?: true
   updatedAt?: true
@@ -163,6 +175,8 @@ export type BugReportMaxAggregateInputType = {
   osName?: true
   viewportWidth?: true
   viewportHeight?: true
+  boardColumn?: true
+  boardOrder?: true
   failureReason?: true
   createdAt?: true
   updatedAt?: true
@@ -187,6 +201,8 @@ export type BugReportCountAggregateInputType = {
   osName?: true
   viewportWidth?: true
   viewportHeight?: true
+  boardColumn?: true
+  boardOrder?: true
   metadata?: true
   failureReason?: true
   createdAt?: true
@@ -299,6 +315,8 @@ export type BugReportGroupByOutputType = {
   osName: string | null
   viewportWidth: number | null
   viewportHeight: number | null
+  boardColumn: string
+  boardOrder: number | null
   metadata: runtime.JsonValue | null
   failureReason: string | null
   createdAt: Date
@@ -347,6 +365,8 @@ export type BugReportWhereInput = {
   osName?: Prisma.StringNullableFilter<"BugReport"> | string | null
   viewportWidth?: Prisma.IntNullableFilter<"BugReport"> | number | null
   viewportHeight?: Prisma.IntNullableFilter<"BugReport"> | number | null
+  boardColumn?: Prisma.StringFilter<"BugReport"> | string
+  boardOrder?: Prisma.IntNullableFilter<"BugReport"> | number | null
   metadata?: Prisma.JsonNullableFilter<"BugReport">
   failureReason?: Prisma.StringNullableFilter<"BugReport"> | string | null
   createdAt?: Prisma.DateTimeFilter<"BugReport"> | Date | string
@@ -386,6 +406,8 @@ export type BugReportOrderByWithRelationInput = {
   osName?: Prisma.SortOrderInput | Prisma.SortOrder
   viewportWidth?: Prisma.SortOrderInput | Prisma.SortOrder
   viewportHeight?: Prisma.SortOrderInput | Prisma.SortOrder
+  boardColumn?: Prisma.SortOrder
+  boardOrder?: Prisma.SortOrderInput | Prisma.SortOrder
   metadata?: Prisma.SortOrderInput | Prisma.SortOrder
   failureReason?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -428,6 +450,8 @@ export type BugReportWhereUniqueInput = Prisma.AtLeast<{
   osName?: Prisma.StringNullableFilter<"BugReport"> | string | null
   viewportWidth?: Prisma.IntNullableFilter<"BugReport"> | number | null
   viewportHeight?: Prisma.IntNullableFilter<"BugReport"> | number | null
+  boardColumn?: Prisma.StringFilter<"BugReport"> | string
+  boardOrder?: Prisma.IntNullableFilter<"BugReport"> | number | null
   metadata?: Prisma.JsonNullableFilter<"BugReport">
   failureReason?: Prisma.StringNullableFilter<"BugReport"> | string | null
   createdAt?: Prisma.DateTimeFilter<"BugReport"> | Date | string
@@ -467,6 +491,8 @@ export type BugReportOrderByWithAggregationInput = {
   osName?: Prisma.SortOrderInput | Prisma.SortOrder
   viewportWidth?: Prisma.SortOrderInput | Prisma.SortOrder
   viewportHeight?: Prisma.SortOrderInput | Prisma.SortOrder
+  boardColumn?: Prisma.SortOrder
+  boardOrder?: Prisma.SortOrderInput | Prisma.SortOrder
   metadata?: Prisma.SortOrderInput | Prisma.SortOrder
   failureReason?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -500,6 +526,8 @@ export type BugReportScalarWhereWithAggregatesInput = {
   osName?: Prisma.StringNullableWithAggregatesFilter<"BugReport"> | string | null
   viewportWidth?: Prisma.IntNullableWithAggregatesFilter<"BugReport"> | number | null
   viewportHeight?: Prisma.IntNullableWithAggregatesFilter<"BugReport"> | number | null
+  boardColumn?: Prisma.StringWithAggregatesFilter<"BugReport"> | string
+  boardOrder?: Prisma.IntNullableWithAggregatesFilter<"BugReport"> | number | null
   metadata?: Prisma.JsonNullableWithAggregatesFilter<"BugReport">
   failureReason?: Prisma.StringNullableWithAggregatesFilter<"BugReport"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"BugReport"> | Date | string
@@ -522,6 +550,8 @@ export type BugReportCreateInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -561,6 +591,8 @@ export type BugReportUncheckedCreateInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -594,6 +626,8 @@ export type BugReportUpdateInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -633,6 +667,8 @@ export type BugReportUncheckedUpdateInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -669,6 +705,8 @@ export type BugReportCreateManyInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -691,6 +729,8 @@ export type BugReportUpdateManyMutationInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -716,6 +756,8 @@ export type BugReportUncheckedUpdateManyInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -751,6 +793,8 @@ export type BugReportCountOrderByAggregateInput = {
   osName?: Prisma.SortOrder
   viewportWidth?: Prisma.SortOrder
   viewportHeight?: Prisma.SortOrder
+  boardColumn?: Prisma.SortOrder
+  boardOrder?: Prisma.SortOrder
   metadata?: Prisma.SortOrder
   failureReason?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -761,6 +805,7 @@ export type BugReportCountOrderByAggregateInput = {
 export type BugReportAvgOrderByAggregateInput = {
   viewportWidth?: Prisma.SortOrder
   viewportHeight?: Prisma.SortOrder
+  boardOrder?: Prisma.SortOrder
 }
 
 export type BugReportMaxOrderByAggregateInput = {
@@ -781,6 +826,8 @@ export type BugReportMaxOrderByAggregateInput = {
   osName?: Prisma.SortOrder
   viewportWidth?: Prisma.SortOrder
   viewportHeight?: Prisma.SortOrder
+  boardColumn?: Prisma.SortOrder
+  boardOrder?: Prisma.SortOrder
   failureReason?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -805,6 +852,8 @@ export type BugReportMinOrderByAggregateInput = {
   osName?: Prisma.SortOrder
   viewportWidth?: Prisma.SortOrder
   viewportHeight?: Prisma.SortOrder
+  boardColumn?: Prisma.SortOrder
+  boardOrder?: Prisma.SortOrder
   failureReason?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -814,6 +863,7 @@ export type BugReportMinOrderByAggregateInput = {
 export type BugReportSumOrderByAggregateInput = {
   viewportWidth?: Prisma.SortOrder
   viewportHeight?: Prisma.SortOrder
+  boardOrder?: Prisma.SortOrder
 }
 
 export type BugReportScalarRelationFilter = {
@@ -1132,6 +1182,8 @@ export type BugReportCreateWithoutWorkspaceInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -1169,6 +1221,8 @@ export type BugReportUncheckedCreateWithoutWorkspaceInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -1234,6 +1288,8 @@ export type BugReportScalarWhereInput = {
   osName?: Prisma.StringNullableFilter<"BugReport"> | string | null
   viewportWidth?: Prisma.IntNullableFilter<"BugReport"> | number | null
   viewportHeight?: Prisma.IntNullableFilter<"BugReport"> | number | null
+  boardColumn?: Prisma.StringFilter<"BugReport"> | string
+  boardOrder?: Prisma.IntNullableFilter<"BugReport"> | number | null
   metadata?: Prisma.JsonNullableFilter<"BugReport">
   failureReason?: Prisma.StringNullableFilter<"BugReport"> | string | null
   createdAt?: Prisma.DateTimeFilter<"BugReport"> | Date | string
@@ -1256,6 +1312,8 @@ export type BugReportCreateWithoutProjectInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -1293,6 +1351,8 @@ export type BugReportUncheckedCreateWithoutProjectInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -1352,6 +1412,8 @@ export type BugReportCreateWithoutCreatedByInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -1389,6 +1451,8 @@ export type BugReportUncheckedCreateWithoutCreatedByInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -1448,6 +1512,8 @@ export type BugReportCreateWithoutCaptureSessionsInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -1486,6 +1552,8 @@ export type BugReportUncheckedCreateWithoutCaptureSessionsInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -1534,6 +1602,8 @@ export type BugReportUpdateWithoutCaptureSessionsInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1572,6 +1642,8 @@ export type BugReportUncheckedUpdateWithoutCaptureSessionsInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1604,6 +1676,8 @@ export type BugReportCreateWithoutCommentsInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -1642,6 +1716,8 @@ export type BugReportUncheckedCreateWithoutCommentsInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -1690,6 +1766,8 @@ export type BugReportUpdateWithoutCommentsInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1728,6 +1806,8 @@ export type BugReportUncheckedUpdateWithoutCommentsInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1760,6 +1840,8 @@ export type BugReportCreateWithoutUploadsInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -1798,6 +1880,8 @@ export type BugReportUncheckedCreateWithoutUploadsInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -1846,6 +1930,8 @@ export type BugReportUpdateWithoutUploadsInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1884,6 +1970,8 @@ export type BugReportUncheckedUpdateWithoutUploadsInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1916,6 +2004,8 @@ export type BugReportCreateWithoutPageActionsInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -1954,6 +2044,8 @@ export type BugReportUncheckedCreateWithoutPageActionsInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -2002,6 +2094,8 @@ export type BugReportUpdateWithoutPageActionsInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2040,6 +2134,8 @@ export type BugReportUncheckedUpdateWithoutPageActionsInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2072,6 +2168,8 @@ export type BugReportCreateWithoutRuntimeErrorsInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -2110,6 +2208,8 @@ export type BugReportUncheckedCreateWithoutRuntimeErrorsInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -2158,6 +2258,8 @@ export type BugReportUpdateWithoutRuntimeErrorsInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2196,6 +2298,8 @@ export type BugReportUncheckedUpdateWithoutRuntimeErrorsInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2228,6 +2332,8 @@ export type BugReportCreateWithoutPerformanceEntriesInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -2266,6 +2372,8 @@ export type BugReportUncheckedCreateWithoutPerformanceEntriesInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -2314,6 +2422,8 @@ export type BugReportUpdateWithoutPerformanceEntriesInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2352,6 +2462,8 @@ export type BugReportUncheckedUpdateWithoutPerformanceEntriesInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2384,6 +2496,8 @@ export type BugReportCreateWithoutDomEventsInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -2422,6 +2536,8 @@ export type BugReportUncheckedCreateWithoutDomEventsInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -2470,6 +2586,8 @@ export type BugReportUpdateWithoutDomEventsInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2508,6 +2626,8 @@ export type BugReportUncheckedUpdateWithoutDomEventsInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2540,6 +2660,8 @@ export type BugReportCreateWithoutBackendTracesInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -2578,6 +2700,8 @@ export type BugReportUncheckedCreateWithoutBackendTracesInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -2626,6 +2750,8 @@ export type BugReportUpdateWithoutBackendTracesInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2664,6 +2790,8 @@ export type BugReportUncheckedUpdateWithoutBackendTracesInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2696,6 +2824,8 @@ export type BugReportCreateWithoutEventsInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -2734,6 +2864,8 @@ export type BugReportUncheckedCreateWithoutEventsInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -2782,6 +2914,8 @@ export type BugReportUpdateWithoutEventsInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2820,6 +2954,8 @@ export type BugReportUncheckedUpdateWithoutEventsInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2852,6 +2988,8 @@ export type BugReportCreateWithoutConsoleLogsInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -2890,6 +3028,8 @@ export type BugReportUncheckedCreateWithoutConsoleLogsInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -2938,6 +3078,8 @@ export type BugReportUpdateWithoutConsoleLogsInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2976,6 +3118,8 @@ export type BugReportUncheckedUpdateWithoutConsoleLogsInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -3008,6 +3152,8 @@ export type BugReportCreateWithoutNetworkRequestsInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -3046,6 +3192,8 @@ export type BugReportUncheckedCreateWithoutNetworkRequestsInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -3094,6 +3242,8 @@ export type BugReportUpdateWithoutNetworkRequestsInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -3132,6 +3282,8 @@ export type BugReportUncheckedUpdateWithoutNetworkRequestsInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -3166,6 +3318,8 @@ export type BugReportCreateManyWorkspaceInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -3188,6 +3342,8 @@ export type BugReportUpdateWithoutWorkspaceInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -3225,6 +3381,8 @@ export type BugReportUncheckedUpdateWithoutWorkspaceInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -3260,6 +3418,8 @@ export type BugReportUncheckedUpdateManyWithoutWorkspaceInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -3284,6 +3444,8 @@ export type BugReportCreateManyProjectInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -3306,6 +3468,8 @@ export type BugReportUpdateWithoutProjectInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -3343,6 +3507,8 @@ export type BugReportUncheckedUpdateWithoutProjectInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -3378,6 +3544,8 @@ export type BugReportUncheckedUpdateManyWithoutProjectInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -3402,6 +3570,8 @@ export type BugReportCreateManyCreatedByInput = {
   osName?: string | null
   viewportWidth?: number | null
   viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: string | null
   createdAt?: Date | string
@@ -3424,6 +3594,8 @@ export type BugReportUpdateWithoutCreatedByInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -3461,6 +3633,8 @@ export type BugReportUncheckedUpdateWithoutCreatedByInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -3496,6 +3670,8 @@ export type BugReportUncheckedUpdateManyWithoutCreatedByInput = {
   osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -3642,6 +3818,8 @@ export type BugReportSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   osName?: boolean
   viewportWidth?: boolean
   viewportHeight?: boolean
+  boardColumn?: boolean
+  boardOrder?: boolean
   metadata?: boolean
   failureReason?: boolean
   createdAt?: boolean
@@ -3682,6 +3860,8 @@ export type BugReportSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   osName?: boolean
   viewportWidth?: boolean
   viewportHeight?: boolean
+  boardColumn?: boolean
+  boardOrder?: boolean
   metadata?: boolean
   failureReason?: boolean
   createdAt?: boolean
@@ -3710,6 +3890,8 @@ export type BugReportSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   osName?: boolean
   viewportWidth?: boolean
   viewportHeight?: boolean
+  boardColumn?: boolean
+  boardOrder?: boolean
   metadata?: boolean
   failureReason?: boolean
   createdAt?: boolean
@@ -3738,6 +3920,8 @@ export type BugReportSelectScalar = {
   osName?: boolean
   viewportWidth?: boolean
   viewportHeight?: boolean
+  boardColumn?: boolean
+  boardOrder?: boolean
   metadata?: boolean
   failureReason?: boolean
   createdAt?: boolean
@@ -3745,7 +3929,7 @@ export type BugReportSelectScalar = {
   deletedAt?: boolean
 }
 
-export type BugReportOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "workspaceId" | "projectId" | "createdById" | "title" | "description" | "status" | "source" | "shareToken" | "ingestToken" | "pageUrl" | "userAgent" | "browserName" | "browserVersion" | "osName" | "viewportWidth" | "viewportHeight" | "metadata" | "failureReason" | "createdAt" | "updatedAt" | "deletedAt", ExtArgs["result"]["bugReport"]>
+export type BugReportOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "workspaceId" | "projectId" | "createdById" | "title" | "description" | "status" | "source" | "shareToken" | "ingestToken" | "pageUrl" | "userAgent" | "browserName" | "browserVersion" | "osName" | "viewportWidth" | "viewportHeight" | "boardColumn" | "boardOrder" | "metadata" | "failureReason" | "createdAt" | "updatedAt" | "deletedAt", ExtArgs["result"]["bugReport"]>
 export type BugReportInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   workspace?: boolean | Prisma.WorkspaceDefaultArgs<ExtArgs>
   project?: boolean | Prisma.ProjectDefaultArgs<ExtArgs>
@@ -3814,6 +3998,8 @@ export type $BugReportPayload<ExtArgs extends runtime.Types.Extensions.InternalA
     osName: string | null
     viewportWidth: number | null
     viewportHeight: number | null
+    boardColumn: string
+    boardOrder: number | null
     metadata: runtime.JsonValue | null
     failureReason: string | null
     createdAt: Date
@@ -4273,6 +4459,8 @@ export interface BugReportFieldRefs {
   readonly osName: Prisma.FieldRef<"BugReport", 'String'>
   readonly viewportWidth: Prisma.FieldRef<"BugReport", 'Int'>
   readonly viewportHeight: Prisma.FieldRef<"BugReport", 'Int'>
+  readonly boardColumn: Prisma.FieldRef<"BugReport", 'String'>
+  readonly boardOrder: Prisma.FieldRef<"BugReport", 'Int'>
   readonly metadata: Prisma.FieldRef<"BugReport", 'Json'>
   readonly failureReason: Prisma.FieldRef<"BugReport", 'String'>
   readonly createdAt: Prisma.FieldRef<"BugReport", 'DateTime'>

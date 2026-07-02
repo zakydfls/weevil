@@ -19,6 +19,7 @@ import {
   CreateReportCommentDto,
   CreateReportDto,
   UpdateReportDto,
+  UpdateReportBoardDto,
   RouteParams,
 } from '@weevil/contracts';
 import { CurrentAuth, OptionalAuth, Public, RequirePermissions } from '@weevil/auth';
@@ -73,6 +74,18 @@ export class ReportsController {
   @Get(`:${RouteParams.ReportId}`)
   findById(@CurrentAuth() auth: AuthContext, @Param(RouteParams.ReportId) reportId: string) {
     return this.reportsService.findById(reportId, { workspaceId: auth.workspace?.id });
+  }
+
+  @RequirePermissions(Permission.BOARD_MANAGE)
+  @Patch(ApiRoutes.ReportBoardRelative)
+  moveOnBoard(
+    @CurrentAuth() auth: AuthContext,
+    @Param(RouteParams.ReportId) reportId: string,
+    @Body() dto: UpdateReportBoardDto,
+  ) {
+    return this.reportsService.moveOnBoard(reportId, dto, {
+      workspaceId: auth.workspace?.id,
+    });
   }
 
   @Public()

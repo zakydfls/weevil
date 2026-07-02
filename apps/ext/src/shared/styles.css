@@ -156,7 +156,7 @@ body {
 .hero {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   padding: 18px 16px 14px;
 }
 
@@ -164,12 +164,11 @@ body {
   position: relative;
   display: grid;
   place-items: center;
-  height: 132px;
+  height: 142px;
   border-radius: 12px;
   border: 0.5px solid var(--border);
-  /* Soft terracotta bloom rising from the record button — clean, no texture. */
   background:
-    radial-gradient(120% 90% at 50% 118%, var(--primary-soft) 0%, transparent 55%),
+    radial-gradient(120% 90% at 50% 118%, var(--primary-soft) 0%, transparent 58%),
     var(--surface);
   overflow: hidden;
 }
@@ -332,58 +331,6 @@ body.is-recording .record-tag {
   line-height: 1.4;
 }
 
-/* ── Meter grid (telemetry pulse) ─────────────────────────────────────── */
-
-.meter-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.meter {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 8px 10px;
-  border: 0.5px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-}
-
-.meter-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--ink-faint);
-  flex-shrink: 0;
-  transform: translateY(-2px);
-}
-
-.meter[data-state="armed"] .meter-dot {
-  background: var(--ink-faint);
-}
-
-.meter[data-state="live"] .meter-dot {
-  background: var(--success);
-  animation: weevil-pulse 1.4s ease-in-out infinite;
-}
-
-.meter strong {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.meter span {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--ink-faint);
-  margin-left: auto;
-}
-
 /* ── Toggle row ───────────────────────────────────────────────────────── */
 
 .toggle-row {
@@ -464,10 +411,9 @@ body.is-recording .record-tag {
   gap: 6px;
 }
 
-.actions-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 6px;
+body:not(.is-recording) #stopButton,
+body.is-recording #startButton {
+  display: none;
 }
 
 button,
@@ -554,7 +500,7 @@ button svg {
 .footer-link {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
   padding: 10px 16px;
   border-top: 0.5px solid var(--border);
@@ -617,6 +563,59 @@ button svg {
 
 .section:last-child {
   border-bottom: 0;
+}
+
+.advanced-section {
+  display: block;
+}
+
+.advanced-section summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.advanced-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-section summary::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-bottom: 1.5px solid var(--ink-muted);
+  border-right: 1.5px solid var(--ink-muted);
+  transform: rotate(45deg);
+  transition: transform 180ms var(--ease-out-quart);
+}
+
+.advanced-section[open] summary::after {
+  transform: rotate(225deg) translate(-2px, -2px);
+}
+
+.advanced-section summary span {
+  display: grid;
+  gap: 3px;
+}
+
+.advanced-section summary strong {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.advanced-section summary small {
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.advanced-body {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 0.5px solid var(--divider);
 }
 
 .section-title {

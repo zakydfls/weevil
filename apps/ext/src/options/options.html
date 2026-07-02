@@ -37,31 +37,6 @@
       </header>
 
       <section class="section">
-        <h2 class="section-title">Telemetry capture</h2>
-        <div class="check-row">
-          <span>
-            <strong>Network request bodies</strong>
-            <small>Include request and response payloads. Disable for large or sensitive responses.</small>
-          </span>
-          <input id="captureNetworkBodies" type="checkbox" />
-        </div>
-        <div class="check-row">
-          <span>
-            <strong>DOM mutations</strong>
-            <small>Track attribute, text, and child-list changes during the recording.</small>
-          </span>
-          <input id="captureDomMutations" type="checkbox" />
-        </div>
-        <div class="check-row">
-          <span>
-            <strong>Performance entries</strong>
-            <small>Capture Web Vitals (LCP, FID, CLS) and resource timings.</small>
-          </span>
-          <input id="capturePerformance" type="checkbox" />
-        </div>
-      </section>
-
-      <section class="section">
         <h2 class="section-title">Privacy</h2>
         <div class="check-row">
           <span>
@@ -73,18 +48,50 @@
       </section>
 
       <section class="section">
-        <h2 class="section-title">Performance tuning</h2>
-        <div class="field">
-          <label for="flushIntervalMs">Flush interval (ms)</label>
-          <input id="flushIntervalMs" type="number" min="1000" step="500" />
-          <small>How often telemetry is sent to the backend. Lower = more real-time, higher = fewer requests.</small>
+        <h2 class="section-title">Capture detail</h2>
+        <div class="check-row">
+          <span>
+            <strong>Network bodies</strong>
+            <small>Include request and response payloads when they are useful for debugging.</small>
+          </span>
+          <input id="captureNetworkBodies" type="checkbox" />
         </div>
-        <div class="field">
-          <label for="maxBatchSize">Max batch size</label>
-          <input id="maxBatchSize" type="number" min="1" step="1" />
-          <small>Maximum events per upload batch. Forces a flush when this many events are buffered.</small>
+        <div class="check-row">
+          <span>
+            <strong>DOM changes</strong>
+            <small>Record useful DOM mutations during the session.</small>
+          </span>
+          <input id="captureDomMutations" type="checkbox" />
+        </div>
+        <div class="check-row">
+          <span>
+            <strong>Performance signals</strong>
+            <small>Capture Web Vitals and resource timing entries.</small>
+          </span>
+          <input id="capturePerformance" type="checkbox" />
         </div>
       </section>
+
+      <details class="section advanced-section">
+        <summary>
+          <span>
+            <strong>Advanced tuning</strong>
+            <small>Batching controls for local debugging.</small>
+          </span>
+        </summary>
+        <div class="advanced-body">
+          <div class="field">
+            <label for="flushIntervalMs">Flush interval (ms)</label>
+            <input id="flushIntervalMs" type="number" min="1000" step="500" />
+            <small>How often telemetry is sent to the backend.</small>
+          </div>
+          <div class="field">
+            <label for="maxBatchSize">Max batch size</label>
+            <input id="maxBatchSize" type="number" min="1" step="1" />
+            <small>Maximum events per upload batch.</small>
+          </div>
+        </div>
+      </details>
     </main>
     <script type="module" src="./options.js"></script>
   </body>

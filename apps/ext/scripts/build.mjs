@@ -152,15 +152,15 @@ function createPngIcon(size) {
     for (let x = 0; x < size; x += 1) {
       const index = (y * size + x) * 4;
       const inside = isInsideRoundedRect(x, y, size, radius);
-      rgba[index] = inside ? 223 : 0;
-      rgba[index + 1] = inside ? 248 : 0;
-      rgba[index + 2] = inside ? 239 : 0;
+      rgba[index] = inside ? 188 : 0;
+      rgba[index + 1] = inside ? 72 : 0;
+      rgba[index + 2] = inside ? 20 : 0;
       rgba[index + 3] = inside ? 255 : 0;
 
-      if (inside && isInsideWStroke(x, y, size)) {
-        rgba[index] = 15;
-        rgba[index + 1] = 118;
-        rgba[index + 2] = 110;
+      if (inside && isInsideWeevilMark(x, y, size)) {
+        rgba[index] = 255;
+        rgba[index + 1] = 255;
+        rgba[index + 2] = 255;
       }
     }
   }
@@ -175,15 +175,38 @@ function isInsideRoundedRect(x, y, size, radius) {
   return (x - cornerX) ** 2 + (y - cornerY) ** 2 <= radius ** 2;
 }
 
-function isInsideWStroke(x, y, size) {
+function isInsideWeevilMark(x, y, size) {
   const nx = x / size;
   const ny = y / size;
-  const band = 0.075;
-  const left = Math.abs(nx - (0.25 + ny * 0.12)) < band && ny > 0.24 && ny < 0.76;
-  const midLeft = Math.abs(nx - (0.43 - ny * 0.12)) < band && ny > 0.38 && ny < 0.78;
-  const midRight = Math.abs(nx - (0.56 + ny * 0.12)) < band && ny > 0.38 && ny < 0.78;
-  const right = Math.abs(nx - (0.75 - ny * 0.12)) < band && ny > 0.24 && ny < 0.76;
-  return left || midLeft || midRight || right;
+  return (
+    isInsideEllipse(nx, ny, 0.61, 0.58, 0.26, 0.18) ||
+    isInsideEllipse(nx, ny, 0.39, 0.51, 0.095, 0.105) ||
+    isInsideEllipse(nx, ny, 0.29, 0.44, 0.07, 0.045) ||
+    distanceToSegment(nx, ny, 0.28, 0.42, 0.16, 0.31) < 0.03 ||
+    distanceToSegment(nx, ny, 0.23, 0.35, 0.15, 0.22) < 0.02 ||
+    distanceToSegment(nx, ny, 0.33, 0.37, 0.36, 0.20) < 0.02 ||
+    isInsideEllipse(nx, ny, 0.15, 0.22, 0.025, 0.025) ||
+    isInsideEllipse(nx, ny, 0.36, 0.20, 0.025, 0.025) ||
+    distanceToSegment(nx, ny, 0.47, 0.70, 0.43, 0.83) < 0.024 ||
+    distanceToSegment(nx, ny, 0.58, 0.73, 0.58, 0.86) < 0.024 ||
+    distanceToSegment(nx, ny, 0.69, 0.72, 0.75, 0.85) < 0.024 ||
+    distanceToSegment(nx, ny, 0.45, 0.42, 0.42, 0.28) < 0.022 ||
+    distanceToSegment(nx, ny, 0.57, 0.39, 0.57, 0.25) < 0.022 ||
+    distanceToSegment(nx, ny, 0.70, 0.42, 0.77, 0.27) < 0.022
+  );
+}
+
+function isInsideEllipse(x, y, cx, cy, rx, ry) {
+  return ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
+}
+
+function distanceToSegment(px, py, ax, ay, bx, by) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared === 0) return Math.hypot(px - ax, py - ay);
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lengthSquared));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
 }
 
 function encodePng(width, height, rgba) {

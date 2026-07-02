@@ -6,6 +6,7 @@ import {
   CreateReportDto,
   CreateReportCommentDto,
   ListReportsQueryDto,
+  UpdateReportBoardDto,
   UpdateReportDto,
   type PaginatedReportsResponse,
   ReportDefaults,
@@ -209,6 +210,90 @@ export class ReportsService {
         deletedAt: new Date(),
       },
     });
+  }
+
+  async moveOnBoard(
+    reportId: string,
+    dto: UpdateReportBoardDto,
+    options: { workspaceId?: string } = {},
+  ): Promise<ReportSummaryResponse> {
+    const workspaceId = requireWorkspaceId(options.workspaceId);
+    const boardColumn = normalizeBoardColumn(dto.boardColumn);
+
+    const report = await this.prisma.$transaction(async (tx) => {
+      const current = await tx.bugReport.findUnique({
+        where: { id: reportId },
+        select: {
+          id: true,
+          workspaceId: true,
+          deletedAt: true,
+        },
+      });
+      if (!current || current.deletedAt) {
+        throw new NotFoundException(`Report ${reportId} not found.`);
+      }
+      assertWorkspaceAccess(current, workspaceId);
+
+      const siblings = await tx.bugReport.findMany({
+        where: {
+          workspaceId,
+          deletedAt: null,
+          status: { not: ReportStatus.DRAFT },
+          boardColumn,
+          id: { not: reportId },
+        },
+        select: { id: true },
+        orderBy: [{ boardOrder: 'asc' }, { createdAt: 'desc' }],
+      });
+      const nextIds = siblings.map((sibling) => sibling.id);
+      const targetIndex = clampBoardIndex(dto.targetIndex, nextIds.length);
+      nextIds.splice(targetIndex, 0, reportId);
+
+      await Promise.all(
+        nextIds.map((id, index) =>
+          tx.bugReport.update({
+            where: { id },
+            data: {
+              boardColumn,
+              boardOrder: (index + 1) * 1000,
+            },
+          }),
+        ),
+      );
+
+      return tx.bugReport.findUniqueOrThrow({
+        where: { id: reportId },
+        include: {
+          createdBy: {
+            select: reportReporterSelect,
+          },
+          uploads: {
+            where: {
+              kind: 'SCREEN_RECORDING',
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 1,
+          },
+          _count: {
+            select: {
+              uploads: true,
+              consoleLogs: true,
+              networkRequests: true,
+              comments: true,
+              pageActions: true,
+              runtimeErrors: true,
+              performanceEntries: true,
+              domEvents: true,
+              backendTraces: true,
+            },
+          },
+        },
+      });
+    });
+
+    return this.mapper.toSummary(report);
   }
 
   async list(
@@ -570,4 +655,20 @@ export class ReportsService {
   private redactRecord(value: Record<string, unknown> | undefined, shouldRedact: boolean) {
     return shouldRedact ? this.redaction.redactRecord(value) : value;
   }
+}
+
+function normalizeBoardColumn(value: string): string {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 80);
+  return normalized || 'backlog';
+}
+
+function clampBoardIndex(value: number | undefined, max: number): number {
+  if (!Number.isFinite(value)) return max;
+  return Math.min(Math.max(Math.floor(value ?? max), 0), max);
 }

@@ -98,6 +98,19 @@ export class UpdateReportDto {
   description?: string;
 }
 
+export class UpdateReportBoardDto {
+  @IsString()
+  @MaxLength(80)
+  boardColumn: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(10_000)
+  targetIndex?: number;
+}
+
 export interface ReportSummaryResponse {
   id: string;
   workspaceId: string;
@@ -110,6 +123,8 @@ export interface ReportSummaryResponse {
   pageUrl?: string | null;
   browserName?: string | null;
   osName?: string | null;
+  boardColumn: string;
+  boardOrder?: number | null;
   uploadCount?: number;
   consoleLogCount?: number;
   networkRequestCount?: number;

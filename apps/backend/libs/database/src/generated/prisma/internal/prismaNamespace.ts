@@ -2271,6 +2271,8 @@ export const BugReportScalarFieldEnum = {
   osName: 'osName',
   viewportWidth: 'viewportWidth',
   viewportHeight: 'viewportHeight',
+  boardColumn: 'boardColumn',
+  boardOrder: 'boardOrder',
   metadata: 'metadata',
   failureReason: 'failureReason',
   createdAt: 'createdAt',

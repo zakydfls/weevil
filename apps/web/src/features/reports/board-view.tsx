@@ -2,11 +2,12 @@
 
 import { useRouter } from 'next/navigation';
 import type { ReportSummary } from '@/lib/api/types';
-import { useReports } from './queries';
+import { useMoveReportOnBoard, useReports } from './queries';
 import { KanbanBoard } from './components/kanban-board';
 
 export function BoardView() {
   const router = useRouter();
+  const moveReport = useMoveReportOnBoard();
   // The board needs the full set in one go (drag across columns), so we pull a
   // large page rather than paginating.
   const reportsQuery = useReports({ page: 1, pageSize: 100 });
@@ -27,6 +28,9 @@ export function BoardView() {
       isError={reportsQuery.isError}
       onRetry={() => void reportsQuery.refetch()}
       onOpenReport={openCapture}
+      onMoveReport={(reportId, toColumnId, toIndex) => {
+        moveReport.mutate({ reportId, boardColumn: toColumnId, targetIndex: toIndex });
+      }}
     />
   );
 }

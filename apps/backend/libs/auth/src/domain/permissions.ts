@@ -17,6 +17,7 @@ const MEMBER_PERMISSIONS: Permission[] = [
   Permission.REPORT_SHARE,
   Permission.COMMENT_CREATE,
   Permission.COMMENT_DELETE_OWN,
+  Permission.BOARD_MANAGE,
 ];
 
 const ADMIN_PERMISSIONS: Permission[] = [

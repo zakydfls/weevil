@@ -456,6 +456,8 @@ model BugReport {
   osName         String?
   viewportWidth  Int?
   viewportHeight Int?
+  boardColumn    String       @default("backlog")
+  boardOrder     Int?
   metadata       Json?
   failureReason  String?
   createdAt      DateTime     @default(now())
@@ -477,6 +479,7 @@ model BugReport {
   domEvents       DomEventEntry[]
   backendTraces   BackendTraceEntry[]
 
+  @@index([workspaceId, boardColumn, boardOrder, createdAt])
   @@index([workspaceId, projectId, status, createdAt])
   @@index([shareToken])
   @@map("bug_reports")

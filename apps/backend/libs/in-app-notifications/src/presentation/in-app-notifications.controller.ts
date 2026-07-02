@@ -1,8 +1,8 @@
 import { Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Sse } from '@nestjs/common';
 import type { MessageEvent } from '@nestjs/common';
-import { CurrentAuth } from '@weevil/auth';
-import type { AuthContext } from '@weevil/auth';
 import { filter, from, interval, map, merge, startWith, switchMap, type Observable } from 'rxjs';
+import { CurrentAuth } from '../../../auth/src/decorators/current-auth.decorator';
+import type { AuthContext } from '../../../auth/src/domain/auth-context';
 import { InAppNotificationService } from '../application/in-app-notification.service';
 
 @Controller('in-app-notifications')

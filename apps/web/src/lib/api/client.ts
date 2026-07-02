@@ -21,6 +21,7 @@ import type {
   ReportSummary,
   RuntimeErrorEntry,
   TimelineEntry,
+  UpdateReportBoardInput,
   UpdateReportInput,
 } from './types';
 import { appEnv, readPublicEnv } from '@/lib/env';
@@ -140,6 +141,12 @@ export const apiClient = {
 
   updateReport: (reportId: string, input: UpdateReportInput) =>
     request<ReportSummary>(`/reports/${reportId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+
+  moveReportOnBoard: (reportId: string, input: UpdateReportBoardInput) =>
+    request<ReportSummary>(`/reports/${reportId}/board`, {
       method: 'PATCH',
       body: JSON.stringify(input),
     }),

@@ -19,6 +19,8 @@ export interface ReportSummary {
   pageUrl?: string | null;
   browserName?: string | null;
   osName?: string | null;
+  boardColumn: string;
+  boardOrder?: number | null;
   uploadCount?: number;
   consoleLogCount?: number;
   networkRequestCount?: number;
@@ -40,6 +42,11 @@ export interface ListReportsParams {
   search?: string;
   source?: 'DASHBOARD' | 'EXTENSION' | 'API';
   hasRecording?: boolean;
+}
+
+export interface UpdateReportBoardInput {
+  boardColumn: string;
+  targetIndex?: number;
 }
 
 export interface PaginatedReportsResponse {
