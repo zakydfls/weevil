@@ -54,6 +54,13 @@ const webStartCaptureUnsupportedMessage =
   'Chrome only allows tab recording after you click the Weevil extension button on the page you want to capture. Open the target page, click the Weevil icon in the browser toolbar, then start capture there.';
 let attachedConsoleDebuggee: chrome.debugger.Debuggee | null = null;
 let pendingReview: PendingCaptureReview | null = null;
+let activeRecorderSnapshot: ActiveRecorderSnapshot | null | undefined;
+
+interface ActiveRecorderSnapshot {
+  tabId: number;
+  sessionId: string;
+  startedAt: string;
+}
 
 interface BrowserCaptureContext {
   userAgent?: string | undefined;
@@ -69,10 +76,12 @@ interface BrowserCaptureContext {
 
 chrome.runtime.onInstalled.addListener(async () => {
   await resetRecorderState();
+  activeRecorderSnapshot = null;
 });
 
 chrome.runtime.onStartup.addListener(async () => {
   await resetRecorderState();
+  activeRecorderSnapshot = null;
 });
 
 chrome.runtime.onMessage.addListener((message: RuntimeMessage, sender, sendResponse) => {
@@ -336,6 +345,7 @@ async function startCapture(tab: chrome.tabs.Tab, captureSettings?: ExtensionSet
     };
 
     await saveRecorderState(state);
+    rememberActiveRecorder(state);
     const isDebuggerConsoleEnabled = await attachConsoleDebugger(tab.id);
     await notifyTab(tab.id, {
       type: RuntimeMessageTypes.CaptureStarted,
@@ -356,6 +366,7 @@ async function startCapture(tab: chrome.tabs.Tab, captureSettings?: ExtensionSet
       await stopOffscreenRecording();
     }
     await resetRecorderState();
+    activeRecorderSnapshot = null;
     if (preparingOverlayShown) {
       await notifyTab(tab.id, {
         type: RuntimeMessageTypes.CaptureFailed,
@@ -411,6 +422,7 @@ async function stopCapture() {
     ...state,
     isRecording: false,
   });
+  activeRecorderSnapshot = null;
 
   return getRecorderState();
 }
@@ -560,6 +572,7 @@ async function submitCaptureReview(input?: SubmitCaptureReviewInput) {
   });
   pendingReview = null;
   await resetRecorderState();
+  activeRecorderSnapshot = null;
   return payload;
 }
 
@@ -567,6 +580,7 @@ async function discardCaptureReview() {
   pendingReview = null;
   chrome.alarms.clear(flushAlarmName);
   await resetRecorderState();
+  activeRecorderSnapshot = null;
 }
 
 async function appendBatch(batch: Partial<TelemetryBatch>) {
@@ -1189,9 +1203,46 @@ async function refreshRecordingTab(tabId: number) {
   });
 }
 
+async function isRecordingTabRequest(tabId: number | undefined) {
+  return Boolean(await getRecordingSnapshotForTab(tabId));
+}
+
+async function getRecordingSnapshotForTab(
+  tabId: number | undefined,
+): Promise<ActiveRecorderSnapshot | null> {
+  if (typeof tabId !== 'number' || tabId < 0) {
+    return null;
+  }
+
+  if (activeRecorderSnapshot !== undefined) {
+    return activeRecorderSnapshot?.tabId === tabId ? activeRecorderSnapshot : null;
+  }
+
+  const hydratedSnapshot = rememberActiveRecorder(await getRecorderState());
+  return hydratedSnapshot && hydratedSnapshot.tabId === tabId ? hydratedSnapshot : null;
+}
+
+function rememberActiveRecorder(state: RecorderState): ActiveRecorderSnapshot | null {
+  if (
+    state.isRecording &&
+    typeof state.tabId === 'number' &&
+    state.sessionId &&
+    state.startedAt
+  ) {
+    activeRecorderSnapshot = {
+      tabId: state.tabId,
+      sessionId: state.sessionId,
+      startedAt: state.startedAt,
+    };
+    return activeRecorderSnapshot;
+  }
+
+  activeRecorderSnapshot = null;
+  return activeRecorderSnapshot;
+}
+
 async function captureRequestHeaders(details: chrome.webRequest.OnBeforeSendHeadersDetails) {
-  const state = await getRecorderState();
-  if (!state.isRecording || state.tabId !== details.tabId) {
+  if (!(await isRecordingTabRequest(details.tabId))) {
     return;
   }
 
@@ -1207,8 +1258,7 @@ async function captureRequestHeaders(details: chrome.webRequest.OnBeforeSendHead
 }
 
 async function captureResponseHeaders(details: chrome.webRequest.OnHeadersReceivedDetails) {
-  const state = await getRecorderState();
-  if (!state.isRecording || state.tabId !== details.tabId) {
+  if (!(await isRecordingTabRequest(details.tabId))) {
     return;
   }
 
@@ -1244,8 +1294,8 @@ async function appendBrowserNetworkEntry(
   details: chrome.webRequest.OnCompletedDetails | chrome.webRequest.OnErrorOccurredDetails,
   error?: string,
 ) {
-  const state = await getRecorderState();
-  if (!state.isRecording || !state.sessionId || state.tabId !== details.tabId) {
+  const state = await getRecordingSnapshotForTab(details.tabId);
+  if (!state) {
     return;
   }
 

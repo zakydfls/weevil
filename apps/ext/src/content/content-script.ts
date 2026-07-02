@@ -29,6 +29,7 @@ import type {
 
 const contentInstalledFlag = '__WEevil_CONTENT_SCRIPT_INSTALLED_20260604_CONSOLE_RECAPTURE__';
 const pageConsoleControlMessageType = 'WEevil_PAGE_CONSOLE_CONTROL';
+const pageTelemetryControlMessageType = 'WEevil_PAGE_TELEMETRY_CONTROL';
 
 declare global {
   interface Window {
@@ -367,6 +368,7 @@ function startLocalRecording(
   startFlushTimer();
   startStateSyncTimer();
   mountRecorderOverlay();
+  setPageTelemetryPatchEnabled(true);
   setPageConsolePatchEnabled(consoleCaptureMode === 'page');
   flushPendingPageTelemetry();
 }
@@ -387,6 +389,7 @@ async function stopLocalRecording() {
   stopFlushTimer();
   stopStateSyncTimer();
   unmountRecorderOverlay();
+  setPageTelemetryPatchEnabled(false);
   setPageConsolePatchEnabled(false);
   void sendTelemetryBatch(batch);
   reportId = undefined;
@@ -409,6 +412,7 @@ function beginStoppingOverlay() {
   stopFlushTimer();
   stopStateSyncTimer();
   mountRecorderOverlay();
+  setPageTelemetryPatchEnabled(false);
   setPageConsolePatchEnabled(false);
   updateOverlay();
   void sendTelemetryBatch(batch);
@@ -436,6 +440,7 @@ function showCompletedOverlay(payload: CaptureCompletedPayload) {
   stopFlushTimer();
   stopStateSyncTimer();
   mountRecorderOverlay();
+  setPageTelemetryPatchEnabled(false);
   setPageConsolePatchEnabled(false);
   updateOverlay();
 }
@@ -456,6 +461,7 @@ function showFailedOverlay(error: string | undefined) {
   stopFlushTimer();
   stopStateSyncTimer();
   mountRecorderOverlay();
+  setPageTelemetryPatchEnabled(false);
   setPageConsolePatchEnabled(false);
   updateOverlay();
 }
@@ -792,6 +798,13 @@ async function sendPageTelemetry(message: PageTelemetryMessage) {
 function setPageConsolePatchEnabled(enabled: boolean) {
   window.postMessage({
     type: pageConsoleControlMessageType,
+    enabled,
+  }, '*');
+}
+
+function setPageTelemetryPatchEnabled(enabled: boolean) {
+  window.postMessage({
+    type: pageTelemetryControlMessageType,
     enabled,
   }, '*');
 }

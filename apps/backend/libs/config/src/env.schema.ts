@@ -37,6 +37,8 @@ const baseEnvSchema = z.object({
   WEB_ORIGIN: z.string().optional().default(''),
   // Comma-separated trusted browser-extension origins allowed to make
   // credentialed capture requests, e.g. chrome-extension://<extension-id>.
+  // EXTENSION_ORIGIN is accepted as a backward-compatible singular alias.
+  EXTENSION_ORIGIN: z.string().optional().default(''),
   EXTENSION_ORIGINS: z.string().optional().default(''),
   // Session-cookie attributes. Driven by env (NOT NODE_ENV) so a homeserver
   // running NODE_ENV=development behind HTTPS can still issue cross-site cookies.

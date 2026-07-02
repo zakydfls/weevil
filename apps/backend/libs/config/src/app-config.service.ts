@@ -77,8 +77,11 @@ export class AppConfigService {
 
   /** Trusted extension origins allowed to use cookie-authenticated capture APIs. */
   get extensionOrigins(): string[] {
-    return this.configService
-      .get('EXTENSION_ORIGINS', { infer: true })
+    return [
+      this.configService.get('EXTENSION_ORIGINS', { infer: true }),
+      this.configService.get('EXTENSION_ORIGIN', { infer: true }),
+    ]
+      .join(',')
       .split(',')
       .map((origin) => origin.trim())
       .filter(Boolean);

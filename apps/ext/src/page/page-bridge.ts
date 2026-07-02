@@ -8,9 +8,18 @@ import { nowIso, safeStringify, truncateBody, truncateText } from '../shared/tel
 
 const installedFlag = '__WEevil_PAGE_BRIDGE_INSTALLED_20260604_CONSOLE_RECAPTURE__';
 const consoleControlMessageType = 'WEevil_PAGE_CONSOLE_CONTROL';
+const telemetryControlMessageType = 'WEevil_PAGE_TELEMETRY_CONTROL';
+const responseBodyReadTimeoutMs = 1_500;
 const originalConsoleMethods = new Map<string, (...args: unknown[]) => void>();
 let originalConsoleAssert: ((condition?: boolean, ...args: unknown[]) => void) | undefined;
 let isConsolePatched = false;
+let originalFetch: typeof window.fetch | undefined;
+let originalXhrOpen: typeof XMLHttpRequest.prototype.open | undefined;
+let originalXhrSend: typeof XMLHttpRequest.prototype.send | undefined;
+let originalXhrSetRequestHeader: typeof XMLHttpRequest.prototype.setRequestHeader | undefined;
+let xhrMetadata = new WeakMap<XMLHttpRequest, XhrMetadata>();
+let isNetworkPatched = false;
+let isTelemetryEnabled = false;
 
 declare global {
   interface Window {
@@ -21,8 +30,7 @@ declare global {
 if (!window[installedFlag]) {
   window[installedFlag] = true;
   attachConsoleControlListener();
-  patchFetch();
-  patchXhr();
+  attachTelemetryControlListener();
   attachErrorListeners();
   schedulePerformanceCollection();
 }
@@ -120,6 +128,34 @@ function attachConsoleControlListener() {
   });
 }
 
+function attachTelemetryControlListener() {
+  window.addEventListener('message', (event) => {
+    if (event.source !== window || !event.data || typeof event.data !== 'object') {
+      return;
+    }
+
+    const data = event.data as { type?: string; enabled?: unknown };
+    if (data.type !== telemetryControlMessageType) {
+      return;
+    }
+
+    setTelemetryEnabled(data.enabled === true);
+  });
+}
+
+function setTelemetryEnabled(enabled: boolean) {
+  isTelemetryEnabled = enabled;
+  if (enabled) {
+    patchNetwork();
+    collectNavigationTiming();
+    collectPaintEntries();
+    collectResourceEntries();
+    return;
+  }
+
+  unpatchNetwork();
+}
+
 function postConsole(level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR', method: string, args: unknown[], withStack = false) {
   post(PageMessageTypes.Console, {
     level,
@@ -147,84 +183,80 @@ function formatConsoleMessage(method: string, args: unknown[]) {
   return args.map((item) => safeStringify(item, 2_000)).join(' ');
 }
 
+function patchNetwork() {
+  if (isNetworkPatched) {
+    return;
+  }
+
+  patchFetch();
+  patchXhr();
+  isNetworkPatched = true;
+}
+
+function unpatchNetwork() {
+  if (!isNetworkPatched) {
+    return;
+  }
+
+  if (originalFetch) {
+    window.fetch = originalFetch;
+    originalFetch = undefined;
+  }
+
+  if (originalXhrOpen) {
+    XMLHttpRequest.prototype.open = originalXhrOpen;
+    originalXhrOpen = undefined;
+  }
+
+  if (originalXhrSend) {
+    XMLHttpRequest.prototype.send = originalXhrSend;
+    originalXhrSend = undefined;
+  }
+
+  if (originalXhrSetRequestHeader) {
+    XMLHttpRequest.prototype.setRequestHeader = originalXhrSetRequestHeader;
+    originalXhrSetRequestHeader = undefined;
+  }
+
+  xhrMetadata = new WeakMap<XMLHttpRequest, XhrMetadata>();
+  isNetworkPatched = false;
+}
+
 function patchFetch() {
-  const originalFetch = window.fetch;
+  originalFetch = window.fetch;
+  const fetchImpl = originalFetch;
+
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const startedAt = performance.now();
     const startedAtIso = nowIso();
-    const request = normalizeFetchRequest(input, init);
+    let request: ReturnType<typeof normalizeFetchRequest>;
 
     try {
-      const response = await originalFetch(input, init);
-      const clonedResponse = response.clone();
-      const responseText = await readResponseBody(clonedResponse);
+      request = normalizeFetchRequest(input, init);
+    } catch {
+      return fetchImpl.call(window, input, init);
+    }
+
+    try {
+      const response = await fetchImpl.call(window, input, init);
       const endedAtIso = nowIso();
       const durationMs = Math.round(performance.now() - startedAt);
+      let clonedResponse: Response | undefined;
 
-      post(PageMessageTypes.Network, {
-        requestId: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
-        method: request.method,
-        url: request.url,
-        statusCode: response.status,
+      try {
+        clonedResponse = response.clone();
+      } catch {
+        clonedResponse = undefined;
+      }
+
+      void postFetchSuccessTelemetry({
+        request,
+        response,
+        clonedResponse,
         durationMs,
-        requestHeaders: request.headers,
-        requestBody: request.body,
-        responseHeaders: headersToRecord(response.headers),
-        responseBody: responseText,
-        startedAt: startedAtIso,
-        endedAt: endedAtIso,
+        startedAtIso,
+        endedAtIso,
       });
-      post(PageMessageTypes.Performance, {
-        kind: PerformanceEntryKind.Resource,
-        name: request.url,
-        durationMs,
-        initiatorType: 'fetch',
-        pageUrl: location.href,
-        occurredAt: endedAtIso,
-      });
-      post(PageMessageTypes.Performance, {
-        kind: PerformanceEntryKind.Custom,
-        name: request.url,
-        value: durationMs,
-        durationMs,
-        rating: durationMs > 1_000 ? 'poor' : durationMs > 400 ? 'needs-improvement' : 'good',
-        initiatorType: 'fetch',
-        pageUrl: location.href,
-        occurredAt: endedAtIso,
-      });
-      post(PageMessageTypes.Performance, {
-        kind: PerformanceEntryKind.Custom,
-        name: `Backend ${request.method} ${new URL(request.url, location.href).pathname}`,
-        value: durationMs,
-        durationMs,
-        rating: response.status >= 500 ? 'poor' : response.status >= 400 ? 'needs-improvement' : 'good',
-        initiatorType: 'backend',
-        pageUrl: location.href,
-        occurredAt: endedAtIso,
-      });
-      post(PageMessageTypes.Performance, {
-        kind: PerformanceEntryKind.Custom,
-        name: `HTTP ${response.status}`,
-        value: response.status,
-        initiatorType: 'backend-status',
-        pageUrl: location.href,
-        occurredAt: endedAtIso,
-      });
-      post(PageMessageTypes.Performance, {
-        kind: PerformanceEntryKind.Custom,
-        name: `Backend trace ${request.method}`,
-        value: durationMs,
-        durationMs,
-        initiatorType: 'backend-trace',
-        pageUrl: location.href,
-        occurredAt: endedAtIso,
-        metadata: {
-          url: request.url,
-          method: request.method,
-          statusCode: response.status,
-        },
-      });
-      postBackendTrace(request.method, request.url, response.status, durationMs, startedAtIso, endedAtIso);
 
       return response;
     } catch (error) {
@@ -247,11 +279,101 @@ function patchFetch() {
   };
 }
 
+async function postFetchSuccessTelemetry(input: {
+  request: ReturnType<typeof normalizeFetchRequest>;
+  response: Response;
+  clonedResponse: Response | undefined;
+  durationMs: number;
+  startedAtIso: string;
+  endedAtIso: string;
+}) {
+  const responseText = input.clonedResponse
+    ? await readResponseBody(input.clonedResponse)
+    : undefined;
+
+  if (!isTelemetryEnabled) {
+    return;
+  }
+
+  const requestId = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+  post(PageMessageTypes.Network, {
+    requestId,
+    method: input.request.method,
+    url: input.request.url,
+    statusCode: input.response.status,
+    durationMs: input.durationMs,
+    requestHeaders: input.request.headers,
+    requestBody: input.request.body,
+    responseHeaders: headersToRecord(input.response.headers),
+    responseBody: responseText,
+    startedAt: input.startedAtIso,
+    endedAt: input.endedAtIso,
+  });
+  post(PageMessageTypes.Performance, {
+    kind: PerformanceEntryKind.Resource,
+    name: input.request.url,
+    durationMs: input.durationMs,
+    initiatorType: 'fetch',
+    pageUrl: location.href,
+    occurredAt: input.endedAtIso,
+  });
+  post(PageMessageTypes.Performance, {
+    kind: PerformanceEntryKind.Custom,
+    name: input.request.url,
+    value: input.durationMs,
+    durationMs: input.durationMs,
+    rating: input.durationMs > 1_000 ? 'poor' : input.durationMs > 400 ? 'needs-improvement' : 'good',
+    initiatorType: 'fetch',
+    pageUrl: location.href,
+    occurredAt: input.endedAtIso,
+  });
+  post(PageMessageTypes.Performance, {
+    kind: PerformanceEntryKind.Custom,
+    name: `Backend ${input.request.method} ${new URL(input.request.url, location.href).pathname}`,
+    value: input.durationMs,
+    durationMs: input.durationMs,
+    rating: input.response.status >= 500 ? 'poor' : input.response.status >= 400 ? 'needs-improvement' : 'good',
+    initiatorType: 'backend',
+    pageUrl: location.href,
+    occurredAt: input.endedAtIso,
+  });
+  post(PageMessageTypes.Performance, {
+    kind: PerformanceEntryKind.Custom,
+    name: `HTTP ${input.response.status}`,
+    value: input.response.status,
+    initiatorType: 'backend-status',
+    pageUrl: location.href,
+    occurredAt: input.endedAtIso,
+  });
+  post(PageMessageTypes.Performance, {
+    kind: PerformanceEntryKind.Custom,
+    name: `Backend trace ${input.request.method}`,
+    value: input.durationMs,
+    durationMs: input.durationMs,
+    initiatorType: 'backend-trace',
+    pageUrl: location.href,
+    occurredAt: input.endedAtIso,
+    metadata: {
+      url: input.request.url,
+      method: input.request.method,
+      statusCode: input.response.status,
+    },
+  });
+  postBackendTrace(
+    input.request.method,
+    input.request.url,
+    input.response.status,
+    input.durationMs,
+    input.startedAtIso,
+    input.endedAtIso,
+  );
+}
+
 function patchXhr() {
-  const originalOpen = XMLHttpRequest.prototype.open;
-  const originalSend = XMLHttpRequest.prototype.send;
-  const originalSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
-  const metadata = new WeakMap<XMLHttpRequest, XhrMetadata>();
+  originalXhrOpen = XMLHttpRequest.prototype.open;
+  originalXhrSend = XMLHttpRequest.prototype.send;
+  originalXhrSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
+  xhrMetadata = new WeakMap<XMLHttpRequest, XhrMetadata>();
 
   XMLHttpRequest.prototype.open = function open(
     method: string,
@@ -260,31 +382,35 @@ function patchXhr() {
     username?: string | null,
     password?: string | null,
   ) {
-    metadata.set(this, {
+    xhrMetadata.set(this, {
       method,
       url: String(url),
       requestHeaders: {},
       startedAt: '',
       startedAtMs: 0,
     });
-    return originalOpen.call(this, method, url, async ?? true, username ?? null, password ?? null);
+    return originalXhrOpen!.call(this, method, url, async ?? true, username ?? null, password ?? null);
   };
 
   XMLHttpRequest.prototype.setRequestHeader = function setRequestHeader(name: string, value: string) {
-    const item = metadata.get(this);
+    const item = xhrMetadata.get(this);
     if (item) {
       item.requestHeaders[name] = value;
     }
-    return originalSetRequestHeader.call(this, name, value);
+    return originalXhrSetRequestHeader!.call(this, name, value);
   };
 
   XMLHttpRequest.prototype.send = function send(body?: Document | XMLHttpRequestBodyInit | null) {
-    const item = metadata.get(this);
+    const item = xhrMetadata.get(this);
     if (item) {
       item.startedAt = nowIso();
       item.startedAtMs = performance.now();
       item.requestBody = typeof body === 'string' ? truncateBody(body) : undefined;
       this.addEventListener('loadend', () => {
+        if (!isTelemetryEnabled) {
+          return;
+        }
+
         const endedAt = nowIso();
         const durationMs = Math.round(performance.now() - item.startedAtMs);
         post(PageMessageTypes.Network, {
@@ -313,7 +439,7 @@ function patchXhr() {
       });
     }
 
-    return originalSend.call(this, body ?? null);
+    return originalXhrSend!.call(this, body ?? null);
   };
 }
 
@@ -333,6 +459,10 @@ function attachErrorListeners() {
   window.addEventListener(
     'error',
     (event) => {
+      if (!isTelemetryEnabled) {
+        return;
+      }
+
       post(PageMessageTypes.RuntimeError, {
         kind: RuntimeErrorKind.JsError,
         message: event.message || 'Runtime error',
@@ -348,6 +478,10 @@ function attachErrorListeners() {
   );
 
   window.addEventListener('unhandledrejection', (event) => {
+    if (!isTelemetryEnabled) {
+      return;
+    }
+
     const reason = event.reason;
     post(PageMessageTypes.RuntimeError, {
       kind: RuntimeErrorKind.UnhandledRejection,
@@ -370,6 +504,10 @@ function schedulePerformanceCollection() {
 }
 
 function collectNavigationTiming() {
+  if (!isTelemetryEnabled) {
+    return;
+  }
+
   const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
   if (!navigation) {
     return;
@@ -387,6 +525,10 @@ function collectNavigationTiming() {
 }
 
 function collectPaintEntries() {
+  if (!isTelemetryEnabled) {
+    return;
+  }
+
   performance.getEntriesByType('paint').forEach((entry) => {
     post(PageMessageTypes.Performance, {
       kind: PerformanceEntryKind.Paint,
@@ -400,6 +542,10 @@ function collectPaintEntries() {
 }
 
 function collectResourceEntries() {
+  if (!isTelemetryEnabled) {
+    return;
+  }
+
   performance.getEntriesByType('resource').slice(-50).forEach((entry) => {
     const resource = entry as PerformanceResourceTiming;
     post(PageMessageTypes.Performance, {
@@ -468,7 +614,13 @@ async function readResponseBody(response: Response) {
   }
 
   try {
-    return truncateBody(await response.text());
+    const body = await Promise.race([
+      response.text(),
+      new Promise<undefined>((resolve) => {
+        window.setTimeout(() => resolve(undefined), responseBodyReadTimeoutMs);
+      }),
+    ]);
+    return typeof body === 'string' ? truncateBody(body) : undefined;
   } catch {
     return undefined;
   }
