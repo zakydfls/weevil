@@ -1,8 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { AppConfigService } from '@weevil/config';
+// Event contract from @weevil/contracts — never import the
+// @weevil/in-app-notifications barrel from producer libs (circular require).
+import { InAppNotificationEvents } from '@weevil/contracts';
 import { PrismaService } from '@weevil/database';
-import { InAppNotificationEvents } from '@weevil/in-app-notifications';
 import {
   MailerService,
   newCaptureEmailSubject,
@@ -270,7 +272,9 @@ export class ReportNotificationService {
     });
   }
 
-  private toDetail(report: NonNullable<Awaited<ReturnType<ReportNotificationService['loadReport']>>>): ReportNotificationDetail {
+  private toDetail(
+    report: NonNullable<Awaited<ReturnType<ReportNotificationService['loadReport']>>>,
+  ): ReportNotificationDetail {
     return {
       title: report.title,
       workspaceName: report.workspace.name,

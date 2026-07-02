@@ -1,8 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { AppConfigService } from '@weevil/config';
+// Event contract comes from @weevil/contracts — importing the
+// @weevil/in-app-notifications barrel here creates a circular require
+// (auth → in-app-notifications → controller → auth) that breaks decorators
+// at runtime in production.
+import { InAppNotificationEvents } from '@weevil/contracts';
 import { PrismaService } from '@weevil/database';
-import { InAppNotificationEvents } from '@weevil/in-app-notifications';
 import {
   MailerService,
   renderWorkspaceJoinApprovedEmail,
@@ -123,7 +127,9 @@ export class WorkspaceJoinRequestNotificationService {
         result.status === 'rejected' || (result.status === 'fulfilled' && !result.value.sent),
     ).length;
     if (failed > 0) {
-      this.logger.warn(`Join request notification delivery had ${failed}/${reviewers.length} failures.`);
+      this.logger.warn(
+        `Join request notification delivery had ${failed}/${reviewers.length} failures.`,
+      );
     }
   }
 

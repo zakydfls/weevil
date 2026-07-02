@@ -6,3 +6,4 @@ export * from './constants/tenant.constants';
 export * from './dto/reports.dto';
 export * from './dto/uploads.dto';
 export * from './dto/telemetry.dto';
+export * from './events/in-app-notification.events';
