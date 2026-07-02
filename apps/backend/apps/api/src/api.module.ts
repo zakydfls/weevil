@@ -4,6 +4,10 @@ import { AuthModule } from '@weevil/auth';
 import { CacheModule } from '@weevil/cache';
 import { AppConfigModule } from '@weevil/config';
 import { DatabaseModule } from '@weevil/database';
+import {
+  InAppNotificationsController,
+  InAppNotificationsModule,
+} from '@weevil/in-app-notifications';
 import { ObservabilityModule } from '@weevil/observability';
 import { QueueModule } from '@weevil/queue';
 import { ReportsModule } from '@weevil/reports';
@@ -19,9 +23,10 @@ import { HealthController } from './health.controller';
     ObservabilityModule,
     QueueModule,
     StorageModule,
+    InAppNotificationsModule,
     AuthModule,
     ReportsModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, InAppNotificationsController],
 })
 export class ApiModule {}

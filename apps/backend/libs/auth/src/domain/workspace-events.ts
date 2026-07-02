@@ -29,8 +29,10 @@ export interface WorkspaceJoinRequestedEvent {
 }
 
 export interface WorkspaceJoinApprovedEvent {
+  workspaceId: string;
   workspaceName: string;
   workspaceSlug: string;
+  requesterUserId: string;
   requesterEmail: string;
   requesterName: string | null;
 }

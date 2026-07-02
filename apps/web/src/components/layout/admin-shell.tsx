@@ -17,6 +17,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { WeevilLogo } from '@/components/brand/weevil-mark';
+import { NotificationCenter } from '@/components/layout/notification-center';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,10 +38,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Tooltip } from '@/components/ui/tooltip';
 import { toast } from '@/components/ui/toaster';
 import { ApiError } from '@/lib/api/client';
-import { useExtensionInstalled } from '@/lib/use-extension-installed';
 import { useAuth } from '@/features/auth/auth-context';
 import { reportKeys } from '@/features/reports/queries';
 
@@ -52,11 +51,8 @@ const platformNav = { href: '/platform', label: 'Platform', icon: ShieldCheck } 
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
-  const dialog = useDialog();
   const router = useRouter();
   const pathname = usePathname();
-  const { status: extStatus } = useExtensionInstalled();
-  const extMissing = extStatus === 'missing';
 
   // Captures is the home of the capture artifact, so the capture-detail route
   // (/c/[id]) keeps the Captures tab highlighted.
@@ -71,19 +67,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   function openCommandPalette() {
     window.dispatchEvent(new CustomEvent('weevil:open-command-palette'));
-  }
-
-  function handleNewCapture() {
-    void dialog.alert({
-      title: 'Start capture from the extension',
-      description: (
-        <>
-          Open the page you want to record, click the Weevil icon in the browser toolbar, then press
-          Start capture. Chrome only grants tab recording permission from that extension button.
-        </>
-      ),
-      acknowledgeLabel: 'Got it',
-    });
   }
 
   // Show loading shell during auth bootstrap so we don't render the dashboard with no workspace
@@ -191,42 +174,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           >
             <Search className="h-4 w-4" aria-hidden />
           </button>
-          {extMissing ? (
-            <Tooltip
-              content={
-                <>
-                  No extension, no capture. The <strong>Weevil extension</strong> isn’t
-                  installed (or is taking a nap). Add it to Chrome, then this button wakes right up.
-                </>
-              }
-            >
-              <Button
-                type="button"
-                variant="primary"
-                className="h-9 pointer-events-none opacity-60"
-                disabled
-                aria-label="New capture — Weevil extension required"
-              >
-                <Plus className="h-4 w-4" aria-hidden />
-                <span className="hidden sm:inline">Use extension</span>
-              </Button>
-            </Tooltip>
-          ) : (
-            <Tooltip
-              content="Open the target tab, then use the Weevil extension button in the browser toolbar."
-            >
-              <Button
-                type="button"
-                variant="primary"
-                className="h-9"
-                disabled={extStatus === 'checking'}
-                onClick={handleNewCapture}
-              >
-                <Plus className="h-4 w-4" aria-hidden />
-                <span className="hidden sm:inline">New capture</span>
-              </Button>
-            </Tooltip>
-          )}
+          <NotificationCenter />
           <Button
             type="button"
             variant={isSettings ? 'secondary' : 'ghost'}
@@ -478,6 +426,7 @@ function WorkspaceAvatar({
 
 function CreateWorkspaceModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const auth = useAuth();
+  const dialog = useDialog();
   const queryClient = useQueryClient();
   const nameRef = useRef<HTMLInputElement | null>(null);
   const [name, setName] = useState('');
@@ -559,11 +508,21 @@ function CreateWorkspaceModal({ open, onClose }: { open: boolean; onClose: () =>
         description: `${workspaceName} is active now.`,
       });
       onClose();
+      await dialog.feedback({
+        status: 'success',
+        title: 'Workspace created',
+        description: `${workspaceName} is active now.`,
+      });
     } catch (err) {
       const message = formatCreateWorkspaceError(err, workspaceSlug);
       setError(message);
       toast.error('Could not create workspace', {
         id: toastId,
+        description: message,
+      });
+      await dialog.feedback({
+        status: 'error',
+        title: 'Could not create workspace',
         description: message,
       });
     } finally {

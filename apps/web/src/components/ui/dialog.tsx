@@ -15,11 +15,11 @@ import {
   type HTMLAttributes,
   type ReactNode,
 } from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Info, X, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-type DialogTone = 'default' | 'danger' | 'warning';
+type DialogTone = 'default' | 'danger' | 'warning' | 'success';
 
 interface ConfirmOptions {
   title: string;
@@ -36,16 +36,26 @@ interface AlertOptions {
   acknowledgeLabel?: string;
 }
 
+type FeedbackStatus = 'success' | 'error' | 'warning' | 'info';
+
+interface FeedbackOptions {
+  status: FeedbackStatus;
+  title: string;
+  description?: ReactNode;
+  acknowledgeLabel?: string;
+}
+
 interface DialogContextValue {
   confirm: (options: ConfirmOptions) => Promise<boolean>;
   alert: (options: AlertOptions) => Promise<void>;
+  feedback: (options: FeedbackOptions) => Promise<void>;
 }
 
 const DialogContext = createContext<DialogContextValue | null>(null);
 
 interface PendingDialog {
-  kind: 'confirm' | 'alert';
-  options: ConfirmOptions | AlertOptions;
+  kind: 'confirm' | 'alert' | 'feedback';
+  options: ConfirmOptions | AlertOptions | FeedbackOptions;
   resolve: (value: boolean) => void;
 }
 
@@ -68,6 +78,15 @@ export function DialogProvider({ children }: { children: ReactNode }) {
       new Promise<void>((resolve) => {
         previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
         setPending({ kind: 'alert', options, resolve: () => resolve() });
+      }),
+    [],
+  );
+
+  const feedback = useCallback(
+    (options: FeedbackOptions) =>
+      new Promise<void>((resolve) => {
+        previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+        setPending({ kind: 'feedback', options, resolve: () => resolve() });
       }),
     [],
   );
@@ -97,7 +116,10 @@ export function DialogProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('keydown', handleKey);
   }, [pending]);
 
-  const value = useMemo<DialogContextValue>(() => ({ confirm, alert: alertFn }), [confirm, alertFn]);
+  const value = useMemo<DialogContextValue>(
+    () => ({ confirm, alert: alertFn, feedback }),
+    [confirm, alertFn, feedback],
+  );
 
   return (
     <DialogContext.Provider value={value}>
@@ -224,27 +246,44 @@ function DialogModal({
   onCancel: () => void;
 }) {
   const { kind, options } = pending;
-  const tone: DialogTone = options.tone ?? 'default';
-  const isAlert = kind === 'alert';
+  const tone: DialogTone =
+    kind === 'feedback' ? 'default' : (options as ConfirmOptions | AlertOptions).tone ?? 'default';
+  const isAlert = kind === 'alert' || kind === 'feedback';
+  const feedbackStatus = kind === 'feedback' ? (options as FeedbackOptions).status : null;
 
   const accentColor =
-    tone === 'danger'
+    feedbackStatus === 'success' || tone === 'success'
+      ? 'var(--success)'
+      : feedbackStatus === 'error' || tone === 'danger'
       ? 'var(--danger)'
-      : tone === 'warning'
+      : feedbackStatus === 'warning' || tone === 'warning'
         ? 'var(--warning)'
         : 'var(--primary)';
   const accentBg =
-    tone === 'danger'
+    feedbackStatus === 'success' || tone === 'success'
+      ? 'var(--success-bg)'
+      : feedbackStatus === 'error' || tone === 'danger'
       ? 'var(--danger-bg)'
-      : tone === 'warning'
+      : feedbackStatus === 'warning' || tone === 'warning'
         ? 'var(--warning-bg)'
         : 'var(--primary-subtle)';
 
-  const confirmVariant = tone === 'danger' ? 'danger' : 'primary';
-  const confirmLabel = isAlert
-    ? (options as AlertOptions).acknowledgeLabel ?? 'OK'
-    : (options as ConfirmOptions).confirmLabel ?? 'Confirm';
+  const confirmVariant = feedbackStatus === 'error' || tone === 'danger' ? 'danger' : 'primary';
+  const confirmLabel =
+    kind === 'feedback'
+      ? (options as FeedbackOptions).acknowledgeLabel ?? 'Done'
+      : isAlert
+        ? (options as AlertOptions).acknowledgeLabel ?? 'OK'
+        : (options as ConfirmOptions).confirmLabel ?? 'Confirm';
   const cancelLabel = !isAlert ? (options as ConfirmOptions).cancelLabel ?? 'Cancel' : null;
+  const Icon =
+    feedbackStatus === 'success'
+      ? CheckCircle2
+      : feedbackStatus === 'error'
+        ? XCircle
+        : feedbackStatus === 'info'
+          ? Info
+          : AlertTriangle;
 
   return (
     <Dialog open onOpenChange={(open) => {
@@ -257,7 +296,7 @@ function DialogModal({
             style={{ backgroundColor: accentBg, color: accentColor }}
             aria-hidden
           >
-            <AlertTriangle className="h-4 w-4" />
+            <Icon className="h-4 w-4" />
           </span>
           <div className="min-w-0">
             <DialogTitle>

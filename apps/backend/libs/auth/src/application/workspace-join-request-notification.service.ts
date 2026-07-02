@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { AppConfigService } from '@weevil/config';
 import { PrismaService } from '@weevil/database';
+import { InAppNotificationEvents } from '@weevil/in-app-notifications';
 import {
   MailerService,
   renderWorkspaceJoinApprovedEmail,
@@ -24,6 +25,7 @@ export class WorkspaceJoinRequestNotificationService {
     private readonly config: AppConfigService,
     private readonly prisma: PrismaService,
     private readonly mailer: MailerService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   @OnEvent(WorkspaceEvents.JoinRequested, { suppressErrors: true })
@@ -49,12 +51,6 @@ export class WorkspaceJoinRequestNotificationService {
   }
 
   private async notifyReviewers(event: WorkspaceJoinRequestedEvent): Promise<void> {
-    const reviewUrl = this.buildSettingsUrl();
-    if (!isAbsoluteHttpUrl(reviewUrl)) {
-      this.logger.warn('WEB_APP_URL is not configured; workspace join request email skipped.');
-      return;
-    }
-
     const reviewers = await this.prisma.workspaceMember.findMany({
       where: {
         workspaceId: event.workspaceId,
@@ -73,6 +69,28 @@ export class WorkspaceJoinRequestNotificationService {
       },
     });
     if (reviewers.length === 0) return;
+
+    this.eventEmitter.emit(InAppNotificationEvents.Requested, {
+      notifications: reviewers.map(({ user }) => ({
+        userId: user.id,
+        workspaceId: event.workspaceId,
+        type: 'workspace_join_requested',
+        title: 'Workspace access request',
+        body: `${event.requesterName ?? event.requesterEmail} requested access to ${event.workspaceName}.`,
+        actionUrl: '/settings',
+        metadata: {
+          workspace_slug: event.workspaceSlug,
+          member_id: event.memberId,
+          requester_email: event.requesterEmail,
+        },
+      })),
+    });
+
+    const reviewUrl = this.buildSettingsUrl();
+    if (!isAbsoluteHttpUrl(reviewUrl)) {
+      this.logger.warn('WEB_APP_URL is not configured; workspace join request email skipped.');
+      return;
+    }
 
     const html = renderWorkspaceJoinRequestEmail({
       requesterEmail: event.requesterEmail,
@@ -110,6 +128,22 @@ export class WorkspaceJoinRequestNotificationService {
   }
 
   private async notifyRequester(event: WorkspaceJoinApprovedEvent): Promise<void> {
+    this.eventEmitter.emit(InAppNotificationEvents.Requested, {
+      notifications: [
+        {
+          userId: event.requesterUserId,
+          workspaceId: event.workspaceId,
+          type: 'workspace_join_approved',
+          title: 'Workspace access approved',
+          body: `You can now open ${event.workspaceName}.`,
+          actionUrl: '/captures',
+          metadata: {
+            workspace_slug: event.workspaceSlug,
+          },
+        },
+      ],
+    });
+
     const loginUrl = this.buildLoginUrl();
     if (!isAbsoluteHttpUrl(loginUrl)) {
       this.logger.warn('WEB_APP_URL is not configured; workspace join approval email skipped.');

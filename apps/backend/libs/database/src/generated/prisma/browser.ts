@@ -52,6 +52,12 @@ export type WorkspaceMember = Prisma.WorkspaceMemberModel
  */
 export type UserNotificationPreference = Prisma.UserNotificationPreferenceModel
 /**
+ * Model InAppNotification
+ * User-facing notifications shown in the product navbar. These are separate
+ * from outbound email delivery and are safe to create from any domain event.
+ */
+export type InAppNotification = Prisma.InAppNotificationModel
+/**
  * Model WorkspaceInvite
  * Pending workspace invitations. Anyone with the token can accept (then becomes a member).
  */

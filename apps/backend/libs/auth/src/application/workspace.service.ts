@@ -350,8 +350,10 @@ export class WorkspaceService {
     ]);
 
     this.eventEmitter.emit(WorkspaceEvents.JoinApproved, {
+      workspaceId: member.workspaceId,
       workspaceName: member.workspace.name,
       workspaceSlug: member.workspace.slug,
+      requesterUserId: member.userId,
       requesterEmail: member.user.email,
       requesterName: member.user.displayName,
     } satisfies WorkspaceJoinApprovedEvent);

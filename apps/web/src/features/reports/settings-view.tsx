@@ -8,7 +8,6 @@ import {
   LayoutGrid,
   Loader2,
   MessageSquareText,
-  Rows3,
   ShieldCheck,
   Users,
   Video,
@@ -17,9 +16,6 @@ import { WeevilMark } from '@/components/brand/weevil-mark';
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -30,7 +26,7 @@ import type { NotificationPreferences } from '@/lib/api/types';
 import { getExtensionStatus, updateExtensionSettings } from '@/lib/extension-bridge';
 import { PageHeader } from './components/page-chrome';
 
-type SettingsSection = 'members' | 'notifications' | 'privacy' | 'shortcuts' | 'about';
+type SettingsSection = 'members' | 'notifications' | 'privacy' | 'about';
 
 function readRedactionSetting(response: unknown) {
   if (!response || typeof response !== 'object' || Array.isArray(response)) {
@@ -182,7 +178,6 @@ export function SettingsView() {
     { id: 'members' as const, label: 'Members', icon: Users },
     { id: 'notifications' as const, label: 'Notifications', icon: Bell },
     { id: 'privacy' as const, label: 'Privacy', icon: ShieldCheck },
-    { id: 'shortcuts' as const, label: 'Shortcuts', icon: Rows3 },
     { id: 'about' as const, label: 'About', icon: LayoutGrid },
   ];
 
@@ -312,10 +307,6 @@ export function SettingsView() {
             />
           </TabsContent>
 
-          <TabsContent value="shortcuts" className="mt-0">
-            <ShortcutsTable />
-          </TabsContent>
-
           <TabsContent value="about" className="mt-0">
             <Card className="overflow-hidden">
               <CardContent className="p-6">
@@ -411,43 +402,5 @@ function NotificationPreferenceStatus({
         </p>
       ) : null}
     </div>
-  );
-}
-
-function ShortcutsTable() {
-  const shortcuts = [
-    { keys: ['⌘', 'K'], description: 'Open command palette' },
-    { keys: ['J'], description: 'Next capture in inbox' },
-    { keys: ['K'], description: 'Previous capture in inbox' },
-    { keys: ['↵'], description: 'Open focused capture' },
-    { keys: ['Esc'], description: 'Close detail / palette' },
-    { keys: ['Space'], description: 'Play / pause recording (in capture detail)' },
-  ];
-  return (
-    <Card className="overflow-hidden">
-      <CardHeader>
-        <CardTitle>Keyboard shortcuts</CardTitle>
-        <CardDescription>
-          Weevil is keyboard-first. These work anywhere outside text inputs.
-        </CardDescription>
-      </CardHeader>
-      <div className="divide-y divide-[var(--divider)]">
-        {shortcuts.map((shortcut) => (
-          <div key={shortcut.description} className="flex items-center justify-between gap-4 px-5 py-3">
-            <span className="text-sm text-[var(--ink)]">{shortcut.description}</span>
-            <div className="flex items-center gap-1">
-              {shortcut.keys.map((key) => (
-                <kbd
-                  key={key}
-                  className="inline-flex h-6 min-w-6 items-center justify-center rounded border border-[var(--border)] bg-[var(--bg)] px-1.5 font-mono text-[11px] text-[var(--ink-muted)]"
-                >
-                  {key}
-                </kbd>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </Card>
   );
 }

@@ -2840,16 +2840,39 @@ function networkFilterButtonClass(category: NetworkFilter, active: boolean) {
 }
 
 function networkTypeIconClass(category: NetworkFilter, active = false) {
-  void category;
   if (active) {
     return 'text-current';
   }
 
-  return 'text-[var(--ink-muted)]';
+  if (category === 'Fetch/XHR' || category === 'All') return 'text-[var(--primary)]';
+  if (category === 'WS') return 'text-[var(--accent-cool)]';
+  if (category === 'JS') return 'text-[var(--warning)]';
+  if (category === 'CSS') return 'text-[#5b5fc7]';
+  if (category === 'Media') return 'text-[var(--success)]';
+  if (category === 'Font') return 'text-[#7c5c2e]';
+  if (category === 'Doc') return 'text-[var(--ink-muted)]';
+  return 'text-[var(--ink-faint)]';
 }
 
 function networkIconFrameClass(category: NetworkFilter) {
-  void category;
+  if (category === 'Fetch/XHR' || category === 'All') {
+    return 'bg-[var(--primary-subtle)] text-[var(--primary)] ring-[var(--primary-soft)]';
+  }
+  if (category === 'WS') {
+    return 'bg-[var(--accent-cool-soft)] text-[var(--accent-cool)] ring-[var(--border-cool)]';
+  }
+  if (category === 'JS') {
+    return 'bg-[var(--warning-bg)] text-[var(--warning)] ring-[var(--warning-border)]';
+  }
+  if (category === 'CSS') {
+    return 'bg-[#f0efff] text-[#5b5fc7] ring-[#d8d5ff]';
+  }
+  if (category === 'Media') {
+    return 'bg-[var(--success-bg)] text-[var(--success)] ring-[var(--success)]/25';
+  }
+  if (category === 'Font') {
+    return 'bg-[#f7efe4] text-[#7c5c2e] ring-[#e6d4bb]';
+  }
   return 'bg-[var(--surface)] text-[var(--ink-muted)] ring-[var(--border)]';
 }
 
@@ -2858,7 +2881,11 @@ function networkRowAccentClass(category: NetworkFilter, inactive = false) {
     return 'border-l-transparent';
   }
 
-  void category;
+  if (category === 'WS') return 'border-l-[var(--accent-cool)]';
+  if (category === 'JS') return 'border-l-[var(--warning)]';
+  if (category === 'CSS') return 'border-l-[#5b5fc7]';
+  if (category === 'Media') return 'border-l-[var(--success)]';
+  if (category === 'Font') return 'border-l-[#7c5c2e]';
   return 'border-l-[var(--primary)]';
 }
 

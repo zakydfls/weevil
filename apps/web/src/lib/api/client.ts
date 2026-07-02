@@ -10,6 +10,7 @@ import type {
   CreateUploadResponse,
   DomEventEntry,
   DownloadUrlResponse,
+  InAppNotification,
   ListReportsParams,
   NetworkRequestEntry,
   NotificationPreferences,
@@ -434,6 +435,24 @@ export const apiClient = {
     request<NotificationPreferences>('/workspaces/current/notification-preferences', {
       method: 'PATCH',
       body: JSON.stringify(body),
+    }),
+
+  listInAppNotifications: (limit = 30) =>
+    request<InAppNotification[]>(
+      `/in-app-notifications?limit=${encodeURIComponent(String(limit))}`,
+    ),
+
+  getInAppNotificationUnreadCount: () =>
+    request<{ unreadCount: number }>('/in-app-notifications/unread-count'),
+
+  markInAppNotificationRead: (notificationId: string) =>
+    request<void>(`/in-app-notifications/${encodeURIComponent(notificationId)}/read`, {
+      method: 'PATCH',
+    }),
+
+  markAllInAppNotificationsRead: () =>
+    request<void>('/in-app-notifications/read-all', {
+      method: 'POST',
     }),
 
   // ── Platform admin (PLATFORM_ADMIN role only) ──────────────────────────────

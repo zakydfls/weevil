@@ -220,6 +220,7 @@ model Workspace {
   sessions     AuthSession[]
   apiTokens    ApiToken[]
   notificationPreferences UserNotificationPreference[]
+  inAppNotifications InAppNotification[]
   /// Users who have selected this workspace as their default.
   defaultedBy  User[]            @relation("UserDefaultWorkspace")
 
@@ -266,6 +267,7 @@ model User {
   reports          BugReport[]
   apiTokens        ApiToken[]
   notificationPreferences UserNotificationPreference[]
+  inAppNotifications InAppNotification[]
 
   @@index([status])
   @@map("users")
@@ -342,6 +344,29 @@ model UserNotificationPreference {
   @@unique([workspaceId, userId])
   @@index([userId])
   @@map("user_notification_preferences")
+}
+
+/// User-facing notifications shown in the product navbar. These are separate
+/// from outbound email delivery and are safe to create from any domain event.
+model InAppNotification {
+  id          String    @id @default(cuid())
+  workspaceId String?
+  userId      String
+  type        String
+  title       String
+  body        String?
+  actionUrl   String?
+  metadata    Json?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@index([workspaceId, createdAt])
+  @@map("in_app_notifications")
 }
 
 /// Pending workspace invitations. Anyone with the token can accept (then becomes a member).

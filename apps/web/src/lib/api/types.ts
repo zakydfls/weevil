@@ -55,6 +55,20 @@ export interface NotificationPreferences {
   emailOnNewComment: boolean;
 }
 
+export interface InAppNotification {
+  id: string;
+  workspaceId: string | null;
+  workspaceSlug: string | null;
+  workspaceName: string | null;
+  type: string;
+  title: string;
+  body: string | null;
+  actionUrl: string | null;
+  metadata: unknown;
+  readAt: string | null;
+  createdAt: string;
+}
+
 export interface ReportUpload {
   id: string;
   kind: string;

@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { AppConfigService } from '@weevil/config';
 import { PrismaService } from '@weevil/database';
+import { InAppNotificationEvents } from '@weevil/in-app-notifications';
 import {
   MailerService,
   newCaptureEmailSubject,
@@ -31,6 +32,7 @@ export class ReportNotificationService {
     private readonly config: AppConfigService,
     private readonly prisma: PrismaService,
     private readonly mailer: MailerService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   @OnEvent(ReportEvents.CommentCreated, { suppressErrors: true })
@@ -67,6 +69,17 @@ export class ReportNotificationService {
     if (recipients.length === 0) return;
 
     const detail = this.toDetail(report);
+    this.emitInAppNotifications(recipients, {
+      workspaceId: report.workspaceId,
+      type: 'report_comment_created',
+      title: `${event.authorName} commented`,
+      body: report.title,
+      actionUrl: this.buildCapturePath(report.shareToken),
+      metadata: {
+        report_id: report.id,
+        workspace_slug: report.workspace.slug,
+      },
+    });
     await this.sendToRecipients(recipients, {
       subject: reportCommentEmailSubject({ reportTitle: report.title }),
       html: renderReportCommentEmail({
@@ -94,6 +107,17 @@ export class ReportNotificationService {
     if (recipients.length === 0) return;
 
     const detail = this.toDetail(report);
+    this.emitInAppNotifications(recipients, {
+      workspaceId: report.workspaceId,
+      type: 'report_capture_ready',
+      title: 'New capture ready',
+      body: `${report.title} · ${report.workspace.name}`,
+      actionUrl: this.buildCapturePath(report.shareToken),
+      metadata: {
+        report_id: report.id,
+        workspace_slug: report.workspace.slug,
+      },
+    });
     await this.sendToRecipients(recipients, {
       subject: newCaptureEmailSubject({ reportTitle: report.title }),
       html: renderNewCaptureEmail({
@@ -182,6 +206,33 @@ export class ReportNotificationService {
     }
   }
 
+  private emitInAppNotifications(
+    recipients: ReportNotificationRecipient[],
+    message: {
+      workspaceId: string;
+      type: string;
+      title: string;
+      body: string;
+      actionUrl: string;
+      metadata: Record<string, unknown>;
+    },
+  ): void {
+    this.eventEmitter.emit(InAppNotificationEvents.Requested, {
+      notifications: recipients.map((recipient) => ({
+        userId: recipient.userId,
+        workspaceId: message.workspaceId,
+        type: message.type,
+        title: message.title,
+        body: message.body,
+        actionUrl: message.actionUrl,
+        metadata: {
+          ...message.metadata,
+          recipient_user_id: recipient.userId,
+        },
+      })),
+    });
+  }
+
   private async loadReport(reportId: string) {
     return this.prisma.bugReport.findFirst({
       where: {
@@ -239,6 +290,10 @@ export class ReportNotificationService {
       return path;
     }
     return new URL(path, `${baseUrl}/`).toString();
+  }
+
+  private buildCapturePath(shareToken: string): string {
+    return `/c/share/${encodeURIComponent(shareToken)}`;
   }
 
   private webBaseUrl(): string | null {

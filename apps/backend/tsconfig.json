@@ -31,6 +31,8 @@
       "@weevil/observability/*": ["libs/observability/src/*"],
       "@weevil/notifications": ["libs/notifications/src"],
       "@weevil/notifications/*": ["libs/notifications/src/*"],
+      "@weevil/in-app-notifications": ["libs/in-app-notifications/src"],
+      "@weevil/in-app-notifications/*": ["libs/in-app-notifications/src/*"],
       "@weevil/prisma-client": ["libs/database/src/generated/prisma/client"],
       "@weevil/queue": ["libs/queue/src"],
       "@weevil/queue/*": ["libs/queue/src/*"],

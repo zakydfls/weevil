@@ -81,19 +81,41 @@ export function MembersPanel() {
       });
       setInviteEmail('');
       await refresh();
+      await dialog.feedback({
+        status: 'success',
+        title: 'Invite sent',
+        description: `${inviteEmail.trim()} was added as a pending invitation.`,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send invite.');
+      const message = err instanceof Error ? err.message : 'Failed to send invite.';
+      setError(message);
+      await dialog.feedback({
+        status: 'error',
+        title: 'Could not send invite',
+        description: message,
+      });
     } finally {
       setIsInviting(false);
     }
   }
 
-  async function handleChangeRole(memberId: string, role: string) {
+  async function handleChangeRole(memberId: string, role: string, label: string) {
     try {
       await apiClient.changeMemberRole(memberId, role);
       await refresh();
+      await dialog.feedback({
+        status: 'success',
+        title: 'Role updated',
+        description: `${label} is now ${role.toLowerCase()}.`,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to change role.');
+      const message = err instanceof Error ? err.message : 'Failed to change role.';
+      setError(message);
+      await dialog.feedback({
+        status: 'error',
+        title: 'Could not update role',
+        description: message,
+      });
     }
   }
 
@@ -113,17 +135,39 @@ export function MembersPanel() {
     try {
       await apiClient.removeMember(memberId);
       await refresh();
+      await dialog.feedback({
+        status: 'success',
+        title: 'Member removed',
+        description: `${label} no longer has access to this workspace.`,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to remove member.');
+      const message = err instanceof Error ? err.message : 'Failed to remove member.';
+      setError(message);
+      await dialog.feedback({
+        status: 'error',
+        title: 'Could not remove member',
+        description: message,
+      });
     }
   }
 
-  async function handleApproveJoinRequest(memberId: string) {
+  async function handleApproveJoinRequest(memberId: string, label: string) {
     try {
       await apiClient.approveJoinRequest(memberId);
       await refresh();
+      await dialog.feedback({
+        status: 'success',
+        title: 'Access approved',
+        description: `${label} can now sign in and open this workspace.`,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to approve access request.');
+      const message = err instanceof Error ? err.message : 'Failed to approve access request.';
+      setError(message);
+      await dialog.feedback({
+        status: 'error',
+        title: 'Could not approve request',
+        description: message,
+      });
     }
   }
 
@@ -143,8 +187,19 @@ export function MembersPanel() {
     try {
       await apiClient.rejectJoinRequest(memberId);
       await refresh();
+      await dialog.feedback({
+        status: 'success',
+        title: 'Request rejected',
+        description: `${label} was not added to this workspace.`,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reject access request.');
+      const message = err instanceof Error ? err.message : 'Failed to reject access request.';
+      setError(message);
+      await dialog.feedback({
+        status: 'error',
+        title: 'Could not reject request',
+        description: message,
+      });
     }
   }
 
@@ -237,9 +292,11 @@ export function MembersPanel() {
                   member.userId !== auth.user?.id
                 }
                 canApproveJoinRequest={canInvite && member.requestKind === 'JOIN_REQUEST'}
-                onChangeRole={(role) => handleChangeRole(member.id, role)}
+                onChangeRole={(role) => handleChangeRole(member.id, role, member.displayName ?? member.email)}
                 onRemove={() => handleRemove(member.id, member.displayName ?? member.email)}
-                onApproveJoinRequest={() => handleApproveJoinRequest(member.id)}
+                onApproveJoinRequest={() =>
+                  handleApproveJoinRequest(member.id, member.displayName ?? member.email)
+                }
                 onRejectJoinRequest={() =>
                   handleRejectJoinRequest(member.id, member.displayName ?? member.email)
                 }
