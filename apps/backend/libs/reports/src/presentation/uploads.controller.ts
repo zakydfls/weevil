@@ -51,4 +51,13 @@ export class UploadsController {
       workspaceId: auth.workspace?.id,
     });
   }
+
+  @Public()
+  @Get(ApiRoutes.ReportShareUploadDownloadUrl)
+  createPublicDownloadUrl(
+    @Param(RouteParams.ShareToken) shareToken: string,
+    @Param(RouteParams.UploadId) uploadId: string,
+  ) {
+    return this.uploadsService.createDownloadUrlByShareToken(shareToken, uploadId);
+  }
 }

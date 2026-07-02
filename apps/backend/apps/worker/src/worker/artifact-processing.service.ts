@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@weevil/database';
 import { Prisma, ReportEventKind, ReportStatus, UploadStatus } from '@weevil/prisma-client';
+import { ReportEvents, type ReportCaptureReadyEvent } from '@weevil/reports';
 import { StorageService } from '@weevil/storage';
 
 @Injectable()
@@ -9,6 +11,7 @@ export class ArtifactProcessingService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
     private readonly storage: StorageService,
   ) {}
 
@@ -44,7 +47,12 @@ export class ArtifactProcessingService {
         },
       });
 
-      await this.markReportReadyWhenUploadsReady(reportId);
+      const becameReady = await this.markReportReadyWhenUploadsReady(reportId);
+      if (becameReady) {
+        this.eventEmitter.emit(ReportEvents.CaptureReady, {
+          reportId,
+        } satisfies ReportCaptureReadyEvent);
+      }
 
       this.logger.log(`Processed upload ${uploadId} for report ${reportId}`);
     } catch (error) {
@@ -71,7 +79,7 @@ export class ArtifactProcessingService {
     ]);
   }
 
-  private async markReportReadyWhenUploadsReady(reportId: string): Promise<void> {
+  private async markReportReadyWhenUploadsReady(reportId: string): Promise<boolean> {
     const pendingUploads = await this.prisma.reportUpload.count({
       where: {
         reportId,
@@ -82,21 +90,32 @@ export class ArtifactProcessingService {
     });
 
     if (pendingUploads > 0) {
-      return;
+      return false;
     }
 
-    await this.prisma.$transaction([
-      this.prisma.bugReport.update({
-        where: { id: reportId },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.bugReport.updateMany({
+        where: {
+          id: reportId,
+          status: {
+            not: ReportStatus.READY,
+          },
+        },
         data: { status: ReportStatus.READY },
-      }),
-      this.prisma.reportEvent.create({
+      });
+      if (updated.count === 0) {
+        return false;
+      }
+
+      await tx.reportEvent.create({
         data: {
           reportId,
           kind: ReportEventKind.PROCESSING_COMPLETED,
         },
-      }),
-    ]);
+      });
+
+      return true;
+    });
   }
 
   private async markFailed(reportId: string, uploadId: string, error: unknown): Promise<void> {

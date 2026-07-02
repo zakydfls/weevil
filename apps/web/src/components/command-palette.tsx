@@ -12,7 +12,8 @@ import {
   Settings,
   Terminal,
 } from 'lucide-react';
-import { useDialog } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, useDialog } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useReports } from '@/features/reports/queries';
 import { useExtensionInstalled } from '@/lib/use-extension-installed';
 
@@ -170,10 +171,6 @@ export function CommandPalette() {
     }
   }
 
-  if (!isOpen) {
-    return null;
-  }
-
   const groups = (
     [
       { id: 'view', label: 'Go to', items: items.filter((item) => item.kind === 'view') },
@@ -185,17 +182,16 @@ export function CommandPalette() {
   let globalIndex = -1;
 
   return (
-    <div
-      className="fixed inset-0 z-[var(--z-modal)] grid items-start justify-items-center bg-[var(--ink-strong)]/40 px-4 pt-24 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Command palette"
-      onClick={() => setIsOpen(false)}
-    >
-      <div
-        className="w-full max-w-xl overflow-hidden rounded-xl border border-[var(--border-strong)] bg-[var(--bg)] shadow-[0_24px_60px_-20px_rgba(26,29,18,0.35)]"
-        onClick={(event) => event.stopPropagation()}
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent
+        showClose={false}
+        className="top-24 max-w-xl translate-y-0 rounded-xl p-0"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          window.setTimeout(() => inputRef.current?.focus(), 0);
+        }}
       >
+        <DialogTitle className="sr-only">Command palette</DialogTitle>
         <div className="flex items-center gap-2 border-b border-[var(--border)] px-3.5 py-2.5">
           <Search className="h-4 w-4 text-[var(--ink-faint)]" aria-hidden />
           <input
@@ -211,7 +207,7 @@ export function CommandPalette() {
             esc
           </kbd>
         </div>
-        <div className="thin-scrollbar max-h-[60vh] min-h-[10rem] overflow-auto py-2">
+        <ScrollArea className="max-h-[60vh] min-h-[10rem] py-2">
           {items.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-[var(--ink-faint)]">
               Nothing matches <span className="font-mono text-[var(--ink-muted)]">{query}</span>.
@@ -250,7 +246,7 @@ export function CommandPalette() {
               </div>
             ))
           )}
-        </div>
+        </ScrollArea>
         <div className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 font-mono text-[10px] text-[var(--ink-faint)]">
           <span>
             <kbd className="rounded border border-[var(--border)] bg-[var(--bg)] px-1">↑</kbd>{' '}
@@ -263,7 +259,7 @@ export function CommandPalette() {
             <kbd className="rounded border border-[var(--border)] bg-[var(--bg)] px-1">esc</kbd> close
           </span>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

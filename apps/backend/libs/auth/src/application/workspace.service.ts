@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@weevil/database';
 import {
   MembershipStatus,
@@ -13,14 +14,21 @@ import {
   WorkspaceStatus,
 } from '@weevil/prisma-client';
 import { resolveEffectivePermissions } from '../domain/permissions';
+import { WorkspaceEvents, type WorkspaceInviteCreatedEvent } from '../domain/workspace-events';
 import { PermissionService } from './permission.service';
 import { TokenService } from './token.service';
 import { WorkspaceInviteNotificationService } from './workspace-invite-notification.service';
+
+interface WorkspaceNotificationPreferencesInput {
+  emailOnNewCapture?: boolean;
+  emailOnNewComment?: boolean;
+}
 
 @Injectable()
 export class WorkspaceService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
     private readonly permissionService: PermissionService,
     private readonly tokenService: TokenService,
     private readonly workspaceInviteNotification: WorkspaceInviteNotificationService,
@@ -128,6 +136,46 @@ export class WorkspaceService {
     return [...memberRows, ...pendingRows];
   }
 
+  async getNotificationPreferences(workspaceId: string, userId: string) {
+    await this.assertActiveMembership(workspaceId, userId);
+
+    const preferences = await this.prisma.userNotificationPreference.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+    });
+
+    return {
+      emailOnNewCapture: preferences?.emailOnNewCapture ?? false,
+      emailOnNewComment: preferences?.emailOnNewComment ?? false,
+    };
+  }
+
+  async updateNotificationPreferences(
+    workspaceId: string,
+    userId: string,
+    input: WorkspaceNotificationPreferencesInput,
+  ) {
+    await this.assertActiveMembership(workspaceId, userId);
+
+    const preferences = await this.prisma.userNotificationPreference.upsert({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      create: {
+        workspaceId,
+        userId,
+        emailOnNewCapture: input.emailOnNewCapture ?? false,
+        emailOnNewComment: input.emailOnNewComment ?? false,
+      },
+      update: compactBooleanUpdate({
+        emailOnNewCapture: input.emailOnNewCapture,
+        emailOnNewComment: input.emailOnNewComment,
+      }),
+    });
+
+    return {
+      emailOnNewCapture: preferences.emailOnNewCapture,
+      emailOnNewComment: preferences.emailOnNewComment,
+    };
+  }
+
   async invite(workspaceId: string, invitedById: string, email: string, role: WorkspaceRole) {
     const cleanEmail = email.trim().toLowerCase();
     const ttl = 7 * 24 * 60 * 60 * 1_000;
@@ -170,7 +218,7 @@ export class WorkspaceService {
         acceptedAt: null,
       },
     });
-    const delivery = await this.workspaceInviteNotification.sendInvite({
+    this.eventEmitter.emit(WorkspaceEvents.InviteCreated, {
       invitedEmail: invite.email,
       inviteToken: invite.token,
       workspaceName: workspace.name,
@@ -178,15 +226,16 @@ export class WorkspaceService {
       role: invite.role,
       inviter,
       expiresAt: invite.expiresAt,
-    });
+    } satisfies WorkspaceInviteCreatedEvent);
+
     return {
       id: invite.id,
       email: invite.email,
       role: invite.role,
       expiresAt: invite.expiresAt.toISOString(),
-      inviteUrl: delivery.inviteUrl,
-      emailSent: delivery.sent,
-      notificationId: delivery.notificationId,
+      inviteUrl: this.workspaceInviteNotification.buildInviteUrl(invite.token),
+      emailSent: false,
+      notificationId: null,
       token: invite.token,
     };
   }
@@ -241,4 +290,20 @@ export class WorkspaceService {
       });
     }
   }
+
+  private async assertActiveMembership(workspaceId: string, userId: string) {
+    const membership = await this.prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      select: { status: true },
+    });
+    if (!membership || membership.status !== MembershipStatus.ACTIVE) {
+      throw new ForbiddenException('No active membership for this workspace.');
+    }
+  }
+}
+
+function compactBooleanUpdate(input: WorkspaceNotificationPreferencesInput) {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => typeof value === 'boolean'),
+  );
 }

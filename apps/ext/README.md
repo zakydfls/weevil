@@ -16,7 +16,8 @@ Load `dist/` as an unpacked extension:
 3. Click Load unpacked.
 4. Select `/Users/zakydfls/personal/weevil/apps/ext/dist`.
 
-The default backend target is `http://localhost:4000/v1`. Change it from the extension settings page when needed.
+The default backend target is injected at build time. Development builds use
+`http://localhost:4000/v1`; production builds use the production API URL.
 
 ## Production Build
 
@@ -28,13 +29,10 @@ The production build:
 
 - injects `https://api-weevil.centurycode.id/v1` as the default API base URL
 - injects `https://weevil.centurycode.id` as the dashboard URL
-- migrates a previously stored local/prod default API URL to the current build's default
+- migrates any previously stored API URL back to the current build's default
 - minifies JavaScript bundles
 - disables source maps
 - writes Chrome Web Store ZIP output to `apps/ext/releases/weevil-extension-<version>.zip`
-
-If the API URL was changed to a custom value in the extension settings page, that
-custom value is preserved across local and production builds.
 
 Override the production API target when needed:
 

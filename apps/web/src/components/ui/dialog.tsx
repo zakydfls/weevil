@@ -247,18 +247,11 @@ function DialogModal({
   const cancelLabel = !isAlert ? (options as ConfirmOptions).cancelLabel ?? 'Cancel' : null;
 
   return (
-    <div
-      className="fixed inset-0 z-[var(--z-modal)] grid place-items-center bg-[var(--ink-strong)]/40 px-4 backdrop-blur-sm weevil-fade-in"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="weevil-dialog-title"
-      onClick={onCancel}
-    >
-      <div
-        className="weevil-soft-rise w-full max-w-md overflow-hidden rounded-xl border border-[var(--border-strong)] bg-[var(--bg)] shadow-[0_24px_60px_-20px_rgba(26,29,18,0.35)]"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="grid grid-cols-[auto_1fr_auto] items-start gap-3 border-b border-[var(--divider)] px-5 py-4">
+    <Dialog open onOpenChange={(open) => {
+      if (!open) onCancel();
+    }}>
+      <DialogContent className="max-w-md rounded-xl" showClose={false}>
+        <DialogHeader className="grid grid-cols-[auto_1fr_auto] items-start gap-3 px-5 py-4">
           <span
             className="grid h-9 w-9 shrink-0 place-items-center rounded-md"
             style={{ backgroundColor: accentBg, color: accentColor }}
@@ -267,11 +260,13 @@ function DialogModal({
             <AlertTriangle className="h-4 w-4" />
           </span>
           <div className="min-w-0">
-            <h2 id="weevil-dialog-title" className="text-sm font-semibold tracking-[-0.01em] text-[var(--ink)]">
+            <DialogTitle>
               {options.title}
-            </h2>
+            </DialogTitle>
             {options.description ? (
-              <div className="mt-1.5 text-sm leading-6 text-[var(--ink-muted)]">{options.description}</div>
+              <DialogDescription asChild>
+                <div className="mt-1.5">{options.description}</div>
+              </DialogDescription>
             ) : null}
           </div>
           <button
@@ -282,8 +277,8 @@ function DialogModal({
           >
             <X className="h-3.5 w-3.5" aria-hidden />
           </button>
-        </div>
-        <div className="flex items-center justify-end gap-2 bg-[var(--surface)] px-5 py-3">
+        </DialogHeader>
+        <DialogFooter className="px-5">
           {cancelLabel ? (
             <Button type="button" variant="secondary" size="sm" onClick={onCancel}>
               {cancelLabel}
@@ -298,9 +293,9 @@ function DialogModal({
           >
             {confirmLabel}
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

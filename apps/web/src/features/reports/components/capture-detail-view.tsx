@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -39,9 +40,13 @@ import {
 } from 'lucide-react';
 import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { ErrorState } from '@/components/ui/error-state';
 import { Textarea } from '@/components/ui/input';
 import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type {
   BackendTraceEntry,
   NetworkRequestEntry,
@@ -60,6 +65,11 @@ interface CaptureDetailViewProps {
   isError?: boolean;
   onRetry?: () => void;
   onBack: () => void;
+  isPublicShare?: boolean;
+  publicShareToken?: string;
+  canComment?: boolean;
+  commentGateReason?: 'auth' | 'workspace';
+  authReturnPath?: string;
 }
 
 type DevToolsTab =
@@ -106,6 +116,11 @@ export function CaptureDetailView({
   isError,
   onRetry,
   onBack,
+  isPublicShare = false,
+  publicShareToken,
+  canComment = true,
+  commentGateReason = 'auth',
+  authReturnPath,
 }: CaptureDetailViewProps) {
   const [activeTab, setActiveTab] = useState<DevToolsTab>('Info');
   const [commentBody, setCommentBody] = useState('');
@@ -116,8 +131,10 @@ export function CaptureDetailView({
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [videoDurationMs, setVideoDurationMs] = useState(0);
   const [seekTargetMs, setSeekTargetMs] = useState<number | null>(null);
+  const [commentError, setCommentError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const comments = report?.comments ?? [];
+  const returnPath = authReturnPath ?? (report ? `/c/share/${encodeURIComponent(report.shareToken)}` : '/');
 
   const seekTo = (ms: number) => setSeekTargetMs(ms);
   const handleSeekComplete = () => setSeekTargetMs(null);
@@ -134,16 +151,20 @@ export function CaptureDetailView({
   }, [onBack]);
 
   async function handleCreateComment() {
-    if (!report || !commentBody.trim()) {
+    if (!report || !commentBody.trim() || !canComment) {
       return;
     }
 
     setIsPostingComment(true);
+    setCommentError(null);
     try {
       await apiClient.createComment(report.id, commentBody);
       setCommentBody('');
       await queryClient.invalidateQueries({ queryKey: reportKeys.detail(report.id) });
+      await queryClient.invalidateQueries({ queryKey: reportKeys.publicDetail(report.shareToken) });
       await queryClient.invalidateQueries({ queryKey: reportKeys.all });
+    } catch (error) {
+      setCommentError(error instanceof Error ? error.message : 'Could not post comment.');
     } finally {
       setIsPostingComment(false);
     }
@@ -154,7 +175,7 @@ export function CaptureDetailView({
       return;
     }
 
-    const url = new URL(`/c/${report.id}`, window.location.origin);
+    const url = new URL(`/c/share/${encodeURIComponent(report.shareToken)}`, window.location.origin);
     await writeClipboard(url.toString());
     setCopyFeedback('link');
     window.setTimeout(() => setCopyFeedback(null), 1_400);
@@ -165,7 +186,7 @@ export function CaptureDetailView({
       return;
     }
 
-    const shareUrl = new URL(`/c/${report.id}`, window.location.origin);
+    const shareUrl = new URL(`/c/share/${encodeURIComponent(report.shareToken)}`, window.location.origin);
 
     const counts = [
       report.consoleLogs.length > 0 ? `${report.consoleLogs.length} console` : null,
@@ -249,7 +270,7 @@ export function CaptureDetailView({
   return (
     <section
       data-shell-mode="detail"
-      className={`weevil-fade-in grid h-[calc(100vh-3.5rem)] max-h-[calc(100vh-3.5rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-[var(--bg)] transition-[grid-template-columns] duration-200 ease-out ${
+      className={`weevil-fade-in grid ${isPublicShare ? 'h-screen max-h-screen' : 'h-[calc(100vh-3.5rem)] max-h-[calc(100vh-3.5rem)]'} grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-[var(--bg)] transition-[grid-template-columns] duration-200 ease-out ${
         isDevToolsOpen ? 'xl:[grid-template-columns:minmax(0,1fr)_var(--devtools-width)]' : ''
       }`}
       style={{ '--devtools-width': `${devToolsWidth}px` } as CSSProperties}
@@ -318,12 +339,13 @@ export function CaptureDetailView({
       </header>
 
       <div className="grid min-h-0 grid-rows-[1fr_auto] overflow-hidden bg-[var(--bg)]">
-        <div className="thin-scrollbar min-h-0 overflow-auto">
+        <ScrollArea className="min-h-0">
           <div className={isDevToolsOpen ? '' : 'mx-auto max-w-[108rem]'}>
             <div className="border-b border-[var(--border)] bg-[var(--bg)] px-4 pb-4 pt-4 lg:px-6">
               <div className="mx-auto w-full max-w-[88rem]">
                 <RecordingHero
                   report={report}
+                  publicShareToken={publicShareToken}
                   seekTargetMs={seekTargetMs}
                   onSeekComplete={handleSeekComplete}
                   onTimeUpdate={setCurrentTimeMs}
@@ -371,40 +393,51 @@ export function CaptureDetailView({
                     {comments.length} {comments.length === 1 ? 'reply' : 'replies'}
                   </span>
                 </div>
-                <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] p-4 transition-colors focus-within:border-[var(--primary)]">
-                  <div className="flex gap-3">
-                    <CommentAvatar name="You" />
-                    <Textarea
-                      value={commentBody}
-                      onChange={(event) => setCommentBody(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (
-                          (event.metaKey || event.ctrlKey) &&
-                          event.key === 'Enter' &&
-                          commentBody.trim() &&
-                          !isPostingComment
-                        ) {
-                          event.preventDefault();
-                          void handleCreateComment();
-                        }
-                      }}
-                      className="min-h-24 border-0 p-0 text-sm shadow-none focus:ring-0"
-                      placeholder="Write a comment, paste a fix, or @mention…"
-                    />
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-[var(--ink-faint)]">
-                    <span className="font-mono text-[10px] uppercase tracking-wider">cmd + enter</span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={isPostingComment || !commentBody.trim()}
-                      onClick={() => void handleCreateComment()}
-                    >
-                      {isPostingComment ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                      Post
-                    </Button>
-                  </div>
-                </div>
+                {canComment ? (
+                  <Card className="mt-4 overflow-hidden transition-colors focus-within:border-[var(--primary)]">
+                    <CardContent className="p-4">
+                      <div className="flex gap-3">
+                        <CommentAvatar name="You" />
+                        <Textarea
+                          value={commentBody}
+                          onChange={(event) => setCommentBody(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (
+                              (event.metaKey || event.ctrlKey) &&
+                              event.key === 'Enter' &&
+                              commentBody.trim() &&
+                              !isPostingComment
+                            ) {
+                              event.preventDefault();
+                              void handleCreateComment();
+                            }
+                          }}
+                          className="min-h-24 border-0 p-0 text-sm shadow-none focus:ring-0"
+                          placeholder="Write a comment, paste a fix, or @mention..."
+                        />
+                      </div>
+                      {commentError ? (
+                        <div className="mt-3 rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3 py-2 text-xs font-medium text-[var(--danger)]">
+                          {commentError}
+                        </div>
+                      ) : null}
+                      <div className="mt-2 flex items-center justify-between text-[var(--ink-faint)]">
+                        <span className="font-mono text-[10px] uppercase tracking-wider">cmd + enter</span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={isPostingComment || !commentBody.trim()}
+                          onClick={() => void handleCreateComment()}
+                        >
+                          {isPostingComment ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                          Post
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <PublicCommentGate returnPath={returnPath} reason={commentGateReason} />
+                )}
                 {comments.length > 0 ? (
                   <ol className="mt-6 space-y-5 border-l border-[var(--border)] pl-5">
                     {comments.map((comment) => (
@@ -428,7 +461,7 @@ export function CaptureDetailView({
               </section>
             </div>
           </div>
-        </div>
+        </ScrollArea>
 
         {isDevToolsOpen ? (
         <div className="border-t border-[var(--border)] bg-[var(--surface)] xl:hidden">
@@ -495,27 +528,26 @@ function DevToolsShell({
   };
 
   return (
-    <div className={isCompact ? 'grid h-[min(36rem,76vh)] min-h-0 min-w-0 grid-rows-[auto_1fr] bg-[var(--bg)]' : 'grid h-full min-h-0 min-w-0 grid-rows-[auto_1fr] bg-[var(--bg)]'}>
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => onActiveTabChange(value as DevToolsTab)}
+      className={isCompact ? 'grid h-[min(36rem,76vh)] min-h-0 min-w-0 grid-rows-[auto_1fr] bg-[var(--bg)]' : 'grid h-full min-h-0 min-w-0 grid-rows-[auto_1fr] bg-[var(--bg)]'}
+    >
       <div className="flex h-11 items-stretch border-b border-[var(--border)] bg-[var(--surface)] pl-3 pr-1">
         <div className="hidden items-center gap-1.5 pr-3 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)] sm:flex">
           <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--primary)]" />
           devtools
         </div>
         <div className="my-2 hidden w-px shrink-0 bg-[var(--border)] sm:block" />
-        <div className="scrollbar-none flex min-w-0 flex-1 items-stretch gap-0.5 overflow-x-auto pl-1.5">
+        <TabsList className="scrollbar-none flex h-auto min-w-0 flex-1 items-stretch justify-start gap-0.5 overflow-x-auto rounded-none border-0 bg-transparent p-0 pl-1.5">
           {devToolsTabItems.map(({ id: tab, icon: Icon }) => {
             const isActive = activeTab === tab;
             const count = counts[tab];
             return (
-              <button
+              <TabsTrigger
                 key={tab}
-                type="button"
-                onClick={() => onActiveTabChange(tab)}
-                className={`relative flex shrink-0 items-center gap-1.5 px-3 text-[11px] font-medium transition-colors ${
-                  isActive
-                    ? 'text-[var(--ink)]'
-                    : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'
-                }`}
+                value={tab}
+                className="relative h-11 shrink-0 rounded-none border-0 bg-transparent px-3 text-[11px] data-[state=active]:bg-transparent data-[state=active]:text-[var(--ink)] data-[state=active]:shadow-none"
               >
                 <Icon className="h-3 w-3" aria-hidden />
                 {tab}
@@ -533,10 +565,10 @@ function DevToolsShell({
                 {isActive ? (
                   <span className="absolute inset-x-2 -bottom-px h-[2px] rounded-t-full bg-[var(--primary)]" />
                 ) : null}
-              </button>
+              </TabsTrigger>
             );
           })}
-        </div>
+        </TabsList>
         <Button
           type="button"
           variant="ghost"
@@ -549,7 +581,7 @@ function DevToolsShell({
         </Button>
       </div>
       <DevToolsPanel report={report} activeTab={activeTab} currentTimeMs={currentTimeMs} seekTo={seekTo} />
-    </div>
+    </Tabs>
   );
 }
 
@@ -786,21 +818,23 @@ function CaptureContextBar({ report }: { report: ReportDetail }) {
   ];
 
   return (
-    <div className="mt-5 grid gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] p-2 sm:grid-cols-2 xl:grid-cols-3">
-      {items.map(({ icon: Icon, label, value }) => (
-        <div key={label} className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--surface)]">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-[var(--primary-subtle)] text-[var(--primary)]">
-            <Icon className="h-4 w-4" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
-              {label}
+    <Card className="mt-5 overflow-hidden">
+      <CardContent className="grid gap-2 p-2 sm:grid-cols-2 xl:grid-cols-3">
+        {items.map(({ icon: Icon, label, value }) => (
+          <div key={label} className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--surface)]">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-[var(--primary-subtle)] text-[var(--primary)]">
+              <Icon className="h-4 w-4" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+                {label}
+              </div>
+              <div className="truncate text-sm font-medium text-[var(--ink)]">{value}</div>
             </div>
-            <div className="truncate text-sm font-medium text-[var(--ink)]">{value}</div>
           </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -822,14 +856,61 @@ function CommentAvatar({
   );
 }
 
+function PublicCommentGate({
+  returnPath,
+  reason,
+}: {
+  returnPath: string;
+  reason: 'auth' | 'workspace';
+}) {
+  const next = encodeURIComponent(returnPath);
+  const isWorkspaceBlocked = reason === 'workspace';
+
+  return (
+    <Card className="mt-4 overflow-hidden border-[var(--primary-border)] bg-[var(--surface)]">
+      <CardContent className="p-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--primary-subtle)] text-[var(--primary)]">
+              <UserRound className="h-4 w-4" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-[var(--ink)]">
+                {isWorkspaceBlocked ? 'Workspace access required' : 'Sign in to join the discussion'}
+              </div>
+              <p className="mt-1 max-w-[62ch] text-sm leading-6 text-[var(--ink-muted)]">
+                {isWorkspaceBlocked
+                  ? 'You can view this capture from the shared link, but comments are limited to members of the owning workspace.'
+                  : 'This capture is viewable from a shared link. Comments are available after you sign in.'}
+              </p>
+            </div>
+          </div>
+          {isWorkspaceBlocked ? null : (
+            <div className="flex shrink-0 gap-2">
+              <Button asChild variant="secondary" size="sm">
+                <Link href={`/signup?next=${next}`}>Create account</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href={`/login?next=${next}`}>Sign in</Link>
+              </Button>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function RecordingHero({
   report,
+  publicShareToken,
   seekTargetMs,
   onSeekComplete,
   onTimeUpdate,
   onDurationLoad,
 }: {
   report: ReportDetail;
+  publicShareToken?: string;
   seekTargetMs: number | null;
   onSeekComplete: () => void;
   onTimeUpdate: (ms: number) => void;
@@ -872,7 +953,9 @@ function RecordingHero({
 
       setIsLoadingSource(true);
       try {
-        const response = await apiClient.getDownloadUrl(report.id, uploadId);
+        const response = publicShareToken
+          ? await apiClient.getPublicDownloadUrl(publicShareToken, uploadId)
+          : await apiClient.getDownloadUrl(report.id, uploadId);
         if (isMounted) {
           setSourceUrl(response.getUrl);
         }
@@ -892,7 +975,7 @@ function RecordingHero({
     return () => {
       isMounted = false;
     };
-  }, [report.id, uploadId]);
+  }, [report.id, publicShareToken, uploadId]);
 
   async function loadRecording() {
     if (!upload) {
@@ -910,7 +993,9 @@ function RecordingHero({
     setIsLoadingSource(true);
     setVideoError(null);
     try {
-      const response = await apiClient.getDownloadUrl(report.id, upload.id);
+      const response = publicShareToken
+        ? await apiClient.getPublicDownloadUrl(publicShareToken, upload.id)
+        : await apiClient.getDownloadUrl(report.id, upload.id);
       setSourceUrl(response.getUrl);
       setIsPlayerOpen(true);
       window.setTimeout(() => {
@@ -973,7 +1058,7 @@ function RecordingHero({
         <>
           {isScreenshot ? (
             <img
-              className="h-full w-full bg-[#fafbf6] object-contain"
+              className="h-full w-full bg-[var(--surface)] object-contain"
               src={sourceUrl}
               alt={report.title}
               onLoad={() => setHasLoadedThumbnail(true)}
@@ -1006,7 +1091,7 @@ function RecordingHero({
           {!isPlayerOpen && !isScreenshot ? (
             <>
               <div
-                className={`absolute inset-0 bg-[linear-gradient(135deg,#be4400,#c64a1f_48%,#fafbf6)] transition-opacity ${
+                className={`absolute inset-0 bg-[linear-gradient(135deg,var(--primary),var(--primary-hover)_48%,var(--surface))] transition-opacity ${
                   hasLoadedThumbnail ? 'opacity-0' : 'opacity-100'
                 }`}
               />
@@ -1015,13 +1100,13 @@ function RecordingHero({
                 type="button"
                 onClick={() => void loadRecording()}
                 disabled={isLoadingSource}
-                className="absolute left-1/2 top-1/2 flex h-[4.5rem] w-[4.5rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#1a1d12] shadow-[0_0_0_7px_rgba(255,255,255,0.22)]"
+                className="absolute left-1/2 top-1/2 flex h-[4.5rem] w-[4.5rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[var(--ink-strong)] shadow-[0_0_0_7px_rgba(255,255,255,0.22)]"
                 aria-label="Play recording"
               >
                 {isLoadingSource ? (
                   <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
                 ) : (
-                  <Play className="ml-1 h-9 w-9 fill-[#1a1d12]" aria-hidden />
+                  <Play className="ml-1 h-9 w-9 fill-[var(--ink-strong)]" aria-hidden />
                 )}
               </button>
               <div className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-xl bg-black/82 px-3 py-1.5 text-base font-medium text-white">
@@ -1050,18 +1135,18 @@ function RecordingHero({
         </>
       ) : (
         <>
-          <div className="absolute inset-0 bg-[linear-gradient(135deg,#be4400,#c64a1f_48%,#fafbf6)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(135deg,var(--primary),var(--primary-hover)_48%,var(--surface))]" />
           <div className="absolute inset-0 bg-black/42" />
           <button
             type="button"
             onClick={() => void loadRecording()}
             disabled={!upload || isLoadingSource}
-            className="absolute left-1/2 top-1/2 flex h-[4.5rem] w-[4.5rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#1a1d12] shadow-[0_0_0_7px_rgba(255,255,255,0.22)]"
+            className="absolute left-1/2 top-1/2 flex h-[4.5rem] w-[4.5rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[var(--ink-strong)] shadow-[0_0_0_7px_rgba(255,255,255,0.22)]"
           >
             {isLoadingSource ? (
               <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
             ) : (
-              <Play className="ml-1 h-9 w-9 fill-[#1a1d12]" aria-hidden />
+              <Play className="ml-1 h-9 w-9 fill-[var(--ink-strong)]" aria-hidden />
             )}
           </button>
           <div className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-xl bg-black/82 px-3 py-1.5 text-base font-medium text-white">
@@ -1138,7 +1223,7 @@ function DevToolsPanel({
       : '—';
 
     return (
-      <div className="thin-scrollbar h-full min-h-0 overflow-auto bg-[var(--bg)]">
+      <ScrollArea className="h-full min-h-0 bg-[var(--bg)]">
         <SectionTitle title="Page" />
         <KeyValue label="URL" value={pageUrl} />
         <KeyValue label="Browser" value={<InfoValueWithIcon icon={<BrowserGlyph value={browser} />} value={browser} />} />
@@ -1159,7 +1244,7 @@ function DevToolsPanel({
         <KeyValue label="Report ID" value={report.id} />
         <KeyValue label="Share token" value={report.shareToken ?? '—'} />
         {session?.id ? <KeyValue label="Session ID" value={session.id} /> : null}
-      </div>
+      </ScrollArea>
     );
   }
 
@@ -1173,18 +1258,18 @@ function DevToolsPanel({
 
   if (activeTab === 'Actions') {
     return (
-      <div className="thin-scrollbar h-full min-h-0 overflow-auto bg-[var(--bg)] p-3">
+      <ScrollArea className="h-full min-h-0 bg-[var(--bg)] p-3">
         <PanelEmptyState isEmpty={report.pageActions.length === 0} label="No user actions yet." />
         {report.pageActions.map((entry) => (
           <ActionTelemetryCard key={entry.id} entry={entry} />
         ))}
-      </div>
+      </ScrollArea>
     );
   }
 
   if (activeTab === 'Errors') {
     return (
-      <div className="thin-scrollbar h-full min-h-0 overflow-auto bg-[var(--bg)] p-3">
+      <ScrollArea className="h-full min-h-0 bg-[var(--bg)] p-3">
         <PanelEmptyState isEmpty={report.runtimeErrors.length === 0} label="No runtime errors yet." />
         {report.runtimeErrors.map((entry) => (
           <TelemetryCard
@@ -1203,13 +1288,13 @@ function DevToolsPanel({
             ]}
           />
         ))}
-      </div>
+      </ScrollArea>
     );
   }
 
   if (activeTab === 'Performance') {
     return (
-      <div className="thin-scrollbar h-full min-h-0 overflow-auto bg-[var(--bg)] p-3">
+      <ScrollArea className="h-full min-h-0 bg-[var(--bg)] p-3">
         <PanelEmptyState
           isEmpty={report.performanceEntries.length === 0}
           label="No performance entries yet."
@@ -1232,13 +1317,13 @@ function DevToolsPanel({
             ]}
           />
         ))}
-      </div>
+      </ScrollArea>
     );
   }
 
   if (activeTab === 'DOM') {
     return (
-      <div className="thin-scrollbar h-full min-h-0 overflow-auto bg-[var(--bg)] p-3">
+      <ScrollArea className="h-full min-h-0 bg-[var(--bg)] p-3">
         <PanelEmptyState isEmpty={report.domEvents.length === 0} label="No DOM events yet." />
         {report.domEvents.map((entry) => (
           <TelemetryCard
@@ -1259,7 +1344,7 @@ function DevToolsPanel({
             ]}
           />
         ))}
-      </div>
+      </ScrollArea>
     );
   }
 
@@ -1268,14 +1353,16 @@ function DevToolsPanel({
   }
 
   return (
-    <div className="thin-scrollbar h-full min-h-0 overflow-auto p-5">
+    <ScrollArea className="h-full min-h-0 p-5">
       {report.events.map((event) => (
-        <div key={event.id} className="mb-3 rounded-xl border border-[#dfdcc9] bg-white p-4">
-          <div className="font-semibold">{event.kind}</div>
-          <div className="mt-1 text-sm text-[#7a7a72]">{formatDate(event.createdAt)}</div>
-        </div>
+        <Card key={event.id} className="mb-3 bg-[var(--bg)]">
+          <CardContent className="p-4">
+            <div className="font-semibold">{event.kind}</div>
+            <div className="mt-1 text-sm text-[var(--ink-muted)]">{formatDate(event.createdAt)}</div>
+          </CardContent>
+        </Card>
       ))}
-    </div>
+    </ScrollArea>
   );
 }
 
@@ -1285,7 +1372,7 @@ function ActionTelemetryCard({ entry }: { entry: PageActionEntry }) {
   const caption = actionCaption(entry);
 
   return (
-    <div className="mb-2 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg)] transition-colors hover:border-[var(--border-strong)]">
+    <Card className="mb-2 overflow-hidden bg-[var(--bg)] transition-colors hover:border-[var(--border-strong)]">
       <div className="border-b border-[var(--divider)] bg-[var(--surface)] px-3 py-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -1330,7 +1417,7 @@ function ActionTelemetryCard({ entry }: { entry: PageActionEntry }) {
           ))}
         </div>
       ) : null}
-    </div>
+    </Card>
   );
 }
 
@@ -1530,20 +1617,20 @@ function BackendPanel({ traces }: { traces: BackendTraceEntry[] }) {
   }, [filteredTraces, selectedTraceId]);
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_1fr] overflow-hidden bg-[#fafbf6]">
-      <div className="border-b border-[#dad7c8] bg-white/90 p-2.5">
+    <div className="grid h-full min-h-0 grid-rows-[auto_1fr] overflow-hidden bg-[var(--bg)]">
+      <div className="border-b border-[var(--border)] bg-[var(--bg)] p-2.5">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#83887a]" aria-hidden />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--ink-faint)]" aria-hidden />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            className="h-8 rounded-lg border-[#dad7c8] bg-white pl-8 text-xs"
+            className="h-8 bg-[var(--surface)] pl-8 text-xs"
             placeholder="Filter backend method, URL, status"
           />
         </div>
       </div>
       <div className="grid min-h-0 grid-cols-1 overflow-hidden md:grid-cols-[minmax(14rem,0.85fr)_minmax(0,1.15fr)]">
-        <div className="thin-scrollbar min-h-0 overflow-auto border-r border-[#dad7c8] bg-white">
+        <ScrollArea className="min-h-0 border-r border-[var(--border)] bg-[var(--bg)]">
           <PanelEmptyState
             isEmpty={filteredTraces.length === 0}
             label={traces.length === 0 ? 'No backend traces yet.' : 'No matching backend traces.'}
@@ -1555,56 +1642,58 @@ function BackendPanel({ traces }: { traces: BackendTraceEntry[] }) {
                 key={trace.id}
                 type="button"
                 onClick={() => setSelectedTraceId(trace.id)}
-                className={`grid w-full grid-cols-[1.5rem_minmax(0,1fr)] gap-2 border-b border-[#ecede2] px-3 py-2.5 text-left transition-colors ${
-                  isSelected ? 'bg-[#f6f7eb]' : 'hover:bg-[#fafbf6]'
+                className={`grid w-full grid-cols-[1.5rem_minmax(0,1fr)] gap-2 border-b border-[var(--divider)] px-3 py-2.5 text-left transition-colors ${
+                  isSelected ? 'bg-[var(--primary-subtle)]' : 'hover:bg-[var(--surface)]'
                 }`}
               >
-                <span className="pt-0.5 text-right font-mono text-[10px] text-[#95988b]">{index + 1}</span>
+                <span className="pt-0.5 text-right font-mono text-[10px] text-[var(--ink-faint)]">{index + 1}</span>
                 <span className="min-w-0">
                   <span className="flex min-w-0 items-center gap-2">
                     <span className={`h-2 w-2 shrink-0 rounded-full ${backendStatusDotClass(trace)}`} />
-                    <span className="truncate text-xs font-semibold text-[#1a1d12]">{trace.operationName}</span>
+                    <span className="truncate text-xs font-semibold text-[var(--ink)]">{trace.operationName}</span>
                   </span>
-                  <span className="mt-1 flex min-w-0 items-center gap-1.5 font-mono text-[10px] text-[#6f7461]">
-                    <span className="shrink-0 rounded bg-[#f4f6e8] px-1.5 py-0.5 text-[#27291d]">{trace.method ?? 'TRACE'}</span>
+                  <span className="mt-1 flex min-w-0 items-center gap-1.5 font-mono text-[10px] text-[var(--ink-muted)]">
+                    <span className="shrink-0 rounded bg-[var(--surface)] px-1.5 py-0.5 text-[var(--ink)]">{trace.method ?? 'TRACE'}</span>
                     <span className={backendStatusTextClass(trace)}>{trace.statusCode ?? trace.status}</span>
                     <span className="truncate">{trace.url ? getDomain(trace.url) : trace.serviceName ?? 'backend'}</span>
                   </span>
-                  <span className="mt-1 block text-[10px] text-[#83887a]">
+                  <span className="mt-1 block text-[10px] text-[var(--ink-faint)]">
                     {formatDuration(trace.durationMs)} · {formatOffset(trace.offsetMs)} · {formatDate(trace.startedAt)}
                   </span>
                 </span>
               </button>
             );
           })}
-        </div>
-        <div className="thin-scrollbar min-h-0 overflow-auto bg-white">
+        </ScrollArea>
+        <ScrollArea className="min-h-0 bg-[var(--bg)]">
           {selectedTrace ? (
             <div className="p-4">
-              <div className="rounded-xl border border-[#dad7c8] bg-[#fbfcf7] p-4 shadow-[0_10px_28px_rgba(21,32,54,0.05)]">
+              <Card className="bg-[var(--surface-elevated)]">
+                <CardContent className="p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge tone={selectedTrace.status === 'ERROR' ? 'danger' : 'success'}>
                         {selectedTrace.status}
                       </Badge>
-                      <span className="rounded-md bg-white px-2 py-1 font-mono text-xs text-[#27291d] ring-1 ring-[#dad7c8]">
+                      <span className="rounded-md bg-[var(--bg)] px-2 py-1 font-mono text-xs text-[var(--ink)] ring-1 ring-[var(--border)]">
                         {selectedTrace.method ?? 'n/a'}
                       </span>
-                      <span className="text-xs text-[#6f7461]">{formatDuration(selectedTrace.durationMs)}</span>
+                      <span className="text-xs text-[var(--ink-muted)]">{formatDuration(selectedTrace.durationMs)}</span>
                     </div>
-                    <h3 className="mt-3 break-words text-sm font-semibold leading-5 text-[#1a1d12]">
+                    <h3 className="mt-3 break-words text-sm font-semibold leading-5 text-[var(--ink)]">
                       {selectedTrace.operationName}
                     </h3>
                   </div>
                   <Server className="h-5 w-5 shrink-0 text-[var(--primary)]" aria-hidden />
                 </div>
-                <div className="mt-3 rounded-lg border border-[#dad7c8] bg-white px-3 py-2 font-mono text-[11px] leading-5 text-[#27291d]">
+                <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 font-mono text-[11px] leading-5 text-[var(--ink)]">
                   <span className="break-all">{selectedTrace.url ?? selectedTrace.serviceName ?? 'n/a'}</span>
                 </div>
-              </div>
+                </CardContent>
+              </Card>
 
-              <div className="mt-3 overflow-hidden rounded-xl border border-[#dad7c8] bg-white">
+              <Card className="mt-3 overflow-hidden bg-[var(--bg)]">
                 <SectionTitle title="Trace" />
                 <KeyValue label="HTTP status" value={selectedTrace.statusCode === null || selectedTrace.statusCode === undefined ? 'n/a' : String(selectedTrace.statusCode)} />
                 <KeyValue label="Service" value={selectedTrace.serviceName ?? 'n/a'} />
@@ -1613,19 +1702,19 @@ function BackendPanel({ traces }: { traces: BackendTraceEntry[] }) {
                 <KeyValue label="Parent span" value={selectedTrace.parentSpanId ?? 'n/a'} />
                 <KeyValue label="Started" value={formatDate(selectedTrace.startedAt)} />
                 <KeyValue label="Ended" value={selectedTrace.endedAt ? formatDate(selectedTrace.endedAt) : 'n/a'} />
-              </div>
+              </Card>
 
-              <div className="mt-3 overflow-hidden rounded-xl border border-[#dad7c8] bg-white">
+              <Card className="mt-3 overflow-hidden bg-[var(--bg)]">
                 <SectionTitle title="Metadata" />
-                <div className="thin-scrollbar max-h-64 overflow-auto p-3 font-mono text-[11px]">
-                  {selectedTrace.metadata ? <JsonTreeView value={selectedTrace.metadata} /> : <span className="text-[#83887a]">n/a</span>}
-                </div>
-              </div>
+                <ScrollArea className="max-h-64 p-3 font-mono text-[11px]">
+                  {selectedTrace.metadata ? <JsonTreeView value={selectedTrace.metadata} /> : <span className="text-[var(--ink-faint)]">n/a</span>}
+                </ScrollArea>
+              </Card>
             </div>
           ) : (
-            <div className="p-6 text-sm text-[#6f7461]">Select a backend trace to inspect it.</div>
+            <div className="p-6 text-sm text-[var(--ink-muted)]">Select a backend trace to inspect it.</div>
           )}
-        </div>
+        </ScrollArea>
       </div>
     </div>
   );
@@ -1652,16 +1741,16 @@ function TimelinePanel({
   }, [entries, currentTimeMs]);
 
   return (
-    <div className="thin-scrollbar h-full min-h-0 overflow-auto bg-[var(--bg)] p-4">
+    <ScrollArea className="h-full min-h-0 bg-[var(--bg)] p-4">
       <PanelEmptyState isEmpty={entries.length === 0} label="No timeline entries yet." />
       <div className="space-y-2">
         {entries.map((entry) => {
           const key = `${entry.type}-${entry.id}`;
           const isActive = key === activeId;
           return (
-            <div
+            <Card
               key={key}
-              className={`rounded-lg border p-3 transition-colors ${
+              className={`rounded-lg p-3 transition-colors ${
                 isActive
                   ? 'border-[var(--primary)] bg-[var(--primary-subtle)]'
                   : 'border-[var(--border)] bg-[var(--bg)] hover:border-[var(--border-strong)]'
@@ -1695,11 +1784,11 @@ function TimelinePanel({
                   {entry.subtitle}
                 </div>
               ) : null}
-            </div>
+            </Card>
           );
         })}
       </div>
-    </div>
+    </ScrollArea>
   );
 }
 
@@ -1743,7 +1832,7 @@ function TelemetryCard({
   rows: Array<[string, string]>;
 }) {
   return (
-    <div className="mb-2 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg)] transition-colors hover:border-[var(--border-strong)]">
+    <Card className="mb-2 overflow-hidden bg-[var(--bg)] transition-colors hover:border-[var(--border-strong)]">
       <div className="border-b border-[var(--divider)] bg-[var(--surface)] px-3 py-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
@@ -1764,7 +1853,7 @@ function TelemetryCard({
           <KeyValue key={label} label={label} value={value} />
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -1838,27 +1927,29 @@ function ConsoleActivityPanel({
             placeholder="Filter message, URL, stack…"
           />
         </div>
-        <div className="flex items-center gap-0.5 rounded-md border border-[var(--border)] bg-[var(--surface)] p-0.5">
+        <ToggleGroup
+          type="single"
+          value={levelFilter}
+          onValueChange={(value) => {
+            if (value) setLevelFilter(value as ConsoleLevelFilter);
+          }}
+          aria-label="Console level"
+          className="rounded-md"
+        >
           {levelOptions.map((option) => {
-            const active = option === levelFilter;
             return (
-              <button
+              <ToggleGroupItem
                 key={option}
-                type="button"
-                onClick={() => setLevelFilter(option)}
-                className={`h-7 rounded-[5px] px-2 font-mono text-[10px] uppercase tracking-wider transition-colors ${
-                  active
-                    ? 'bg-[var(--bg)] font-semibold text-[var(--ink)] shadow-[0_0_0_1px_var(--border)]'
-                    : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'
-                }`}
+                value={option}
+                className="h-7 rounded-[5px] px-2 font-mono text-[10px] uppercase tracking-wider data-[state=on]:font-semibold data-[state=on]:text-[var(--ink)]"
               >
                 {option === 'All levels' ? 'all' : option.toLowerCase()}
-              </button>
+              </ToggleGroupItem>
             );
           })}
-        </div>
+        </ToggleGroup>
       </div>
-      <div className="thin-scrollbar min-h-0 overflow-auto bg-[var(--bg)]">
+      <ScrollArea className="min-h-0 bg-[var(--bg)]">
         <PanelEmptyState
           isEmpty={filteredRows.length === 0}
           label={rows.length === 0 ? 'No console logs yet.' : 'No matching console logs.'}
@@ -1899,7 +1990,7 @@ function ConsoleActivityPanel({
             </div>
           );
         })}
-      </div>
+      </ScrollArea>
     </div>
   );
 }
@@ -2066,47 +2157,55 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
               placeholder="Filter method, URL, status, domain…"
             />
           </div>
-          <button
-            type="button"
-            onClick={() => setErrorsOnly((value) => !value)}
-            aria-pressed={errorsOnly}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
-              errorsOnly
-                ? 'border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger)]'
-                : 'border-[var(--border)] bg-[var(--surface)] text-[var(--ink-muted)] hover:text-[var(--ink)]'
-            }`}
+          <ToggleGroup
+            type="multiple"
+            value={errorsOnly ? ['errors'] : []}
+            onValueChange={(value) => setErrorsOnly(value.includes('errors'))}
+            className="border-0 bg-transparent p-0"
+            aria-label="Network filters"
           >
-            <AlertTriangle className="h-3 w-3" aria-hidden />
-            errors only
-          </button>
+            <ToggleGroupItem
+              value="errors"
+              className="h-8 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 font-mono text-[10px] uppercase tracking-wider data-[state=on]:border-[var(--danger-border)] data-[state=on]:bg-[var(--danger-bg)] data-[state=on]:text-[var(--danger)]"
+            >
+              <AlertTriangle className="h-3 w-3" aria-hidden />
+              errors only
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
-        <div className="scrollbar-none mt-2 flex gap-1 overflow-x-auto pb-0.5">
+        <ToggleGroup
+          type="single"
+          value={activeFilter}
+          onValueChange={(value) => {
+            if (!value) return;
+            setActiveFilter(value as NetworkFilter);
+            setSelectedRequestId(null);
+          }}
+          className="scrollbar-none mt-2 flex justify-start gap-1 overflow-x-auto border-0 bg-transparent p-0 pb-0.5"
+          aria-label="Network request type"
+        >
           {networkFilterLabels.map((item) => {
             const active = item === activeFilter;
             return (
-              <button
+              <ToggleGroupItem
                 key={item}
-                type="button"
-                onClick={() => {
-                  setActiveFilter(item);
-                  setSelectedRequestId(null);
-                }}
-                className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+                value={item}
+                className={`h-7 shrink-0 px-2 py-1 font-mono text-[10px] uppercase tracking-wider data-[state=on]:shadow-none ${
                   networkFilterButtonClass(item, active)
                 }`}
               >
                 <NetworkTypeIcon category={item} className={`h-3.5 w-3.5 ${networkTypeIconClass(item, active)}`} />
                 {item}
-              </button>
+              </ToggleGroupItem>
             );
           })}
-        </div>
+        </ToggleGroup>
       </div>
       <div
         className="grid min-h-0 min-w-0 grid-cols-1 overflow-hidden lg:[grid-template-columns:var(--network-list-width)_6px_minmax(0,1fr)]"
         style={{ '--network-list-width': `${requestListWidth}px` } as CSSProperties}
       >
-        <div className="thin-scrollbar min-h-0 overflow-auto border-b border-[var(--border)] bg-[var(--bg)] lg:border-b-0 lg:border-r">
+        <ScrollArea className="min-h-0 border-b border-[var(--border)] bg-[var(--bg)] lg:border-b-0 lg:border-r">
           <PanelEmptyState
             isEmpty={filteredRequests.length === 0}
             label={report.networkRequests.length === 0 ? 'No network requests yet.' : 'No matching requests.'}
@@ -2153,7 +2252,7 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
               </button>
             );
           })}
-        </div>
+        </ScrollArea>
         <ResizeGrip
           label="Resize request list"
           className="hidden h-full cursor-col-resize border-r border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--primary-subtle)] lg:block"
@@ -2235,7 +2334,7 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
               {copyFeedback === 'curl' ? 'copied' : 'curl'}
             </Button>
           </div>
-          <div className="thin-scrollbar min-h-0 overflow-auto">
+          <ScrollArea className="min-h-0">
             {selected ? (
               <NetworkRequestDetails request={selected} activeTab={activeDetailTab} bodyViewMode={bodyViewMode} />
             ) : (
@@ -2243,7 +2342,7 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
                 select a request to inspect
               </div>
             )}
-          </div>
+          </ScrollArea>
         </div>
       </div>
     </div>

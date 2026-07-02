@@ -21,6 +21,7 @@ import { WeevilMark } from '@/components/brand/weevil-mark';
 import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/ui/error-state';
 import { Input, Textarea } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { ReportStatus, ReportSummary } from '@/lib/api/types';
 import { StatusBadge } from './status-badge';
 
@@ -511,7 +512,6 @@ function BoardColumnView({
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [dropIndicatorIndex, setDropIndicatorIndex] = useState<number | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setTitleDraft(column.title);
@@ -520,17 +520,6 @@ function BoardColumnView({
   useEffect(() => {
     setDescriptionDraft(column.description);
   }, [column.description]);
-
-  useEffect(() => {
-    if (!isMenuOpen) return;
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
-    }
-    window.addEventListener('mousedown', handleClickOutside);
-    return () => window.removeEventListener('mousedown', handleClickOutside);
-  }, [isMenuOpen]);
 
   function commitTitle() {
     const trimmed = titleDraft.trim();
@@ -665,89 +654,88 @@ function BoardColumnView({
         <span className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 font-mono text-xs font-semibold text-[var(--ink-muted)]">
           {renderedReports.length}
         </span>
-        <div ref={menuRef} className="relative">
-          <button
-            type="button"
-            onClick={() => setIsMenuOpen((open) => !open)}
-            className="grid h-7 w-7 place-items-center rounded-md text-[var(--ink-faint)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--ink)]"
-            aria-label="Column options"
-          >
-            <MoreHorizontal className="h-4 w-4" aria-hidden />
-          </button>
-          {isMenuOpen ? (
-            <div className="absolute right-0 top-9 z-[var(--z-dropdown)] w-72 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3 shadow-[0_18px_46px_-24px_rgba(26,29,18,0.42)]">
-              <form
-                className="space-y-2.5"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  commitDetails();
-                }}
-              >
-                <div className="space-y-1">
-                  <label htmlFor={`column-title-${column.id}`} className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
-                    Title
-                  </label>
-                  <Input
-                    id={`column-title-${column.id}`}
-                    value={titleDraft}
-                    onChange={(event) => setTitleDraft(event.target.value)}
-                    className="h-8 text-xs"
-                    maxLength={42}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label htmlFor={`column-description-${column.id}`} className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
-                    Description
-                  </label>
-                  <Textarea
-                    id={`column-description-${column.id}`}
-                    value={descriptionDraft}
-                    onChange={(event) => setDescriptionDraft(event.target.value)}
-                    className="min-h-20 resize-none text-xs leading-5"
-                    maxLength={160}
-                    placeholder="What belongs in this lane?"
-                  />
-                </div>
-                <div className="flex items-center justify-between gap-2 pt-1">
-                  <Button type="submit" variant="primary" size="sm" className="h-8">
-                    Save details
-                  </Button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTitleDraft(column.title);
-                      setDescriptionDraft(column.description);
-                      setIsMenuOpen(false);
-                    }}
-                    className="rounded-md px-2 py-1 text-xs text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-              <div className="my-2 border-t border-[var(--border)]" />
-              <ColorPicker
-                value={column.accent}
-                onChange={(accent) => {
-                  onUpdateColumn({ accent });
-                }}
-              />
-              {canDelete ? (
+        <Popover open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="grid h-7 w-7 place-items-center rounded-md text-[var(--ink-faint)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--ink)] data-[state=open]:bg-[var(--primary-subtle)] data-[state=open]:text-[var(--primary)]"
+              aria-label="Column options"
+            >
+              <MoreHorizontal className="h-4 w-4" aria-hidden />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-72">
+            <form
+              className="space-y-2.5"
+              onSubmit={(event) => {
+                event.preventDefault();
+                commitDetails();
+              }}
+            >
+              <div className="space-y-1">
+                <label htmlFor={`column-title-${column.id}`} className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+                  Title
+                </label>
+                <Input
+                  id={`column-title-${column.id}`}
+                  value={titleDraft}
+                  onChange={(event) => setTitleDraft(event.target.value)}
+                  className="h-8 text-xs"
+                  maxLength={42}
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor={`column-description-${column.id}`} className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+                  Description
+                </label>
+                <Textarea
+                  id={`column-description-${column.id}`}
+                  value={descriptionDraft}
+                  onChange={(event) => setDescriptionDraft(event.target.value)}
+                  className="min-h-20 resize-none text-xs leading-5"
+                  maxLength={160}
+                  placeholder="What belongs in this lane?"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <Button type="submit" variant="primary" size="sm" className="h-8">
+                  Save details
+                </Button>
                 <button
                   type="button"
                   onClick={() => {
-                    onDeleteColumn();
+                    setTitleDraft(column.title);
+                    setDescriptionDraft(column.description);
                     setIsMenuOpen(false);
                   }}
-                  className="mt-0.5 flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs text-[var(--danger)] hover:bg-[var(--danger-bg)]"
+                  className="rounded-md px-2 py-1 text-xs text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]"
                 >
-                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                  Delete column
+                  Cancel
                 </button>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
+              </div>
+            </form>
+            <div className="my-2 border-t border-[var(--border)]" />
+            <ColorPicker
+              value={column.accent}
+              onChange={(accent) => {
+                onUpdateColumn({ accent });
+              }}
+            />
+            {canDelete ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteColumn();
+                  setIsMenuOpen(false);
+                }}
+                className="mt-0.5 flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs text-[var(--danger)] hover:bg-[var(--danger-bg)]"
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                Delete column
+              </button>
+            ) : null}
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div

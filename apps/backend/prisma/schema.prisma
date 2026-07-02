@@ -219,6 +219,7 @@ model Workspace {
   invites      WorkspaceInvite[]
   sessions     AuthSession[]
   apiTokens    ApiToken[]
+  notificationPreferences UserNotificationPreference[]
   /// Users who have selected this workspace as their default.
   defaultedBy  User[]            @relation("UserDefaultWorkspace")
 
@@ -264,6 +265,7 @@ model User {
   invitesCreated   WorkspaceInvite[]  @relation("InviteCreator")
   reports          BugReport[]
   apiTokens        ApiToken[]
+  notificationPreferences UserNotificationPreference[]
 
   @@index([status])
   @@map("users")
@@ -321,6 +323,25 @@ model WorkspaceMember {
   @@index([userId, status])
   @@index([workspaceId, role, status])
   @@map("workspace_members")
+}
+
+/// Per-user notification preferences inside one workspace. Features default off
+/// until the user explicitly enables them from Settings.
+model UserNotificationPreference {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  userId             String
+  emailOnNewCapture  Boolean  @default(false)
+  emailOnNewComment  Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@map("user_notification_preferences")
 }
 
 /// Pending workspace invitations. Anyone with the token can accept (then becomes a member).

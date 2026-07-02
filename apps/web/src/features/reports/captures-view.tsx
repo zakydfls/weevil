@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2, ChevronLeft, ChevronRight, CircleDot, Search, TriangleAlert, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type { ReportSummary } from '@/lib/api/types';
 import { useReports } from './queries';
 import { CaptureCardGrid } from './components/capture-card-grid';
@@ -157,24 +159,23 @@ function CaptureInsights({
   ];
 
   return (
-    <section
-      aria-label="Capture overview"
-      className="weevil-step-enter grid gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-2 sm:grid-cols-2 xl:grid-cols-4"
-    >
-      {items.map((item) => (
-        <div key={item.label} className="flex items-center gap-3 rounded-md bg-[var(--surface)] px-3 py-2.5">
-          <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-md ${item.bg} ${item.tone}`}>
-            <item.icon className="h-4 w-4" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <div className="text-sm font-semibold leading-5 text-[var(--ink)]">{item.value}</div>
-            <div className="truncate font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
-              {item.label}
+    <Card aria-label="Capture overview" className="weevil-step-enter overflow-hidden">
+      <CardContent className="grid gap-2 p-2 sm:grid-cols-2 xl:grid-cols-4">
+        {items.map((item) => (
+          <div key={item.label} className="flex items-center gap-3 rounded-md bg-[var(--surface)] px-3 py-2.5">
+            <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-md ${item.bg} ${item.tone}`}>
+              <item.icon className="h-4 w-4" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold leading-5 text-[var(--ink)]">{item.value}</div>
+              <div className="truncate font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+                {item.label}
+              </div>
             </div>
           </div>
-        </div>
-      ))}
-    </section>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -210,24 +211,22 @@ function PaginationBar({
         <span className="text-[var(--ink-faint)]">of {totalItems}</span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--surface)] p-1">
-        <div className="mr-1 hidden items-center gap-0.5 border-r border-[var(--border)] pr-2 sm:flex">
+      <div className="flex flex-wrap items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1">
+        <ToggleGroup
+          type="single"
+          value={String(pageSize)}
+          onValueChange={(value) => {
+            if (value) onPageSizeChange(Number(value) as (typeof PAGE_SIZE_OPTIONS)[number]);
+          }}
+          className="mr-1 hidden border-0 bg-transparent p-0 pr-2 sm:flex"
+          aria-label="Captures per page"
+        >
           {PAGE_SIZE_OPTIONS.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => onPageSizeChange(option)}
-              className={`h-7 rounded-md px-2 font-mono text-xs font-semibold transition-colors ${
-                option === pageSize
-                  ? 'bg-[var(--bg)] text-[var(--primary)] shadow-[0_0_0_1px_var(--border)]'
-                  : 'text-[var(--ink-muted)] hover:bg-[var(--bg)] hover:text-[var(--ink)]'
-              }`}
-              aria-pressed={option === pageSize}
-            >
+            <ToggleGroupItem key={option} value={String(option)} className="h-7 px-2 font-mono text-xs font-semibold">
               {option}
-            </button>
+            </ToggleGroupItem>
           ))}
-        </div>
+        </ToggleGroup>
 
         <Button
           type="button"

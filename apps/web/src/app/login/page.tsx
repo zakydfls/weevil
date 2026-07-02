@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AuthShell } from '@/features/auth/auth-shell';
@@ -29,21 +29,22 @@ interface InvitePreview {
 export default function LoginPage() {
   const auth = useAuth();
   const [inviteToken, setInviteToken] = useState('');
-  const signupHref = inviteToken
-    ? `/signup?inviteToken=${encodeURIComponent(inviteToken)}`
-    : '/signup';
+  const [nextPath, setNextPath] = useState('');
   const [email, setEmail] = useState(devSeedEmail);
   const [password, setPassword] = useState(devSeedPassword);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [invitePreview, setInvitePreview] = useState<InvitePreview | null>(null);
   const [isInviteLoading, setIsInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState('');
   const [submitPhase, setSubmitPhase] = useState<'idle' | 'checking' | 'redirecting'>('idle');
   const [error, setError] = useState<string | null>(null);
   const isSubmitting = submitPhase !== 'idle';
+  const signupHref = buildAuthHref('/signup', { inviteToken, next: nextPath });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setInviteToken(params.get('inviteToken') ?? params.get('invite') ?? '');
+    setNextPath(safeNextPath(params.get('next')));
   }, []);
 
   useEffect(() => {
@@ -83,7 +84,10 @@ export default function LoginPage() {
     setSubmitPhase('checking');
     setError(null);
     try {
-      await auth.login(email.trim(), password, inviteToken ? { inviteToken } : undefined);
+      await auth.login(email.trim(), password, {
+        ...(inviteToken ? { inviteToken } : {}),
+        ...(nextPath ? { redirectTo: nextPath } : {}),
+      });
       setSubmitPhase('redirecting');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed.';
@@ -160,16 +164,32 @@ export default function LoginPage() {
           >
             Password
           </label>
-          <Input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={isSubmitting}
-            required
-            autoComplete="current-password"
-            placeholder="••••••••"
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              type={isPasswordVisible ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={isSubmitting}
+              required
+              autoComplete="current-password"
+              placeholder="••••••••"
+              className="pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setIsPasswordVisible((current) => !current)}
+              disabled={isSubmitting}
+              className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-md text-[var(--ink-faint)] transition-colors hover:bg-[var(--primary-subtle)] hover:text-[var(--ink)] disabled:pointer-events-none disabled:opacity-50"
+              aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
+            >
+              {isPasswordVisible ? (
+                <EyeOff className="h-4 w-4" aria-hidden />
+              ) : (
+                <Eye className="h-4 w-4" aria-hidden />
+              )}
+            </button>
+          </div>
         </div>
         {error ? (
           <div className="rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3 py-2 text-xs font-medium text-[var(--danger)]">
@@ -208,4 +228,22 @@ export default function LoginPage() {
       </form>
     </AuthShell>
   );
+}
+
+function buildAuthHref(
+  pathname: string,
+  params: { inviteToken?: string; next?: string },
+): string {
+  const searchParams = new URLSearchParams();
+  if (params.inviteToken) searchParams.set('inviteToken', params.inviteToken);
+  if (params.next) searchParams.set('next', params.next);
+  const query = searchParams.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
+
+function safeNextPath(value: string | null): string {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) {
+    return '';
+  }
+  return value;
 }

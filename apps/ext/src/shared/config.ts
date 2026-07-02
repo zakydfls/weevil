@@ -3,8 +3,6 @@ import {
   DEFAULT_FLUSH_INTERVAL_MS,
   DEFAULT_MAX_BATCH_SIZE,
   EXTENSION_BUILD_MODE,
-  LOCAL_API_BASE_URL,
-  PRODUCTION_API_BASE_URL,
   StorageKeys,
 } from './constants';
 import type { ExtensionSettings, RecorderState } from './types';
@@ -51,7 +49,12 @@ export async function getSettings() {
 }
 
 export async function saveSettings(settings: ExtensionSettings) {
-  await chrome.storage.local.set({ [StorageKeys.Settings]: withSettingsMetadata(settings) });
+  await chrome.storage.local.set({
+    [StorageKeys.Settings]: withSettingsMetadata({
+      ...settings,
+      apiBaseUrl: DEFAULT_API_BASE_URL,
+    }),
+  });
 }
 
 export async function getRecorderState() {
@@ -102,23 +105,10 @@ function resolveStoredSettings(storedSettings?: StoredExtensionSettings) {
   let shouldPersist = false;
 
   const storedApiBaseUrl = normalizeOptionalApiBaseUrl(storedSettings.apiBaseUrl);
-  if (storedApiBaseUrl) {
-    const previousDefaultApiBaseUrl = normalizeOptionalApiBaseUrl(storedDefaultApiBaseUrl);
-    const shouldFollowCurrentBuildDefault = previousDefaultApiBaseUrl
-      ? storedApiBaseUrl === previousDefaultApiBaseUrl
-      : isKnownBuildDefaultApiBaseUrl(storedApiBaseUrl);
-
-    if (shouldFollowCurrentBuildDefault && storedApiBaseUrl !== DEFAULT_API_BASE_URL) {
-      settings.apiBaseUrl = DEFAULT_API_BASE_URL;
-      shouldPersist = true;
-    } else {
-      settings.apiBaseUrl = storedApiBaseUrl;
-      shouldPersist ||= storedApiBaseUrl !== storedSettings.apiBaseUrl;
-    }
-  } else {
-    settings.apiBaseUrl = DEFAULT_API_BASE_URL;
+  if (storedApiBaseUrl !== DEFAULT_API_BASE_URL) {
     shouldPersist = true;
   }
+  settings.apiBaseUrl = DEFAULT_API_BASE_URL;
 
   if (
     storedBuildMode !== EXTENSION_BUILD_MODE ||
@@ -144,14 +134,11 @@ function normalizeOptionalApiBaseUrl(value: unknown) {
     return '';
   }
 
-  return normalizeApiBaseUrl(value);
-}
-
-function isKnownBuildDefaultApiBaseUrl(value: string) {
-  return (
-    value === normalizeApiBaseUrl(LOCAL_API_BASE_URL) ||
-    value === normalizeApiBaseUrl(PRODUCTION_API_BASE_URL)
-  );
+  try {
+    return normalizeApiBaseUrl(value);
+  } catch {
+    return '';
+  }
 }
 
 function isLocalApiHost(value: string) {

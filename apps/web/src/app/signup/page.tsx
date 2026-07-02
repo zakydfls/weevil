@@ -1,8 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { ArrowLeft, CheckCircle2, Clock3, KeyRound, Loader2, MailCheck, ShieldCheck } from 'lucide-react';
+import { useEffect, useState, type FormEvent } from 'react';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Clock3,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Loader2,
+  MailCheck,
+  ShieldCheck,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AuthShell } from '@/features/auth/auth-shell';
@@ -39,12 +49,16 @@ type SignupStep = 'details' | 'otp';
 export default function SignupPage() {
   const auth = useAuth();
   const [inviteToken, setInviteToken] = useState('');
+  const [nextPath, setNextPath] = useState('');
   const [invitePreview, setInvitePreview] = useState<InvitePreview | null>(null);
   const [isInviteLoading, setIsInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('');
   const [workspaceSlug, setWorkspaceSlug] = useState('');
   const [step, setStep] = useState<SignupStep>('details');
@@ -56,23 +70,25 @@ export default function SignupPage() {
   const [error, setError] = useState<SignupErrorState | null>(null);
 
   const isInviteMode = Boolean(inviteToken);
-  const loginHref = inviteToken
-    ? `/login?inviteToken=${encodeURIComponent(inviteToken)}`
-    : '/login';
+  const loginHref = buildAuthHref('/login', { inviteToken, next: nextPath });
 
   const otpExpiresInMs = otpState ? new Date(otpState.expiresAt).getTime() - nowMs : 0;
   const resendInMs = otpState ? new Date(otpState.resendAvailableAt).getTime() - nowMs : 0;
   const canResendOtp =
     Boolean(otpState) && resendInMs <= 0 && otpState!.resendCount < otpState!.maxResends && !isResending;
+  const passwordsMatch = password.length > 0 && password === confirmPassword;
+  const showPasswordMismatch = confirmPassword.length > 0 && !passwordsMatch;
   const canSubmitDetails =
     email.trim().length > 0 &&
     password.length >= 8 &&
+    passwordsMatch &&
     (isInviteMode || (workspaceName.trim().length >= 2 && isValidWorkspaceSlug(workspaceSlug.trim())));
   const canVerifyOtp = otpCode.length === 6 && Boolean(otpState) && otpExpiresInMs > 0;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setInviteToken(params.get('inviteToken') ?? params.get('invite') ?? '');
+    setNextPath(safeNextPath(params.get('next')));
   }, []);
 
   useEffect(() => {
@@ -150,15 +166,23 @@ export default function SignupPage() {
   }
 
   async function submitInviteSignup() {
+    if (!passwordsMatch) {
+      setError({ message: 'Password confirmation does not match.' });
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
     try {
-      await auth.signup({
-        email: email.trim(),
-        password,
-        displayName: displayName.trim() || undefined,
-        inviteToken,
-      });
+      await auth.signup(
+        {
+          email: email.trim(),
+          password,
+          displayName: displayName.trim() || undefined,
+          inviteToken,
+        },
+        nextPath ? { redirectTo: nextPath } : undefined,
+      );
     } catch (err) {
       setError(formatSignupError(err, {
         email: email.trim(),
@@ -171,6 +195,11 @@ export default function SignupPage() {
   }
 
   async function requestOtp(isResend: boolean) {
+    if (!isResend && !passwordsMatch) {
+      setError({ message: 'Password confirmation does not match.' });
+      return;
+    }
+
     if (isResend) {
       if (!canResendOtp) return;
       setIsResending(true);
@@ -206,7 +235,11 @@ export default function SignupPage() {
     setIsSubmitting(true);
     setError(null);
     try {
-      await auth.verifySignupOtp(email.trim(), otpCode);
+      await auth.verifySignupOtp(
+        email.trim(),
+        otpCode,
+        nextPath ? { redirectTo: nextPath } : undefined,
+      );
     } catch (err) {
       setError(formatSignupError(err, {
         email: email.trim(),
@@ -335,20 +368,37 @@ export default function SignupPage() {
                 placeholder="Maya Rodriguez"
               />
             </div>
-            <div className="space-y-1.5">
-              <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
-                Password
-              </label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
-                autoComplete="new-password"
-                placeholder="At least 8 characters"
-              />
-            </div>
+            <PasswordField
+              label="Password"
+              value={password}
+              onChange={setPassword}
+              isVisible={isPasswordVisible}
+              onToggleVisibility={() => setIsPasswordVisible((current) => !current)}
+              autoComplete="new-password"
+              placeholder="At least 8 characters"
+            />
+            <PasswordField
+              label="Confirm password"
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+              isVisible={isConfirmPasswordVisible}
+              onToggleVisibility={() => setIsConfirmPasswordVisible((current) => !current)}
+              autoComplete="new-password"
+              placeholder="Repeat your password"
+              invalid={showPasswordMismatch}
+            />
+            {confirmPassword ? (
+              <div
+                className={`-mt-2 flex items-center gap-1.5 text-xs ${
+                  passwordsMatch ? 'text-[var(--success)]' : 'text-[var(--danger)]'
+                }`}
+              >
+                {passwordsMatch ? (
+                  <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                ) : null}
+                {passwordsMatch ? 'Passwords match.' : 'Passwords do not match yet.'}
+              </div>
+            ) : null}
             {isInviteMode ? (
               <InviteCard
                 isLoading={isInviteLoading}
@@ -402,37 +452,60 @@ export default function SignupPage() {
 }
 
 function SignupProgress({ step }: { step: SignupStep }) {
-  const steps = useMemo(
-    () => [
-      { id: 'details' as const, label: 'Details', icon: ShieldCheck },
-      { id: 'otp' as const, label: 'OTP', icon: MailCheck },
-    ],
-    [],
-  );
+  const isOtpStep = step === 'otp';
 
   return (
-    <div className="grid grid-cols-2 gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1">
-      {steps.map((item) => {
-        const active = item.id === step;
-        const done = step === 'otp' && item.id === 'details';
-        return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+      <div className="flex items-center gap-3">
+        <StepMarker
+          icon={isOtpStep ? CheckCircle2 : ShieldCheck}
+          label="Account details"
+          state={isOtpStep ? 'done' : 'active'}
+        />
+        <div className="h-px flex-1 overflow-hidden rounded-full bg-[var(--divider)]">
           <div
-            key={item.id}
-            className={`relative flex h-9 items-center justify-center gap-2 rounded-md text-xs font-medium transition-colors ${
-              active || done
-                ? 'bg-[var(--bg)] text-[var(--ink)]'
-                : 'text-[var(--ink-muted)]'
+            className={`h-full rounded-full bg-[var(--primary)] transition-all duration-500 ${
+              isOtpStep ? 'w-full' : 'w-1/3'
             }`}
-          >
-            {done ? (
-              <CheckCircle2 className="h-3.5 w-3.5 text-[var(--success)]" aria-hidden />
-            ) : (
-              <item.icon className={`h-3.5 w-3.5 ${active ? 'text-[var(--primary)]' : ''}`} aria-hidden />
-            )}
-            {item.label}
-          </div>
-        );
-      })}
+          />
+        </div>
+        <StepMarker
+          icon={MailCheck}
+          label="Verify email"
+          state={isOtpStep ? 'active' : 'upcoming'}
+        />
+      </div>
+    </div>
+  );
+}
+
+function StepMarker({
+  icon: Icon,
+  label,
+  state,
+}: {
+  icon: typeof ShieldCheck;
+  label: string;
+  state: 'active' | 'done' | 'upcoming';
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <span
+        className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border transition-colors ${
+          state === 'upcoming'
+            ? 'border-[var(--border)] bg-[var(--bg)] text-[var(--ink-faint)]'
+            : 'border-[var(--primary)] bg-[var(--primary-subtle)] text-[var(--primary)]'
+        }`}
+      >
+        <Icon className="h-4 w-4" aria-hidden />
+      </span>
+      <span
+        className={`truncate text-xs font-semibold ${
+          state === 'upcoming' ? 'text-[var(--ink-muted)]' : 'text-[var(--ink)]'
+        }`}
+      >
+        {label}
+      </span>
     </div>
   );
 }
@@ -490,6 +563,59 @@ function ErrorNotice({
   );
 }
 
+function PasswordField({
+  label,
+  value,
+  onChange,
+  isVisible,
+  onToggleVisibility,
+  autoComplete,
+  placeholder,
+  invalid = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  isVisible: boolean;
+  onToggleVisibility: () => void;
+  autoComplete: string;
+  placeholder: string;
+  invalid?: boolean;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
+        {label}
+      </label>
+      <div className="relative">
+        <Input
+          type={isVisible ? 'text' : 'password'}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          required
+          minLength={8}
+          autoComplete={autoComplete}
+          placeholder={placeholder}
+          aria-invalid={invalid}
+          className={`pr-10 ${invalid ? 'border-[var(--danger)] focus:border-[var(--danger)] focus:ring-[var(--danger-bg)]' : ''}`}
+        />
+        <button
+          type="button"
+          onClick={onToggleVisibility}
+          className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-md text-[var(--ink-faint)] transition-colors hover:bg-[var(--primary-subtle)] hover:text-[var(--ink)]"
+          aria-label={isVisible ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
+        >
+          {isVisible ? (
+            <EyeOff className="h-4 w-4" aria-hidden />
+          ) : (
+            <Eye className="h-4 w-4" aria-hidden />
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -510,6 +636,24 @@ function formatDuration(valueMs: number): string {
   const seconds = totalSeconds % 60;
   if (minutes <= 0) return `${seconds}s`;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function buildAuthHref(
+  pathname: string,
+  params: { inviteToken?: string; next?: string },
+): string {
+  const searchParams = new URLSearchParams();
+  if (params.inviteToken) searchParams.set('inviteToken', params.inviteToken);
+  if (params.next) searchParams.set('next', params.next);
+  const query = searchParams.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
+
+function safeNextPath(value: string | null): string {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) {
+    return '';
+  }
+  return value;
 }
 
 function formatSignupError(

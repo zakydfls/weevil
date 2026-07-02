@@ -31,11 +31,11 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
           <SessionPreview />
           <div className="relative max-w-md">
             <h2 className="text-2xl font-semibold leading-snug tracking-[-0.02em] text-[var(--ink)]">
-              Capture once. Hand off a debuggable session, not a screenshot.
+              Capture once. Hand off a debuggable session, not a screenshot 🐞
             </h2>
             <p className="mt-4 max-w-sm text-sm leading-7 text-[var(--ink-muted)]">
               Weevil records the video, console, network, actions, errors, and DOM events of a bug —
-              synced to a single timeline. Engineers reproduce it in under 90 seconds.
+              synced to a single timeline. Developers reproduce it in under 90 seconds.
             </p>
           </div>
         </div>

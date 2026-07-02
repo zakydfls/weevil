@@ -40,7 +40,11 @@ interface AuthContextValue {
   workspace: ActiveWorkspace | null;
   workspaces: WorkspaceSummary[];
   can: (permission: string) => boolean;
-  login: (email: string, password: string, options?: { inviteToken?: string }) => Promise<void>;
+  login: (
+    email: string,
+    password: string,
+    options?: { inviteToken?: string; redirectTo?: string },
+  ) => Promise<void>;
   signup: (input: {
     email: string;
     password: string;
@@ -48,8 +52,8 @@ interface AuthContextValue {
     workspaceName?: string;
     workspaceSlug?: string;
     inviteToken?: string;
-  }) => Promise<void>;
-  verifySignupOtp: (email: string, code: string) => Promise<void>;
+  }, options?: { redirectTo?: string }) => Promise<void>;
+  verifySignupOtp: (email: string, code: string, options?: { redirectTo?: string }) => Promise<void>;
   logout: (options?: { redirectTo?: string }) => Promise<void>;
   acceptInvite: (inviteToken: string) => Promise<void>;
   createWorkspace: (input: { name: string; slug: string }) => Promise<void>;
@@ -62,7 +66,7 @@ const LEGACY_TOKEN_STORAGE_KEY = 'weevil.auth.token';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const PUBLIC_PATHS = new Set(['/login', '/signup', '/accept-invite']);
+const PUBLIC_PATHS = new Set(['/login', '/signup', '/accept-invite', '/c/share']);
 
 function isPublicPath(pathname: string | null): boolean {
   if (!pathname) return false;
@@ -193,7 +197,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const login = useCallback(
-    async (email: string, password: string, options?: { inviteToken?: string }) => {
+    async (
+      email: string,
+      password: string,
+      options?: { inviteToken?: string; redirectTo?: string },
+    ) => {
       const result = await apiClient.login({ email, password });
       saveToken(result.token);
       setAuthToken(result.token);
@@ -207,29 +215,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         await refresh();
       }
-      router.push('/');
+      router.push(resolveRedirectTo(options?.redirectTo));
     },
     [acceptInvite, refresh, router],
   );
 
   const signup = useCallback<AuthContextValue['signup']>(
-    async (input) => {
+    async (input, options) => {
       const result = await apiClient.signup(input);
       saveToken(result.token);
       setAuthToken(result.token);
       await refresh();
-      router.push('/');
+      router.push(resolveRedirectTo(options?.redirectTo));
     },
     [refresh, router],
   );
 
   const verifySignupOtp = useCallback<AuthContextValue['verifySignupOtp']>(
-    async (email, code) => {
+    async (email, code, options) => {
       const result = await apiClient.verifySignupOtp({ email, code });
       saveToken(result.token);
       setAuthToken(result.token);
       await refresh();
-      router.push('/');
+      router.push(resolveRedirectTo(options?.redirectTo));
     },
     [refresh, router],
   );
@@ -314,4 +322,11 @@ export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth() must be called inside <AuthProvider>');
   return ctx;
+}
+
+function resolveRedirectTo(redirectTo: string | undefined): string {
+  if (!redirectTo || !redirectTo.startsWith('/') || redirectTo.startsWith('//')) {
+    return '/';
+  }
+  return redirectTo;
 }

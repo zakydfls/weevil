@@ -11,7 +11,10 @@ import {
   Terminal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatBytes, formatDate } from '@/lib/utils';
 import type { ReportDetail as ReportDetailType, TimelineEntry } from '@/lib/api/types';
 import { useDownloadUpload } from '../queries';
@@ -39,35 +42,38 @@ export function ReportDetail({ report, isLoading }: ReportDetailProps) {
 
   if (isLoading) {
     return (
-      <section className="thin-scrollbar min-h-0 overflow-auto bg-[var(--background)] p-3 sm:p-4">
-        <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-white shadow-[0_12px_40px_rgba(16,24,40,0.07)]">
+      <ScrollArea className="min-h-0 bg-[var(--background)] p-3 sm:p-4">
+        <Card className="overflow-hidden bg-[var(--bg)]">
           <div className="border-b border-[var(--border)] p-4">
             <div className="h-6 w-40 animate-pulse rounded bg-[var(--muted)]" />
             <div className="mt-4 h-8 w-2/3 animate-pulse rounded bg-[var(--muted)]" />
           </div>
-          <div className="grid gap-4 bg-[#fafbf6] p-4 xl:grid-cols-[minmax(0,1.25fr)_28rem]">
+          <div className="grid gap-4 bg-[var(--surface)] p-4 xl:grid-cols-[minmax(0,1.25fr)_28rem]">
             <div className="aspect-video animate-pulse rounded-lg bg-[#1a1d12]" />
             <div className="min-h-80 animate-pulse rounded-lg bg-[var(--muted)]" />
           </div>
-        </div>
-      </section>
+        </Card>
+      </ScrollArea>
     );
   }
 
   if (!report) {
     return (
-      <section className="thin-scrollbar min-h-0 overflow-auto bg-[var(--background)] p-3 sm:p-4">
-        <div className="rounded-lg border border-dashed border-[var(--border)] bg-white p-12">
+      <ScrollArea className="min-h-0 bg-[var(--background)] p-3 sm:p-4">
+        <Card className="border-dashed bg-[var(--bg)]">
+          <CardContent className="p-12">
           <EmptyState title="Select a report" description="The recording and diagnostics viewer will appear here." />
-        </div>
-      </section>
+          </CardContent>
+        </Card>
+      </ScrollArea>
     );
   }
 
   return (
-    <section className="thin-scrollbar min-h-0 overflow-auto bg-[var(--background)] p-3 sm:p-4">
-      <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-white shadow-[0_12px_40px_rgba(16,24,40,0.07)]">
-        <header className="flex flex-col gap-4 border-b border-[var(--border)] bg-white p-4 lg:flex-row lg:items-start lg:justify-between">
+    <ScrollArea className="min-h-0 bg-[var(--background)] p-3 sm:p-4">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DetailTab)}>
+      <Card className="overflow-hidden bg-[var(--bg)]">
+        <header className="flex flex-col gap-4 border-b border-[var(--border)] bg-[var(--bg)] p-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge status={report.status} />
@@ -98,39 +104,35 @@ export function ReportDetail({ report, isLoading }: ReportDetailProps) {
           </div>
         </header>
 
-        <div className="grid gap-4 border-b border-[var(--border)] bg-[#fafbf6] p-4 xl:grid-cols-[minmax(0,1.25fr)_28rem]">
+        <div className="grid gap-4 border-b border-[var(--border)] bg-[var(--surface)] p-4 xl:grid-cols-[minmax(0,1.25fr)_28rem]">
           <RecordingPreview report={report} seekOffsetMs={selectedOffsetMs} />
           <SynchronizedTimeline report={report} onSeek={setSelectedOffsetMs} />
         </div>
 
-        <div className="flex gap-1 overflow-x-auto border-b border-[var(--border)] bg-white px-3 py-2">
+        <TabsList className="scrollbar-none flex h-auto justify-start gap-1 overflow-x-auto rounded-none border-x-0 border-t-0 bg-[var(--bg)] px-3 py-2">
           {tabs.map((tab) => (
-            <button
+            <TabsTrigger
               key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`h-8 rounded-md px-3 text-sm font-medium ${
-                activeTab === tab.id
-                  ? 'bg-[#1a1d12] text-white'
-                  : 'text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)]'
-              }`}
+              value={tab.id}
+              className="h-8 px-3"
             >
               {tab.label}
-            </button>
+            </TabsTrigger>
           ))}
-        </div>
+        </TabsList>
 
-        <div className="bg-white p-4">
-          {activeTab === 'overview' ? <OverviewTab report={report} /> : null}
-          {activeTab === 'uploads' ? (
+        <div className="bg-[var(--bg)] p-4">
+          <TabsContent value="overview" className="mt-0"><OverviewTab report={report} /></TabsContent>
+          <TabsContent value="uploads" className="mt-0">
             <UploadsTab report={report} onDownload={(uploadId) => downloadUpload.mutate({ reportId: report.id, uploadId })} />
-          ) : null}
-          {activeTab === 'console' ? <ConsoleTab report={report} /> : null}
-          {activeTab === 'network' ? <NetworkTab report={report} /> : null}
-          {activeTab === 'events' ? <EventsTab report={report} /> : null}
+          </TabsContent>
+          <TabsContent value="console" className="mt-0"><ConsoleTab report={report} /></TabsContent>
+          <TabsContent value="network" className="mt-0"><NetworkTab report={report} /></TabsContent>
+          <TabsContent value="events" className="mt-0"><EventsTab report={report} /></TabsContent>
         </div>
-      </div>
-    </section>
+      </Card>
+      </Tabs>
+    </ScrollArea>
   );
 }
 
@@ -145,7 +147,7 @@ function RecordingPreview({
   const downloadUpload = useDownloadUpload();
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[#3a3d31] bg-[#1a1d12] shadow-[0_14px_35px_rgba(15,20,27,0.18)]">
+    <Card className="overflow-hidden border-[var(--ink-strong)] bg-[var(--ink-strong)] text-white">
       <div className="flex h-10 items-center justify-between border-b border-white/10 px-3 text-white">
         <div>
           <div className="text-sm font-medium">Replay</div>
@@ -189,7 +191,7 @@ function RecordingPreview({
           <div className="mt-1 truncate">{formatBytes(primaryUpload?.byteSize)}</div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -258,12 +260,12 @@ function SynchronizedTimeline({
   const entries = buildTimelineEntries(report);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+    <Card className="overflow-hidden bg-[var(--bg)]">
       <div className="flex h-10 items-center justify-between border-b border-[var(--border)] px-3">
         <div className="text-sm font-medium">Timeline</div>
         <div className="text-xs text-[var(--muted-foreground)]">{entries.length} entries</div>
       </div>
-      <div className="thin-scrollbar max-h-[28rem] overflow-auto p-3">
+      <ScrollArea className="max-h-[28rem] p-3">
         {entries.length === 0 ? (
           <div className="py-10 text-center text-sm text-[var(--muted-foreground)]">
             No telemetry entries yet.
@@ -271,12 +273,15 @@ function SynchronizedTimeline({
         ) : (
           <div className="grid gap-2">
             {entries.map((entry) => (
-              <button
+              <Card
+                asChild
                 key={entry.id}
-                type="button"
-                onClick={() => onSeek(entry.offsetMs ?? 0)}
-                className="grid w-full grid-cols-[4.5rem_1fr] gap-3 rounded-md border border-[var(--border)] bg-white p-2 text-left transition-colors hover:border-[#cfd6b0] hover:bg-[#f4f6e8]"
+                className="grid w-full grid-cols-[4.5rem_1fr] gap-3 rounded-md bg-[var(--bg)] p-2 text-left transition-colors hover:border-[var(--primary)] hover:bg-[var(--primary-subtle)]"
               >
+                <button
+                  type="button"
+                  onClick={() => onSeek(entry.offsetMs ?? 0)}
+                >
                 <div className="text-xs font-medium text-[var(--muted-foreground)]">
                   {formatOffset(entry.offsetMs)}
                 </div>
@@ -291,12 +296,13 @@ function SynchronizedTimeline({
                     </div>
                   ) : null}
                 </div>
-              </button>
+                </button>
+              </Card>
             ))}
           </div>
         )}
-      </div>
-    </div>
+      </ScrollArea>
+    </Card>
   );
 }
 
@@ -316,10 +322,12 @@ function OverviewTab({ report }: { report: ReportDetailType }) {
   return (
     <div className="grid gap-3 md:grid-cols-3">
       {metrics.map(([label, value]) => (
-        <div key={label} className="rounded-md border border-[var(--border)] bg-[var(--surface-subtle)] p-3">
+        <Card key={label} className="rounded-md bg-[var(--surface)]">
+          <CardContent className="p-3">
           <div className="text-xs font-medium text-[var(--muted-foreground)]">{label}</div>
           <div className="mt-1 break-words text-sm">{value}</div>
-        </div>
+          </CardContent>
+        </Card>
       ))}
     </div>
   );
@@ -337,7 +345,7 @@ function UploadsTab({
   }
 
   return (
-    <div className="overflow-hidden rounded-md border border-[var(--border)]">
+    <Card className="overflow-hidden rounded-md bg-[var(--bg)]">
       <table className="w-full border-collapse text-sm">
         <thead className="bg-[var(--surface-subtle)] text-left text-xs text-[var(--muted-foreground)]">
           <tr>
@@ -371,7 +379,7 @@ function UploadsTab({
           ))}
         </tbody>
       </table>
-    </div>
+    </Card>
   );
 }
 
@@ -383,14 +391,14 @@ function ConsoleTab({ report }: { report: ReportDetailType }) {
   return (
     <div className="grid gap-2">
       {report.consoleLogs.map((entry) => (
-        <div key={entry.id} className="rounded-md border border-[var(--border)] bg-[#1a1d12] p-3 text-sm text-white">
-          <div className="flex items-center gap-2 text-xs text-[#83887a]">
+        <Card key={entry.id} className="rounded-md border-[var(--ink-strong)] bg-[var(--ink-strong)] p-3 text-sm text-white">
+          <div className="flex items-center gap-2 text-xs text-white/55">
             <Terminal className="h-4 w-4" aria-hidden />
             <span>{entry.level}</span>
             <span>{formatDate(entry.timestamp)}</span>
           </div>
           <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words font-mono text-xs">{entry.message}</pre>
-        </div>
+        </Card>
       ))}
     </div>
   );
@@ -404,7 +412,7 @@ function NetworkTab({ report }: { report: ReportDetailType }) {
   return (
     <div className="grid gap-2">
       {report.networkRequests.map((entry) => (
-        <div key={entry.id} className="rounded-md border border-[var(--border)] bg-[var(--surface-subtle)] p-3 text-sm">
+        <Card key={entry.id} className="rounded-md bg-[var(--surface)] p-3 text-sm">
           <div className="flex flex-wrap items-center gap-2">
             <Network className="h-4 w-4 text-[var(--muted-foreground)]" aria-hidden />
             <span className="font-medium">{entry.method}</span>
@@ -415,7 +423,7 @@ function NetworkTab({ report }: { report: ReportDetailType }) {
           </div>
           <div className="mt-2 break-all text-xs text-[var(--muted-foreground)]">{entry.url}</div>
           {entry.error ? <div className="mt-2 text-xs text-[var(--danger)]">{entry.error}</div> : null}
-        </div>
+        </Card>
       ))}
     </div>
   );

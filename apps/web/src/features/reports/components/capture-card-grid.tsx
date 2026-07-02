@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Play } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { StatusBadge, isUserVisibleReportStatus } from './status-badge';
@@ -35,9 +37,9 @@ export function CaptureCardGrid({ reports, isLoading, isError, onRetry, onSelect
     return (
       <div className="grid items-start gap-5 sm:grid-cols-2 xl:grid-cols-3 xl:gap-6" role="status" aria-label="Loading captures">
         {Array.from({ length: 6 }).map((_, index) => (
-          <div
+          <Card
             key={index}
-            className="weevil-step-enter overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)]"
+            className="weevil-step-enter overflow-hidden bg-[var(--bg)]"
             style={{ animationDelay: `${index * 28}ms` }}
           >
             <div className="weevil-skeleton aspect-[16/9] border-b border-[var(--border)] bg-[var(--surface-deep)]" />
@@ -55,7 +57,7 @@ export function CaptureCardGrid({ reports, isLoading, isError, onRetry, onSelect
                 ))}
               </div>
             </div>
-          </div>
+          </Card>
         ))}
       </div>
     );
@@ -75,13 +77,16 @@ export function CaptureCardGrid({ reports, isLoading, isError, onRetry, onSelect
       {reports.map((report, index) => {
         const reporter = reporterMeta(report.reporter);
         return (
-          <button
+          <Card
+            asChild
             key={report.id}
-            type="button"
-            onClick={() => onSelect(report)}
-            className="group weevil-soft-rise weevil-card-hover min-w-0 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] text-left transition-[border-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_8px_8px_-8px_rgba(26,29,18,0.24)] focus:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary-subtle)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
+            className="group weevil-soft-rise weevil-card-hover min-w-0 overflow-hidden bg-[var(--bg)] text-left transition-[border-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_8px_8px_-8px_rgba(26,29,18,0.24)] focus:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary-subtle)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
             style={{ animationDelay: `${Math.min(index, 8) * 22}ms` }}
           >
+            <button
+              type="button"
+              onClick={() => onSelect(report)}
+            >
             <div className="relative aspect-[16/9] overflow-hidden border-b border-[var(--border)] bg-[var(--surface)]">
               <CaptureThumbnail report={report} />
               {isUserVisibleReportStatus(report.status) ? (
@@ -110,12 +115,11 @@ export function CaptureCardGrid({ reports, isLoading, isError, onRetry, onSelect
                     {report.pageUrl ?? report.id}
                   </p>
                   <div className="mt-3 flex min-w-0 items-center gap-2.5 rounded-md bg-[var(--surface)] px-2.5 py-2">
-                    <span
-                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--primary-subtle)] font-mono text-[10px] font-semibold uppercase text-[var(--primary)] ring-1 ring-[var(--primary-soft)]"
-                      aria-hidden
-                    >
-                      {reporter.initials}
-                    </span>
+                    <Avatar className="h-7 w-7 rounded-full ring-1 ring-[var(--primary-soft)]">
+                      <AvatarFallback className="rounded-full bg-[var(--primary-subtle)] font-mono text-[10px] font-semibold uppercase text-[var(--primary)]">
+                        {reporter.initials}
+                      </AvatarFallback>
+                    </Avatar>
                     <div className="min-w-0 flex-1">
                       <div className="font-mono text-[9px] uppercase tracking-wider text-[var(--ink-faint)]">
                         Reported by
@@ -144,7 +148,8 @@ export function CaptureCardGrid({ reports, isLoading, isError, onRetry, onSelect
                 />
               </div>
             </div>
-          </button>
+            </button>
+          </Card>
         );
       })}
     </div>

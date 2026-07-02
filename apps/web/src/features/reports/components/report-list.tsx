@@ -2,8 +2,10 @@
 
 import { Filter, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatDate } from '@/lib/utils';
 import type { ReportSummary } from '@/lib/api/types';
 import { StatusBadge } from './status-badge';
@@ -26,8 +28,8 @@ export function ReportList({
   onSelect,
 }: ReportListProps) {
   return (
-    <section className="min-h-0 bg-[#fafbf6]">
-      <div className="flex h-12 items-center justify-between border-b border-[var(--border)] bg-white px-4">
+    <section className="min-h-0 bg-[var(--surface)]">
+      <div className="flex h-12 items-center justify-between border-b border-[var(--border)] bg-[var(--bg)] px-4">
         <h2 className="text-sm font-semibold">Reports</h2>
         <Button
           type="button"
@@ -41,7 +43,7 @@ export function ReportList({
           <RefreshCw className={`h-4 w-4 ${isRefetching ? 'animate-spin' : ''}`} aria-hidden />
         </Button>
       </div>
-      <div className="grid gap-2 border-b border-[var(--border)] bg-white p-3">
+      <div className="grid gap-2 border-b border-[var(--border)] bg-[var(--bg)] p-3">
         <Input className="h-8" placeholder="Filter current list" />
         <div className="flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
           <Filter className="h-3.5 w-3.5" aria-hidden />
@@ -63,18 +65,21 @@ export function ReportList({
           <EmptyState title="No reports" description="Create a report to start testing the flow." />
         </div>
       ) : (
-        <div className="thin-scrollbar max-h-[calc(100vh-17rem)] overflow-auto p-2">
+        <ScrollArea className="max-h-[calc(100vh-17rem)] p-2">
           {reports.map((report) => (
-            <button
+            <Card
+              asChild
               key={report.id}
-              type="button"
-              onClick={() => onSelect(report.id)}
-              className={`mb-2 grid w-full gap-2 rounded-md border p-3 text-left shadow-[0_1px_1px_rgba(16,24,40,0.03)] transition-colors ${
+              className={`mb-2 grid w-full gap-2 rounded-md p-3 text-left transition-colors ${
                 selectedReportId === report.id
-                  ? 'border-[#cfd6b0] bg-[#f4f6e8]'
-                  : 'border-[var(--border)] bg-white hover:bg-[var(--surface-subtle)]'
+                  ? 'border-[var(--primary)] bg-[var(--primary-subtle)]'
+                  : 'bg-[var(--bg)] hover:bg-[var(--surface)]'
               }`}
             >
+              <button
+                type="button"
+                onClick={() => onSelect(report.id)}
+              >
               <div className="flex items-start justify-between gap-3">
                 <span className="line-clamp-2 text-sm font-medium">{report.title}</span>
                 <StatusBadge status={report.status} />
@@ -85,9 +90,10 @@ export function ReportList({
               <div className="text-xs text-[var(--muted-foreground)]">
                 {formatDate(report.createdAt)}
               </div>
-            </button>
+              </button>
+            </Card>
           ))}
-        </div>
+        </ScrollArea>
       )}
     </section>
   );

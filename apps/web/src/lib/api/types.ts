@@ -50,6 +50,11 @@ export interface PaginatedReportsResponse {
   totalPages: number;
 }
 
+export interface NotificationPreferences {
+  emailOnNewCapture: boolean;
+  emailOnNewComment: boolean;
+}
+
 export interface ReportUpload {
   id: string;
   kind: string;

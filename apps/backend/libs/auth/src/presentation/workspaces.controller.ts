@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import {
   IsArray,
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsOptional,
@@ -61,6 +62,16 @@ class PermissionOverridesDto {
   deniedPermissions?: Permission[];
 }
 
+class NotificationPreferencesDto {
+  @IsBoolean()
+  @IsOptional()
+  emailOnNewCapture?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  emailOnNewComment?: boolean;
+}
+
 @Controller('workspaces')
 export class WorkspacesController {
   constructor(private readonly workspaceService: WorkspaceService) {}
@@ -81,6 +92,25 @@ export class WorkspacesController {
   @RequirePermissions(Permission.WORKSPACE_VIEW)
   listMembers(@CurrentAuth() auth: AuthContext) {
     return this.workspaceService.listMembers(auth.workspace!.id);
+  }
+
+  @Get('current/notification-preferences')
+  @RequirePermissions(Permission.WORKSPACE_VIEW)
+  getNotificationPreferences(@CurrentAuth() auth: AuthContext) {
+    return this.workspaceService.getNotificationPreferences(auth.workspace!.id, auth.user.id);
+  }
+
+  @Patch('current/notification-preferences')
+  @RequirePermissions(Permission.WORKSPACE_VIEW)
+  updateNotificationPreferences(
+    @CurrentAuth() auth: AuthContext,
+    @Body() body: NotificationPreferencesDto,
+  ) {
+    return this.workspaceService.updateNotificationPreferences(
+      auth.workspace!.id,
+      auth.user.id,
+      body,
+    );
   }
 
   @Post('current/members/invite')

@@ -1,8 +1,7 @@
 import { DEFAULT_API_BASE_URL } from '../shared/constants';
-import { getSettings, normalizeApiBaseUrl, saveSettings } from '../shared/config';
+import { getSettings, saveSettings } from '../shared/config';
 import type { ExtensionSettings } from '../shared/types';
 
-const apiBaseUrlInput = document.getElementById('apiBaseUrl') as HTMLInputElement | null;
 const flushIntervalInput = document.getElementById('flushIntervalMs') as HTMLInputElement | null;
 const maxBatchSizeInput = document.getElementById('maxBatchSize') as HTMLInputElement | null;
 const captureNetworkBodiesInput = document.getElementById('captureNetworkBodies') as HTMLInputElement | null;
@@ -16,12 +15,7 @@ let lastSaveStatusTimer: number | undefined;
 
 void load();
 
-if (apiBaseUrlInput) {
-  apiBaseUrlInput.placeholder = DEFAULT_API_BASE_URL;
-}
-
-// Auto-save on any change. Inputs debounce (300ms) so typing in a URL field doesn't thrash storage.
-apiBaseUrlInput?.addEventListener('input', () => queueSave(300));
+// Auto-save on any change. Inputs debounce (300ms) so numeric typing doesn't thrash storage.
 flushIntervalInput?.addEventListener('input', () => queueSave(300));
 maxBatchSizeInput?.addEventListener('input', () => queueSave(300));
 captureNetworkBodiesInput?.addEventListener('change', () => queueSave(0));
@@ -39,7 +33,6 @@ async function load() {
 
 function render(settings: ExtensionSettings) {
   if (
-    !apiBaseUrlInput ||
     !flushIntervalInput ||
     !maxBatchSizeInput ||
     !captureNetworkBodiesInput ||
@@ -50,7 +43,6 @@ function render(settings: ExtensionSettings) {
     return;
   }
 
-  apiBaseUrlInput.value = settings.apiBaseUrl;
   flushIntervalInput.value = String(settings.flushIntervalMs);
   maxBatchSizeInput.value = String(settings.maxBatchSize);
   captureNetworkBodiesInput.checked = settings.captureNetworkBodies;
@@ -70,7 +62,6 @@ function queueSave(delayMs: number) {
 
 async function save() {
   if (
-    !apiBaseUrlInput ||
     !flushIntervalInput ||
     !maxBatchSizeInput ||
     !captureNetworkBodiesInput ||
@@ -95,9 +86,8 @@ async function save() {
   }
 
   try {
-    const apiBaseUrl = normalizeApiBaseUrl(apiBaseUrlInput.value || DEFAULT_API_BASE_URL);
     await saveSettings({
-      apiBaseUrl,
+      apiBaseUrl: DEFAULT_API_BASE_URL,
       flushIntervalMs,
       maxBatchSize,
       captureNetworkBodies: captureNetworkBodiesInput.checked,
@@ -105,7 +95,6 @@ async function save() {
       capturePerformance: capturePerformanceInput.checked,
       redactSensitiveData: redactSensitiveDataInput.checked,
     });
-    apiBaseUrlInput.value = apiBaseUrl;
     setStatus('Saved.', 'ok');
   } catch (error) {
     setStatus(getErrorMessage(error), 'error');

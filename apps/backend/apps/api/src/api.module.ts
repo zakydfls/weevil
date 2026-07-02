@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AuthModule } from '@weevil/auth';
 import { CacheModule } from '@weevil/cache';
 import { AppConfigModule } from '@weevil/config';
@@ -12,6 +13,7 @@ import { HealthController } from './health.controller';
 @Module({
   imports: [
     AppConfigModule,
+    EventEmitterModule.forRoot(),
     CacheModule,
     DatabaseModule,
     ObservabilityModule,

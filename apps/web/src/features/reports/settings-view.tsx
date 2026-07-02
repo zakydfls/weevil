@@ -1,13 +1,37 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Check, LayoutGrid, Loader2, Rows3, ShieldCheck, Users } from 'lucide-react';
+import {
+  AlertTriangle,
+  Bell,
+  Check,
+  LayoutGrid,
+  Loader2,
+  MessageSquareText,
+  Rows3,
+  ShieldCheck,
+  Sparkles,
+  Users,
+  Video,
+} from 'lucide-react';
 import { WeevilMark } from '@/components/brand/weevil-mark';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MembersPanel } from '@/features/auth/members-panel';
+import { useAuth } from '@/features/auth/auth-context';
+import { apiClient } from '@/lib/api/client';
+import type { NotificationPreferences } from '@/lib/api/types';
 import { getExtensionStatus, updateExtensionSettings } from '@/lib/extension-bridge';
 import { PageHeader } from './components/page-chrome';
 
-type SettingsSection = 'members' | 'privacy' | 'shortcuts' | 'about';
+type SettingsSection = 'members' | 'notifications' | 'privacy' | 'shortcuts' | 'about';
 
 function readRedactionSetting(response: unknown) {
   if (!response || typeof response !== 'object' || Array.isArray(response)) {
@@ -28,11 +52,23 @@ function readRedactionSetting(response: unknown) {
 }
 
 export function SettingsView() {
+  const auth = useAuth();
   const [activeSection, setActiveSection] = useState<SettingsSection>('members');
   const [redactSensitiveData, setRedactSensitiveData] = useState(true);
+  const [notificationPreferences, setNotificationPreferences] =
+    useState<NotificationPreferences>({
+      emailOnNewCapture: false,
+      emailOnNewComment: false,
+    });
   const [isSaving, setIsSaving] = useState(false);
+  const [isNotificationLoading, setIsNotificationLoading] = useState(true);
+  const [savingNotificationKey, setSavingNotificationKey] =
+    useState<keyof NotificationPreferences | null>(null);
   const [syncState, setSyncState] = useState<'idle' | 'synced' | 'failed'>('idle');
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [notificationSyncState, setNotificationSyncState] =
+    useState<'idle' | 'synced' | 'failed'>('idle');
+  const [notificationSyncError, setNotificationSyncError] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = window.localStorage.getItem('weevil.redact-sensitive-data');
@@ -61,6 +97,32 @@ export function SettingsView() {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+    setIsNotificationLoading(true);
+    setNotificationSyncState('idle');
+    setNotificationSyncError(null);
+
+    void apiClient
+      .getNotificationPreferences()
+      .then((preferences) => {
+        if (!isMounted) return;
+        setNotificationPreferences(preferences);
+      })
+      .catch((error) => {
+        if (!isMounted) return;
+        setNotificationSyncState('failed');
+        setNotificationSyncError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => {
+        if (isMounted) setIsNotificationLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [auth.workspace?.id]);
+
   async function handleRedactionChange(value: boolean) {
     const previousValue = redactSensitiveData;
     setRedactSensitiveData(value);
@@ -81,8 +143,32 @@ export function SettingsView() {
     }
   }
 
+  async function handleNotificationPreferenceChange(
+    key: keyof NotificationPreferences,
+    value: boolean,
+  ) {
+    const previousValue = notificationPreferences;
+    const nextValue = { ...notificationPreferences, [key]: value };
+    setNotificationPreferences(nextValue);
+    setSavingNotificationKey(key);
+    setNotificationSyncState('idle');
+    setNotificationSyncError(null);
+    try {
+      const saved = await apiClient.updateNotificationPreferences({ [key]: value });
+      setNotificationPreferences(saved);
+      setNotificationSyncState('synced');
+    } catch (error) {
+      setNotificationPreferences(previousValue);
+      setNotificationSyncState('failed');
+      setNotificationSyncError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSavingNotificationKey(null);
+    }
+  }
+
   const sections = [
     { id: 'members' as const, label: 'Members', icon: Users },
+    { id: 'notifications' as const, label: 'Notifications', icon: Bell },
     { id: 'privacy' as const, label: 'Privacy', icon: ShieldCheck },
     { id: 'shortcuts' as const, label: 'Shortcuts', icon: Rows3 },
     { id: 'about' as const, label: 'About', icon: LayoutGrid },
@@ -90,57 +176,112 @@ export function SettingsView() {
 
   return (
     <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] w-full max-w-5xl flex-col">
-      <PageHeader title="Settings" subtitle="Workspace preferences, integrations, and shortcuts." />
-      <div className="grid flex-1 gap-6 px-4 pb-10 sm:px-6 md:gap-8 md:grid-cols-[12rem_1fr]">
-        <nav
-          className="scrollbar-none -mx-4 flex gap-1 overflow-x-auto border-b border-[var(--border)] px-4 pb-3 sm:-mx-6 sm:px-6 md:mx-0 md:flex-col md:gap-0.5 md:space-y-0 md:overflow-visible md:border-b-0 md:p-0"
+      <PageHeader
+        title="Settings"
+        subtitle="Workspace preferences, access, and capture behavior."
+        rightSlot={
+          <span className="hidden items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--ink-muted)] sm:inline-flex">
+            <Sparkles className="h-3.5 w-3.5 text-[var(--primary)]" aria-hidden />
+            Radix powered
+          </span>
+        }
+      />
+      <Tabs
+        value={activeSection}
+        onValueChange={(value) => setActiveSection(value as SettingsSection)}
+        className="grid flex-1 gap-6 px-4 pb-10 sm:px-6 md:gap-8 md:grid-cols-[12rem_1fr]"
+      >
+        <TabsList
           aria-label="Settings sections"
+          className="scrollbar-none -mx-4 flex justify-start overflow-x-auto rounded-none border-x-0 border-t-0 bg-transparent px-4 pb-3 sm:-mx-6 sm:px-6 md:mx-0 md:h-max md:flex-col md:items-stretch md:rounded-lg md:border md:bg-[var(--surface)] md:p-1"
         >
-          {sections.map((section) => {
-            const active = activeSection === section.id;
-            return (
-              <button
-                key={section.id}
-                type="button"
-                onClick={() => setActiveSection(section.id)}
-                className={`flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors md:w-full ${
-                  active
-                    ? 'bg-[var(--primary-subtle)] font-semibold text-[var(--primary)]'
-                    : 'text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]'
-                }`}
-              >
-                <section.icon className="h-4 w-4" aria-hidden />
-                {section.label}
-              </button>
-            );
-          })}
-        </nav>
+          {sections.map((section) => (
+            <TabsTrigger
+              key={section.id}
+              value={section.id}
+              className="shrink-0 justify-start md:w-full"
+            >
+              <section.icon className="h-4 w-4" aria-hidden />
+              {section.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-        <div>
-          {activeSection === 'members' ? <MembersPanel /> : null}
+        <div className="min-w-0">
+          <TabsContent value="members" className="mt-0">
+            <MembersPanel />
+          </TabsContent>
 
-          {activeSection === 'privacy' ? (
+          <TabsContent value="notifications" className="mt-0">
+            <div className="grid gap-4">
+              <SettingsCard
+                icon={Video}
+                title="New capture emails"
+                description="Email me when a new capture in this workspace is ready to review."
+                trailing={
+                  <Switch
+                    checked={notificationPreferences.emailOnNewCapture}
+                    onCheckedChange={(value) =>
+                      void handleNotificationPreferenceChange('emailOnNewCapture', value)
+                    }
+                    disabled={isNotificationLoading || savingNotificationKey !== null}
+                    aria-label="Toggle new capture email notifications"
+                    className={
+                      savingNotificationKey === 'emailOnNewCapture' ? 'cursor-wait' : undefined
+                    }
+                  />
+                }
+                footer={
+                  <NotificationPreferenceStatus
+                    isLoading={isNotificationLoading}
+                    isSaving={savingNotificationKey === 'emailOnNewCapture'}
+                    syncState={notificationSyncState}
+                    error={notificationSyncError}
+                  />
+                }
+              />
+              <SettingsCard
+                icon={MessageSquareText}
+                title="Comment emails"
+                description="Email me when someone adds a comment to a capture in this workspace."
+                trailing={
+                  <Switch
+                    checked={notificationPreferences.emailOnNewComment}
+                    onCheckedChange={(value) =>
+                      void handleNotificationPreferenceChange('emailOnNewComment', value)
+                    }
+                    disabled={isNotificationLoading || savingNotificationKey !== null}
+                    aria-label="Toggle comment email notifications"
+                    className={
+                      savingNotificationKey === 'emailOnNewComment' ? 'cursor-wait' : undefined
+                    }
+                  />
+                }
+                footer={
+                  <NotificationPreferenceStatus
+                    isLoading={isNotificationLoading}
+                    isSaving={savingNotificationKey === 'emailOnNewComment'}
+                    syncState={notificationSyncState}
+                    error={notificationSyncError}
+                  />
+                }
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="privacy" className="mt-0">
             <SettingsCard
               icon={ShieldCheck}
               title="Redact sensitive data"
               description="Mask tokens, cookies, authorization headers, and obvious secrets before captures are displayed."
               trailing={
-                <button
-                  type="button"
-                  onClick={() => handleRedactionChange(!redactSensitiveData)}
+                <Switch
+                  checked={redactSensitiveData}
+                  onCheckedChange={(value) => void handleRedactionChange(value)}
                   disabled={isSaving}
-                  className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)] ${
-                    redactSensitiveData ? 'bg-[var(--primary)]' : 'bg-[var(--border-strong)]'
-                  } ${isSaving ? 'cursor-wait opacity-70' : 'cursor-pointer'}`}
-                  aria-pressed={redactSensitiveData}
                   aria-label="Toggle redaction"
-                >
-                  <span
-                    className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform duration-200 ease-out ${
-                      redactSensitiveData ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
+                  className={isSaving ? 'cursor-wait' : undefined}
+                />
               }
               footer={
                 <div className="min-h-5">
@@ -163,26 +304,32 @@ export function SettingsView() {
                 </div>
               }
             />
-          ) : null}
+          </TabsContent>
 
-          {activeSection === 'shortcuts' ? <ShortcutsTable /> : null}
+          <TabsContent value="shortcuts" className="mt-0">
+            <ShortcutsTable />
+          </TabsContent>
 
-          {activeSection === 'about' ? (
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6">
-              <div className="flex items-center gap-3">
-                <WeevilMark size={48} tone="brand" />
-                <div>
-                  <h2 className="text-base font-semibold text-[var(--ink)]">Weevil</h2>
-                  <p className="font-mono text-xs text-[var(--ink-faint)]">Version 0.1.0</p>
+          <TabsContent value="about" className="mt-0">
+            <Card className="overflow-hidden">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-13 w-13 place-items-center rounded-xl bg-[var(--primary-subtle)]">
+                    <WeevilMark size={48} tone="brand" />
+                  </span>
+                  <div>
+                    <h2 className="text-base font-semibold text-[var(--ink)]">Weevil</h2>
+                    <p className="font-mono text-xs text-[var(--ink-faint)]">Version 0.1.0</p>
+                  </div>
                 </div>
-              </div>
-              <p className="mt-4 max-w-md text-sm leading-6 text-[var(--ink-muted)]">
-                Weevil turns a bug report into a debuggable session. Capture once, share once, fix faster.
-              </p>
-            </div>
-          ) : null}
+                <p className="mt-4 max-w-md text-sm leading-6 text-[var(--ink-muted)]">
+                  Weevil turns a bug report into a debuggable session. Capture once, share once, fix faster.
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </div>
-      </div>
+      </Tabs>
     </div>
   );
 }
@@ -201,20 +348,62 @@ function SettingsCard({
   footer?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--primary-subtle)] text-[var(--primary)]">
-            <Icon className="h-5 w-5" aria-hidden />
+    <Card className="overflow-hidden">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--primary-subtle)] text-[var(--primary)]">
+              <Icon className="h-5 w-5" aria-hidden />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-[var(--ink)]">{title}</h2>
+              <p className="mt-1 max-w-xl text-sm leading-6 text-[var(--ink-muted)]">
+                {description}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-base font-semibold text-[var(--ink)]">{title}</h2>
-            <p className="mt-1 max-w-xl text-sm leading-6 text-[var(--ink-muted)]">{description}</p>
-          </div>
+          {trailing}
         </div>
-        {trailing}
-      </div>
-      {footer ? <div className="mt-3 pl-13">{footer}</div> : null}
+        {footer ? <div className="mt-3 pl-[3.25rem]">{footer}</div> : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function NotificationPreferenceStatus({
+  isLoading,
+  isSaving,
+  syncState,
+  error,
+}: {
+  isLoading: boolean;
+  isSaving: boolean;
+  syncState: 'idle' | 'synced' | 'failed';
+  error: string | null;
+}) {
+  return (
+    <div className="min-h-5">
+      {isLoading ? (
+        <p className="inline-flex items-center gap-2 text-xs font-medium text-[var(--ink-muted)]">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          Loading preference...
+        </p>
+      ) : isSaving ? (
+        <p className="inline-flex items-center gap-2 text-xs font-medium text-[var(--ink-muted)]">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          Saving preference...
+        </p>
+      ) : syncState === 'synced' ? (
+        <p className="inline-flex items-center gap-2 text-xs font-medium text-[var(--success)]">
+          <Check className="h-3.5 w-3.5" aria-hidden />
+          Saved for this workspace.
+        </p>
+      ) : syncState === 'failed' ? (
+        <p className="inline-flex items-center gap-2 text-xs font-medium text-[var(--danger)]">
+          <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+          {error ?? 'Could not save notification preference.'}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -229,13 +418,13 @@ function ShortcutsTable() {
     { keys: ['Space'], description: 'Play / pause recording (in capture detail)' },
   ];
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)]">
-      <div className="border-b border-[var(--border)] px-5 py-3">
-        <h2 className="text-base font-semibold text-[var(--ink)]">Keyboard shortcuts</h2>
-        <p className="mt-0.5 text-sm text-[var(--ink-muted)]">
+    <Card className="overflow-hidden">
+      <CardHeader>
+        <CardTitle>Keyboard shortcuts</CardTitle>
+        <CardDescription>
           Weevil is keyboard-first. These work anywhere outside text inputs.
-        </p>
-      </div>
+        </CardDescription>
+      </CardHeader>
       <div className="divide-y divide-[var(--divider)]">
         {shortcuts.map((shortcut) => (
           <div key={shortcut.description} className="flex items-center justify-between gap-4 px-5 py-3">
@@ -253,6 +442,6 @@ function ShortcutsTable() {
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }

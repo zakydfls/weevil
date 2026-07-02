@@ -2,9 +2,25 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Check, Copy, Loader2, MoreHorizontal, Trash2, UserPlus } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDialog } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { apiClient } from '@/lib/api/client';
 import { useAuth } from './auth-context';
 
@@ -116,35 +132,40 @@ export function MembersPanel() {
   return (
     <div className="space-y-6">
       {canInvite ? (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <div className="flex items-center gap-2">
-            <UserPlus className="h-4 w-4 text-[var(--primary)]" aria-hidden />
-            <h2 className="text-sm font-semibold text-[var(--ink)]">Invite a member</h2>
-          </div>
-          <form onSubmit={handleInvite} className="mt-4 grid gap-2 sm:grid-cols-[1fr_8rem_auto]">
-            <Input
-              type="email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="teammate@example.com"
-            />
-            <select
-              value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value as (typeof ROLES)[number])}
-              className="h-9 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 font-mono text-xs text-[var(--ink)]"
-            >
-              {ROLES.map((role) => (
-                <option key={role} value={role}>
-                  {role.toLowerCase()}
-                </option>
-              ))}
-            </select>
-            <Button type="submit" disabled={isInviting} className="h-9">
-              {isInviting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              Send invite
-            </Button>
-          </form>
-        </div>
+        <Card className="overflow-hidden">
+          <CardHeader className="grid-cols-[auto_1fr] items-center">
+            <span className="grid h-9 w-9 place-items-center rounded-lg bg-[var(--primary-subtle)] text-[var(--primary)]">
+              <UserPlus className="h-4 w-4" aria-hidden />
+            </span>
+            <CardTitle className="text-sm">Invite a member</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleInvite} className="grid gap-2 sm:grid-cols-[1fr_8.5rem_auto]">
+              <Input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="teammate@example.com"
+              />
+              <Select value={inviteRole} onValueChange={(value) => setInviteRole(value as (typeof ROLES)[number])}>
+                <SelectTrigger className="font-mono text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLES.map((role) => (
+                    <SelectItem key={role} value={role} className="font-mono text-xs uppercase">
+                      {role.toLowerCase()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button type="submit" disabled={isInviting} className="h-9">
+                {isInviting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                Send invite
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       ) : null}
 
       {error ? (
@@ -153,13 +174,13 @@ export function MembersPanel() {
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--bg)]">
-        <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-3">
-          <h2 className="text-sm font-semibold text-[var(--ink)]">Members</h2>
+      <Card className="overflow-hidden bg-[var(--bg)]">
+        <CardHeader className="flex-row items-center justify-between gap-4">
+          <CardTitle className="text-sm">Members</CardTitle>
           <span className="font-mono text-[11px] text-[var(--ink-faint)]">
             {members.length} {members.length === 1 ? 'person' : 'people'}
           </span>
-        </div>
+        </CardHeader>
         {isLoading ? (
           <div className="space-y-2 p-5">
             {Array.from({ length: 3 }).map((_, idx) => (
@@ -183,7 +204,7 @@ export function MembersPanel() {
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
@@ -203,7 +224,6 @@ function MemberRow({
   onRemove: () => Promise<void>;
   isSelf: boolean;
 }) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [copiedInvite, setCopiedInvite] = useState(false);
   const isPendingInvite = member.status === 'INVITED' && !member.userId;
   const initials = (member.displayName ?? member.email).slice(0, 2).toUpperCase();
@@ -218,23 +238,21 @@ function MemberRow({
   return (
     <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--ink)] font-mono text-[11px] font-semibold text-white">
-          {initials}
-        </div>
+        <Avatar className="h-9 w-9 rounded-full">
+          <AvatarFallback className="rounded-full font-mono text-[11px] font-semibold">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="truncate text-sm font-semibold text-[var(--ink)]">
               {member.displayName ?? member.email}
             </span>
             {isSelf ? (
-              <span className="rounded bg-[var(--primary-subtle)] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[var(--primary)]">
-                you
-              </span>
+              <Badge tone="info" className="h-5 px-1.5 font-mono text-[10px]">you</Badge>
             ) : null}
             {isPendingInvite ? (
-              <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
-                pending invitation
-              </span>
+              <Badge tone="warning" className="h-5 px-1.5 font-mono text-[10px]">pending invitation</Badge>
             ) : null}
           </div>
           <div className="truncate font-mono text-[11px] text-[var(--ink-faint)]">
@@ -250,49 +268,46 @@ function MemberRow({
           </Button>
         ) : null}
         {canManageRoles && !isPendingInvite ? (
-          <select
-            value={member.role}
-            onChange={(e) => void onChangeRole(e.target.value)}
-            className="h-8 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 font-mono text-[11px] text-[var(--ink)]"
-          >
-            {ROLES.map((role) => (
-              <option key={role} value={role}>
-                {role.toLowerCase()}
-              </option>
-            ))}
-          </select>
+          <Select value={member.role} onValueChange={(value) => void onChangeRole(value)}>
+            <SelectTrigger className="h-8 w-28 rounded-md px-2 font-mono text-[11px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ROLES.map((role) => (
+                <SelectItem key={role} value={role} className="font-mono text-xs uppercase">
+                  {role.toLowerCase()}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         ) : (
           <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--ink-muted)]">
             {member.role.toLowerCase()}
           </span>
         )}
         {canRemove && !isPendingInvite ? (
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsMenuOpen((v) => !v)}
-              onBlur={() => window.setTimeout(() => setIsMenuOpen(false), 150)}
-              className="grid h-8 w-8 place-items-center rounded-md text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]"
-              aria-label="More"
-            >
-              <MoreHorizontal className="h-4 w-4" aria-hidden />
-            </button>
-            {isMenuOpen ? (
-              <div className="absolute right-0 top-9 z-[var(--z-dropdown)] w-44 overflow-hidden rounded-md border border-[var(--border)] bg-[var(--bg)] p-1 shadow-[0_8px_24px_-12px_rgba(26,29,18,0.18)]">
-                <button
-                  type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    void onRemove();
-                  }}
-                  className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs text-[var(--danger)] hover:bg-[var(--danger-bg)]"
-                >
-                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                  Remove member
-                </button>
-              </div>
-            ) : null}
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="grid h-8 w-8 place-items-center rounded-md text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)] data-[state=open]:bg-[var(--primary-subtle)] data-[state=open]:text-[var(--primary)]"
+                aria-label="More"
+              >
+                <MoreHorizontal className="h-4 w-4" aria-hidden />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem
+                onSelect={() => {
+                  void onRemove();
+                }}
+                className="text-xs text-[var(--danger)] focus:bg-[var(--danger-bg)] focus:text-[var(--danger)]"
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                Remove member
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : null}
       </div>
     </div>

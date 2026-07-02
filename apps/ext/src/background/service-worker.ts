@@ -218,9 +218,6 @@ function normalizeSettingsPatch(payload: unknown): Partial<ExtensionSettings> {
 
   const record = payload as Record<string, unknown>;
   const patch: Partial<ExtensionSettings> = {};
-  if (typeof record.apiBaseUrl === 'string' && record.apiBaseUrl.trim().length > 0) {
-    patch.apiBaseUrl = record.apiBaseUrl.trim();
-  }
   if (typeof record.flushIntervalMs === 'number' && Number.isFinite(record.flushIntervalMs)) {
     patch.flushIntervalMs = record.flushIntervalMs;
   }

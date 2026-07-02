@@ -7,6 +7,8 @@ export const ApiRoutes = {
   ReportUploads: 'reports/:reportId/uploads',
   ReportUploadComplete: 'reports/:reportId/uploads/:uploadId/complete',
   ReportUploadDownloadUrl: 'reports/:reportId/uploads/:uploadId/download-url',
+  ReportShare: 'reports/share/:shareToken',
+  ReportShareUploadDownloadUrl: 'reports/share/:shareToken/uploads/:uploadId/download-url',
   ReportConsoleLogs: 'reports/:reportId/telemetry/console',
   ReportNetworkRequests: 'reports/:reportId/telemetry/network',
   ReportCaptureSessions: 'reports/:reportId/capture-sessions',
@@ -22,10 +24,12 @@ export const ApiRoutes = {
   ReportCaptureSessionsRelative: ':reportId/capture-sessions',
   ReportCaptureSessionCompleteRelative: ':reportId/capture-sessions/:sessionId/complete',
   ReportTimelineRelative: ':reportId/timeline',
+  ReportShareRelative: 'share/:shareToken',
 } as const;
 
 export const RouteParams = {
   ReportId: 'reportId',
   UploadId: 'uploadId',
   SessionId: 'sessionId',
+  ShareToken: 'shareToken',
 } as const;

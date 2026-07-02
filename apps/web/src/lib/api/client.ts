@@ -12,6 +12,7 @@ import type {
   DownloadUrlResponse,
   ListReportsParams,
   NetworkRequestEntry,
+  NotificationPreferences,
   PageActionEntry,
   PaginatedReportsResponse,
   PerformanceEntry,
@@ -123,6 +124,9 @@ export const apiClient = {
 
   getReportDetail: (reportId: string) => request<ReportDetail>(`/reports/${reportId}/detail`),
 
+  getPublicReportDetail: (shareToken: string) =>
+    request<ReportDetail>(`/reports/share/${encodeURIComponent(shareToken)}`),
+
   getReportTimeline: (reportId: string) =>
     request<TimelineEntry[]>(`/reports/${reportId}/timeline`),
 
@@ -146,6 +150,11 @@ export const apiClient = {
 
   getDownloadUrl: (reportId: string, uploadId: string) =>
     request<DownloadUrlResponse>(`/reports/${reportId}/uploads/${uploadId}/download-url`),
+
+  getPublicDownloadUrl: (shareToken: string, uploadId: string) =>
+    request<DownloadUrlResponse>(
+      `/reports/share/${encodeURIComponent(shareToken)}/uploads/${uploadId}/download-url`,
+    ),
 
   createCaptureSession: (reportId: string, input: CreateCaptureSessionInput) =>
     request<CaptureSession>(`/reports/${reportId}/capture-sessions`, {
@@ -371,6 +380,15 @@ export const apiClient = {
   removeMember: (memberId: string) =>
     request<void>(`/workspaces/current/members/${memberId}`, {
       method: 'DELETE',
+    }),
+
+  getNotificationPreferences: () =>
+    request<NotificationPreferences>('/workspaces/current/notification-preferences'),
+
+  updateNotificationPreferences: (body: Partial<NotificationPreferences>) =>
+    request<NotificationPreferences>('/workspaces/current/notification-preferences', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
     }),
 
   // ── Platform admin (PLATFORM_ADMIN role only) ──────────────────────────────

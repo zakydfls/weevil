@@ -4,6 +4,7 @@ import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Input, Textarea } from '@/components/ui/input';
 import type { CreateReportInput, ReportSummary } from '@/lib/api/types';
 import { useCreateReport } from '../queries';
@@ -43,7 +44,8 @@ export function ReportCreateForm({ onCreated }: ReportCreateFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-md bg-white">
+    <Card asChild className="rounded-md bg-[var(--bg)] p-4">
+    <form onSubmit={handleSubmit}>
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-sm font-semibold">New report</h1>
@@ -85,6 +87,7 @@ export function ReportCreateForm({ onCreated }: ReportCreateFormProps) {
         <p className="mt-3 text-sm text-[var(--danger)]">{getErrorMessage(createReport.error)}</p>
       ) : null}
     </form>
+    </Card>
   );
 }
 

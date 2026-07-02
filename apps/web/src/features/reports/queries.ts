@@ -11,6 +11,7 @@ export const reportKeys = {
   list: (workspaceSlug: string, params: ListReportsParams) =>
     ['reports', 'list', workspaceSlug, params] as const,
   detail: (reportId: string) => ['reports', 'detail', reportId] as const,
+  publicDetail: (shareToken: string) => ['reports', 'public-detail', shareToken] as const,
 };
 
 export function useReports(params: ListReportsParams) {
@@ -36,6 +37,18 @@ export function useReportDetail(reportId: string | null) {
     queryKey: reportId ? reportKeys.detail(reportId) : ['reports', 'empty', workspaceKey],
     queryFn: () => apiClient.getReportDetail(reportId ?? ''),
     enabled: Boolean(reportId) && workspaceKey !== NO_WORKSPACE_KEY,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === 'PROCESSING' || status === 'UPLOADING' ? 2_000 : false;
+    },
+  });
+}
+
+export function usePublicReportDetail(shareToken: string | null) {
+  return useQuery({
+    queryKey: shareToken ? reportKeys.publicDetail(shareToken) : ['reports', 'public-empty'],
+    queryFn: () => apiClient.getPublicReportDetail(shareToken ?? ''),
+    enabled: Boolean(shareToken),
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       return status === 'PROCESSING' || status === 'UPLOADING' ? 2_000 : false;

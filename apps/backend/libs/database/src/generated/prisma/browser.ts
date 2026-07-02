@@ -46,6 +46,12 @@ export type OtpChallenge = Prisma.OtpChallengeModel
  */
 export type WorkspaceMember = Prisma.WorkspaceMemberModel
 /**
+ * Model UserNotificationPreference
+ * Per-user notification preferences inside one workspace. Features default off
+ * until the user explicitly enables them from Settings.
+ */
+export type UserNotificationPreference = Prisma.UserNotificationPreferenceModel
+/**
  * Model WorkspaceInvite
  * Pending workspace invitations. Anyone with the token can accept (then becomes a member).
  */

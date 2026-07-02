@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   CompleteUploadDto,
   CreateUploadDto,
@@ -190,6 +190,34 @@ export class UploadsService {
       },
     });
     assertWorkspaceAccess(upload.report, options.workspaceId);
+
+    return {
+      getUrl: await this.storage.createGetUrl(upload.bucket, upload.objectKey),
+      expiresInSeconds: UploadDefaults.PresignedGetExpirySeconds,
+    };
+  }
+
+  async createDownloadUrlByShareToken(
+    shareToken: string,
+    uploadId: string,
+  ): Promise<DownloadUrlResponse> {
+    const upload = await this.prisma.reportUpload.findFirst({
+      where: {
+        id: uploadId,
+        report: {
+          shareToken,
+          deletedAt: null,
+        },
+      },
+      select: {
+        bucket: true,
+        objectKey: true,
+      },
+    });
+
+    if (!upload) {
+      throw new NotFoundException('Shared upload not found.');
+    }
 
     return {
       getUrl: await this.storage.createGetUrl(upload.bucket, upload.objectKey),

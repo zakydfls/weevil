@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '@weevil/auth';
+import { NotificationsModule } from '@weevil/notifications';
 import { RedactionModule } from '@weevil/redaction';
+import { ReportNotificationService } from './application/report-notification.service';
 import { ReportTelemetryController } from './presentation/report-telemetry.controller';
 import { ReportsController } from './presentation/reports.controller';
 import { UploadsController } from './presentation/uploads.controller';
@@ -11,15 +13,16 @@ import { TelemetryService } from './application/telemetry.service';
 import { UploadsService } from './application/uploads.service';
 
 @Module({
-  imports: [RedactionModule, AuthModule],
+  imports: [RedactionModule, AuthModule, NotificationsModule],
   controllers: [ReportsController, UploadsController, ReportTelemetryController],
   providers: [
     ReportMapper,
+    ReportNotificationService,
     ReportsService,
     TenantResolverService,
     TelemetryService,
     UploadsService,
   ],
-  exports: [ReportsService, UploadsService, TelemetryService],
+  exports: [ReportNotificationService, ReportsService, UploadsService, TelemetryService],
 })
 export class ReportsModule {}

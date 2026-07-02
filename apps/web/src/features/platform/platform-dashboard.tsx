@@ -10,14 +10,18 @@ import {
   Loader2,
   Pause,
   Play,
+  Search,
   Shield,
   ShieldCheck,
   TrendingUp,
   Users as UsersIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiClient } from '@/lib/api/client';
 
 type Tab = 'overview' | 'tenants' | 'users';
@@ -70,7 +74,11 @@ export function PlatformDashboard() {
   const [tab, setTab] = useState<Tab>('overview');
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-3.5rem)] w-full max-w-[100rem] flex-col">
+    <Tabs
+      value={tab}
+      onValueChange={(value) => setTab(value as Tab)}
+      className="mx-auto flex min-h-[calc(100vh-3.5rem)] w-full max-w-[100rem] flex-col"
+    >
       <header className="flex flex-col items-start justify-between gap-3 px-4 pb-2 pt-6 sm:flex-row sm:items-end sm:px-6 sm:pt-8">
         <div>
           <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-[var(--ink-faint)]">
@@ -87,41 +95,31 @@ export function PlatformDashboard() {
       </header>
 
       <div className="border-b border-[var(--border)] px-4 sm:px-6">
-        <div className="flex items-end gap-0.5">
+        <TabsList className="scrollbar-none h-auto justify-start overflow-x-auto rounded-none border-0 bg-transparent p-0">
           {[
             { id: 'overview' as const, label: 'Overview', icon: TrendingUp },
             { id: 'tenants' as const, label: 'Tenants', icon: Building2 },
             { id: 'users' as const, label: 'Users', icon: UsersIcon },
-          ].map((entry) => {
-            const active = tab === entry.id;
-            return (
-              <button
+          ].map((entry) => (
+              <TabsTrigger
                 key={entry.id}
-                type="button"
-                onClick={() => setTab(entry.id)}
-                className={`relative inline-flex h-10 items-center gap-1.5 rounded-t-md px-4 text-sm font-medium transition-colors ${
-                  active
-                    ? 'text-[var(--ink)]'
-                    : 'text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]'
-                }`}
+                value={entry.id}
+                className="group relative h-10 rounded-b-none rounded-t-md border-x-0 border-t-0 bg-transparent px-4 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
               >
                 <entry.icon className="h-3.5 w-3.5" aria-hidden />
                 {entry.label}
-                {active ? (
-                  <span className="absolute inset-x-3 -bottom-px h-[2px] rounded-full bg-[var(--primary)]" />
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
+                <span className="absolute inset-x-3 -bottom-px h-[2px] rounded-full bg-[var(--primary)] opacity-0 transition-opacity group-data-[state=active]:opacity-100" />
+              </TabsTrigger>
+          ))}
+        </TabsList>
       </div>
 
       <div className="flex-1 px-4 pb-10 pt-6 sm:px-6">
-        {tab === 'overview' ? <OverviewTab /> : null}
-        {tab === 'tenants' ? <TenantsTab /> : null}
-        {tab === 'users' ? <UsersTab /> : null}
+        <TabsContent value="overview" className="mt-0"><OverviewTab /></TabsContent>
+        <TabsContent value="tenants" className="mt-0"><TenantsTab /></TabsContent>
+        <TabsContent value="users" className="mt-0"><UsersTab /></TabsContent>
       </div>
-    </div>
+    </Tabs>
   );
 }
 
@@ -239,31 +237,33 @@ function StatTile({
         ? 'text-[var(--danger)]'
         : 'text-[var(--ink-faint)]';
   return (
-    <div className="relative overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] p-4">
+    <Card className="relative overflow-hidden bg-[var(--bg)]">
       {/* Subtle accent corner — only ~20% of the tile, just enough to vary the eye */}
       <div
         className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-60"
         style={{ background: `radial-gradient(closest-side, ${a.ring}, transparent)` }}
         aria-hidden
       />
-      <div className="relative flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
-        <span
-          className="grid h-5 w-5 place-items-center rounded"
-          style={{ backgroundColor: a.bg, color: a.fg }}
-        >
-          <Icon className="h-3 w-3" aria-hidden />
-        </span>
-        {label}
-      </div>
-      <div className="relative mt-2 text-2xl font-semibold tabular-nums text-[var(--ink)]">
-        {value.toLocaleString()}
-      </div>
-      <div className={`relative mt-1 inline-flex items-center gap-1 font-mono text-[11px] ${toneClass}`}>
-        {subTone === 'success' ? <ArrowUpRight className="h-3 w-3" aria-hidden /> : null}
-        {subTone === 'danger' ? <ArrowDownRight className="h-3 w-3" aria-hidden /> : null}
-        {subValue}
-      </div>
-    </div>
+      <CardContent className="relative p-4">
+        <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+          <span
+            className="grid h-5 w-5 place-items-center rounded"
+            style={{ backgroundColor: a.bg, color: a.fg }}
+          >
+            <Icon className="h-3 w-3" aria-hidden />
+          </span>
+          {label}
+        </div>
+        <div className="mt-2 text-2xl font-semibold tabular-nums text-[var(--ink)]">
+          {value.toLocaleString()}
+        </div>
+        <div className={`mt-1 inline-flex items-center gap-1 font-mono text-[11px] ${toneClass}`}>
+          {subTone === 'success' ? <ArrowUpRight className="h-3 w-3" aria-hidden /> : null}
+          {subTone === 'danger' ? <ArrowDownRight className="h-3 w-3" aria-hidden /> : null}
+          {subValue}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -287,56 +287,58 @@ function CapturesChart({ data }: { data: Array<{ day: string; count: number }> }
   }, [data]);
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg)] p-5">
-      <div className="flex items-center justify-between">
+    <Card className="overflow-hidden bg-[var(--bg)]">
+      <CardHeader className="flex-row items-center justify-between gap-4">
         <div>
-          <h2 className="text-sm font-semibold text-[var(--ink)]">Captures · last 30 days</h2>
+          <CardTitle className="text-sm">Captures · last 30 days</CardTitle>
           <p className="mt-0.5 font-mono text-[11px] text-[var(--ink-faint)]">
             cross-tenant aggregate
           </p>
         </div>
         <div className="font-mono text-[11px] text-[var(--ink-faint)]">peak {max}</div>
-      </div>
-      <div className="mt-5 flex h-40 items-end gap-[3px] sm:gap-1">
-        {days.map((point) => {
-          const heightPct = (point.count / max) * 100;
-          const isToday = point.day.toDateString() === new Date().toDateString();
-          return (
-            <div
-              key={point.day.toISOString()}
-              className="group flex flex-1 flex-col items-center justify-end"
-              title={`${point.day.toDateString()}: ${point.count}`}
-            >
+      </CardHeader>
+      <CardContent>
+        <div className="flex h-40 items-end gap-[3px] sm:gap-1">
+          {days.map((point) => {
+            const heightPct = (point.count / max) * 100;
+            const isToday = point.day.toDateString() === new Date().toDateString();
+            return (
               <div
-                className={`w-full rounded-t transition-colors ${
-                  isToday
-                    ? 'bg-[var(--primary)]'
-                    : 'bg-[var(--primary-soft)] group-hover:bg-[var(--primary)]'
-                }`}
-                style={{ height: `${Math.max(2, heightPct)}%` }}
-              />
-            </div>
-          );
-        })}
-      </div>
-      <div className="mt-2 flex justify-between font-mono text-[10px] text-[var(--ink-faint)]">
-        <span>
-          {days[0].day.toLocaleDateString('en', { month: 'short', day: 'numeric' })}
-        </span>
-        <span>today</span>
-      </div>
-    </div>
+                key={point.day.toISOString()}
+                className="group flex flex-1 flex-col items-center justify-end"
+                title={`${point.day.toDateString()}: ${point.count}`}
+              >
+                <div
+                  className={`w-full rounded-t transition-colors ${
+                    isToday
+                      ? 'bg-[var(--primary)]'
+                      : 'bg-[var(--primary-soft)] group-hover:bg-[var(--primary)]'
+                  }`}
+                  style={{ height: `${Math.max(2, heightPct)}%` }}
+                />
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-2 flex justify-between font-mono text-[10px] text-[var(--ink-faint)]">
+          <span>
+            {days[0].day.toLocaleDateString('en', { month: 'short', day: 'numeric' })}
+          </span>
+          <span>today</span>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
 function RecentActivity({ items }: { items: ActivityItem[] }) {
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg)]">
-      <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-3">
-        <h2 className="text-sm font-semibold text-[var(--ink)]">Recent captures</h2>
+    <Card className="overflow-hidden bg-[var(--bg)]">
+      <CardHeader className="flex-row items-center justify-between gap-4">
+        <CardTitle className="text-sm">Recent captures</CardTitle>
         <span className="font-mono text-[11px] text-[var(--ink-faint)]">{items.length}</span>
-      </div>
-      <div className="thin-scrollbar max-h-[24rem] overflow-y-auto">
+      </CardHeader>
+      <ScrollArea className="max-h-[24rem]">
         {items.length === 0 ? (
           <div className="p-6 text-center font-mono text-[11px] uppercase tracking-wider text-[var(--ink-faint)]">
             no recent activity
@@ -356,8 +358,8 @@ function RecentActivity({ items }: { items: ActivityItem[] }) {
             </div>
           ))
         )}
-      </div>
-    </div>
+      </ScrollArea>
+    </Card>
   );
 }
 
@@ -402,7 +404,7 @@ function TenantsTab() {
   if (error) return <ErrorBlock message={error} />;
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg)]">
+    <Card className="overflow-hidden bg-[var(--bg)]">
       <div className="hidden grid-cols-[2fr_repeat(4,minmax(0,1fr))_auto] gap-4 border-b border-[var(--border)] bg-[var(--surface)] px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)] md:grid">
         <span>Workspace</span>
         <span>Status</span>
@@ -446,7 +448,7 @@ function TenantsTab() {
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -529,13 +531,16 @@ function UsersTab() {
 
   return (
     <div className="space-y-3">
-      <Input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search by email or name…"
-        className="max-w-sm"
-      />
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--bg)]">
+      <div className="relative max-w-sm">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--ink-faint)]" aria-hidden />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by email or name…"
+          className="pl-9"
+        />
+      </div>
+      <Card className="overflow-hidden bg-[var(--bg)]">
         <div className="hidden grid-cols-[2fr_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.5fr)_auto] gap-4 border-b border-[var(--border)] bg-[var(--surface)] px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)] lg:grid">
           <span>User</span>
           <span>Status</span>
@@ -606,7 +611,7 @@ function UsersTab() {
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
@@ -637,13 +642,15 @@ function LoadingBlock() {
 
 function ErrorBlock({ message }: { message: string }) {
   return (
-    <div className="rounded-xl border border-[var(--danger-border)] bg-[var(--danger-bg)] p-4 text-sm text-[var(--danger)]">
+    <Card className="border-[var(--danger-border)] bg-[var(--danger-bg)] text-sm text-[var(--danger)]">
+      <CardContent className="p-4">
       <div className="flex items-center gap-2 font-semibold">
         <AlertTriangle className="h-4 w-4" aria-hidden />
         Error
       </div>
       <p className="mt-1 font-mono text-[11px]">{message}</p>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 

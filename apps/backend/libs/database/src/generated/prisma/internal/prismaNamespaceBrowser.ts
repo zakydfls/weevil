@@ -56,6 +56,7 @@ export const ModelName = {
   User: 'User',
   OtpChallenge: 'OtpChallenge',
   WorkspaceMember: 'WorkspaceMember',
+  UserNotificationPreference: 'UserNotificationPreference',
   WorkspaceInvite: 'WorkspaceInvite',
   AuthSession: 'AuthSession',
   ApiToken: 'ApiToken',
@@ -169,6 +170,19 @@ export const WorkspaceMemberScalarFieldEnum = {
 } as const
 
 export type WorkspaceMemberScalarFieldEnum = (typeof WorkspaceMemberScalarFieldEnum)[keyof typeof WorkspaceMemberScalarFieldEnum]
+
+
+export const UserNotificationPreferenceScalarFieldEnum = {
+  id: 'id',
+  workspaceId: 'workspaceId',
+  userId: 'userId',
+  emailOnNewCapture: 'emailOnNewCapture',
+  emailOnNewComment: 'emailOnNewComment',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type UserNotificationPreferenceScalarFieldEnum = (typeof UserNotificationPreferenceScalarFieldEnum)[keyof typeof UserNotificationPreferenceScalarFieldEnum]
 
 
 export const WorkspaceInviteScalarFieldEnum = {

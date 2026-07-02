@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   CompleteCaptureSessionDto,
   CreateCaptureSessionDto,
@@ -24,6 +25,7 @@ import {
 } from '@weevil/prisma-client';
 import { RedactionService } from '@weevil/redaction';
 import { nanoid } from 'nanoid';
+import { ReportEvents, type ReportCommentCreatedEvent } from '../domain/report-events';
 import {
   assertReportAccess,
   assertWorkspaceAccess,
@@ -45,6 +47,7 @@ const reportReporterSelect = {
 export class ReportsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
     private readonly mapper: ReportMapper,
     private readonly redaction: RedactionService,
     private readonly tenantResolver: TenantResolverService,
@@ -266,6 +269,22 @@ export class ReportsService {
     }
     assertWorkspaceAccess(reportRow, workspaceId);
 
+    return this.loadDetail(reportId);
+  }
+
+  async findDetailByShareToken(shareToken: string): Promise<ReportDetailResponse> {
+    const reportRow = await this.prisma.bugReport.findUnique({
+      where: { shareToken },
+      select: { id: true, deletedAt: true },
+    });
+    if (!reportRow || reportRow.deletedAt) {
+      throw new NotFoundException('Shared capture not found.');
+    }
+
+    return this.loadDetail(reportRow.id);
+  }
+
+  private async loadDetail(reportId: string): Promise<ReportDetailResponse> {
     const report = await this.prisma.bugReport.findUniqueOrThrow({
       where: { id: reportId },
       include: {
@@ -454,7 +473,7 @@ export class ReportsService {
   async createComment(
     reportId: string,
     dto: CreateReportCommentDto,
-    options: { authorName?: string | null; workspaceId?: string } = {},
+    options: { actorUserId?: string | null; authorName?: string | null; workspaceId?: string } = {},
   ): Promise<ReportCommentResponse> {
     const report = await this.prisma.bugReport.findUnique({
       where: { id: reportId },
@@ -473,6 +492,13 @@ export class ReportsService {
         body: this.redactText(dto.body, shouldRedact) ?? dto.body,
       },
     });
+
+    this.eventEmitter.emit(ReportEvents.CommentCreated, {
+      reportId,
+      actorUserId: options.actorUserId,
+      authorName: comment.authorName,
+      body: comment.body,
+    } satisfies ReportCommentCreatedEvent);
 
     return {
       id: comment.id,

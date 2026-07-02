@@ -1,24 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { AppConfigService } from '@weevil/config';
 import {
   MailerService,
   renderWorkspaceInviteEmail,
   workspaceInviteEmailSubject,
 } from '@weevil/notifications';
-import type { WorkspaceRole } from '@weevil/prisma-client';
-
-interface WorkspaceInviteNotificationInput {
-  invitedEmail: string;
-  inviteToken: string;
-  workspaceName: string;
-  workspaceSlug: string;
-  role: WorkspaceRole;
-  inviter: {
-    email: string;
-    displayName: string | null;
-  } | null;
-  expiresAt: Date;
-}
+import { WorkspaceEvents, type WorkspaceInviteCreatedEvent } from '../domain/workspace-events';
 
 interface WorkspaceInviteNotificationResult {
   inviteUrl: string;
@@ -35,9 +23,18 @@ export class WorkspaceInviteNotificationService {
     private readonly mailer: MailerService,
   ) {}
 
-  async sendInvite(
-    input: WorkspaceInviteNotificationInput,
-  ): Promise<WorkspaceInviteNotificationResult> {
+  @OnEvent(WorkspaceEvents.InviteCreated, { suppressErrors: true })
+  async handleInviteCreated(event: WorkspaceInviteCreatedEvent): Promise<void> {
+    try {
+      await this.sendInvite(event);
+    } catch (error) {
+      this.logger.warn(
+        `Workspace invite notification failed for ${event.invitedEmail}: ${errorMessage(error)}`,
+      );
+    }
+  }
+
+  async sendInvite(input: WorkspaceInviteCreatedEvent): Promise<WorkspaceInviteNotificationResult> {
     const inviteUrl = this.buildInviteUrl(input.inviteToken);
 
     if (!isAbsoluteHttpUrl(inviteUrl)) {
@@ -108,4 +105,8 @@ function isLocalHost(value: string): boolean {
 
 function isAbsoluteHttpUrl(value: string): boolean {
   return /^https?:\/\//i.test(value);
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'unknown error';
 }

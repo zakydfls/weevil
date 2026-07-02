@@ -39,6 +39,12 @@ export class ReportsController {
     return this.reportsService.list(query, { workspaceId: auth.workspace?.id });
   }
 
+  @Public()
+  @Get(ApiRoutes.ReportShareRelative)
+  findDetailByShareToken(@Param(RouteParams.ShareToken) shareToken: string) {
+    return this.reportsService.findDetailByShareToken(shareToken);
+  }
+
   @RequirePermissions(Permission.REPORT_READ_ALL)
   @Get(`:${RouteParams.ReportId}/detail`)
   findDetailById(@CurrentAuth() auth: AuthContext, @Param(RouteParams.ReportId) reportId: string) {
@@ -83,6 +89,7 @@ export class ReportsController {
   ) {
     return this.reportsService.createComment(reportId, dto, {
       authorName: auth.user.displayName ?? auth.user.email,
+      actorUserId: auth.user.id,
       workspaceId: auth.workspace?.id,
     });
   }
