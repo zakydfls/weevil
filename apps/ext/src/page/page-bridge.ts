@@ -18,7 +18,6 @@ let originalXhrSetRequestHeader: typeof XMLHttpRequest.prototype.setRequestHeade
 let isConsolePatched = false;
 let isTelemetryEnabled = false;
 let isNetworkPatched = false;
-let captureNetworkBodies = true;
 
 interface XhrCaptureState {
   method: string;
@@ -143,18 +142,17 @@ function attachTelemetryControlListener() {
       return;
     }
 
-    const data = event.data as { type?: string; enabled?: unknown; captureNetworkBodies?: unknown };
+    const data = event.data as { type?: string; enabled?: unknown };
     if (data.type !== telemetryControlMessageType) {
       return;
     }
 
-    setTelemetryEnabled(data.enabled === true, data.captureNetworkBodies !== false);
+    setTelemetryEnabled(data.enabled === true);
   });
 }
 
-function setTelemetryEnabled(enabled: boolean, shouldCaptureNetworkBodies = true) {
+function setTelemetryEnabled(enabled: boolean) {
   isTelemetryEnabled = enabled;
-  captureNetworkBodies = shouldCaptureNetworkBodies;
   if (enabled) {
     collectNavigationTiming();
     collectPaintEntries();
@@ -186,9 +184,7 @@ function patchFetch() {
     const startedAtMs = Date.now();
     const startedAt = new Date(startedAtMs).toISOString();
     const info = describeFetchRequest(input, init);
-    const requestBodyPromise = captureNetworkBodies
-      ? captureFetchRequestBody(input, init)
-      : Promise.resolve<string | undefined>(undefined);
+    const requestBodyPromise = captureFetchRequestBody(input, init);
 
     return originalFetch(input, init).then(
       (response) => {
@@ -196,7 +192,7 @@ function patchFetch() {
         const responseClone = response.clone();
         void Promise.all([
           requestBodyPromise,
-          captureNetworkBodies ? captureResponseBody(responseClone, info.url) : Promise.resolve<string | undefined>(undefined),
+          captureResponseBody(responseClone, info.url),
         ]).then(([requestBody, responseBody]) => {
           postNetworkTelemetry({
             method: info.method,
@@ -278,16 +274,14 @@ function patchXhr() {
     if (state && isTelemetryEnabled) {
       state.startedAtMs = Date.now();
       state.startedAt = new Date(state.startedAtMs).toISOString();
-      if (captureNetworkBodies) {
-        void serializeRequestBody(body).then((serialized) => {
-          state.requestBody = serialized;
-        }).catch(() => undefined);
-      }
+      void serializeRequestBody(body).then((serialized) => {
+        state.requestBody = serialized;
+      }).catch(() => undefined);
 
       const finalize = () => {
         const endedAtMs = Date.now();
         const responseHeaders = parseRawHeaders(safeGetAllResponseHeaders(this));
-        const responseBody = captureNetworkBodies ? readXhrResponseBody(this) : undefined;
+        const responseBody = readXhrResponseBody(this);
         postNetworkTelemetry({
           method: state.method,
           url: this.responseURL || state.url,

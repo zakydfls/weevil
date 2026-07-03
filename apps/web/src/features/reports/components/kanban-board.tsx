@@ -221,7 +221,7 @@ function BoardColumnView({
 
   return (
     <section
-      className={`flex min-h-0 w-[21rem] shrink-0 flex-col overflow-hidden rounded-xl border bg-[var(--surface-elevated)] transition-colors ${
+      className={`flex min-h-0 w-[min(21rem,calc(100vw-2rem))] shrink-0 flex-col overflow-hidden rounded-xl border bg-[var(--surface-elevated)] transition-colors ${
         isDraggingOver
           ? 'border-[var(--primary)] bg-[var(--primary-subtle)]'
           : 'border-[var(--border)]'

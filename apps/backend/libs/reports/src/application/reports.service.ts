@@ -26,7 +26,11 @@ import {
 } from '@weevil/prisma-client';
 import { RedactionService } from '@weevil/redaction';
 import { nanoid } from 'nanoid';
-import { ReportEvents, type ReportCommentCreatedEvent } from '../domain/report-events';
+import {
+  ReportEvents,
+  type ReportCaptureCreatedEvent,
+  type ReportCommentCreatedEvent,
+} from '../domain/report-events';
 import {
   assertReportAccess,
   assertWorkspaceAccess,
@@ -551,7 +555,16 @@ export class ReportsService {
     options: ReportAccessOptions = {},
   ): Promise<CaptureSessionResponse> {
     const shouldRedact = await this.isReportRedactionEnabled(reportId, options);
-    const session = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const current = await tx.captureSession.findUniqueOrThrow({
+        where: {
+          id: sessionId,
+          reportId,
+        },
+        select: {
+          status: true,
+        },
+      });
       const updated = await tx.captureSession.update({
         where: {
           id: sessionId,
@@ -578,10 +591,21 @@ export class ReportsService {
         },
       });
 
-      return updated;
+      return {
+        session: updated,
+        shouldNotifyCaptureCreated:
+          updated.status === CaptureSessionStatus.COMPLETED &&
+          current.status !== CaptureSessionStatus.COMPLETED,
+      };
     });
 
-    return this.mapper.toCaptureSession(session);
+    if (result.shouldNotifyCaptureCreated) {
+      this.eventEmitter.emit(ReportEvents.CaptureCreated, {
+        reportId,
+      } satisfies ReportCaptureCreatedEvent);
+    }
+
+    return this.mapper.toCaptureSession(result.session);
   }
 
   async timeline(

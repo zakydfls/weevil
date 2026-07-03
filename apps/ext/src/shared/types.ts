@@ -13,7 +13,6 @@ export interface ExtensionSettings {
   apiBaseUrl: string;
   flushIntervalMs: number;
   maxBatchSize: number;
-  captureNetworkBodies: boolean;
   captureDomMutations: boolean;
   capturePerformance: boolean;
   redactSensitiveData: boolean;

@@ -4,7 +4,6 @@ import type { ExtensionSettings } from '../shared/types';
 
 const flushIntervalInput = document.getElementById('flushIntervalMs') as HTMLInputElement | null;
 const maxBatchSizeInput = document.getElementById('maxBatchSize') as HTMLInputElement | null;
-const captureNetworkBodiesInput = document.getElementById('captureNetworkBodies') as HTMLInputElement | null;
 const captureDomMutationsInput = document.getElementById('captureDomMutations') as HTMLInputElement | null;
 const capturePerformanceInput = document.getElementById('capturePerformance') as HTMLInputElement | null;
 const redactSensitiveDataInput = document.getElementById('redactSensitiveData') as HTMLInputElement | null;
@@ -18,7 +17,6 @@ void load();
 // Auto-save on any change. Inputs debounce (300ms) so numeric typing doesn't thrash storage.
 flushIntervalInput?.addEventListener('input', () => queueSave(300));
 maxBatchSizeInput?.addEventListener('input', () => queueSave(300));
-captureNetworkBodiesInput?.addEventListener('change', () => queueSave(0));
 captureDomMutationsInput?.addEventListener('change', () => queueSave(0));
 capturePerformanceInput?.addEventListener('change', () => queueSave(0));
 redactSensitiveDataInput?.addEventListener('change', () => queueSave(0));
@@ -35,7 +33,6 @@ function render(settings: ExtensionSettings) {
   if (
     !flushIntervalInput ||
     !maxBatchSizeInput ||
-    !captureNetworkBodiesInput ||
     !captureDomMutationsInput ||
     !capturePerformanceInput ||
     !redactSensitiveDataInput
@@ -45,7 +42,6 @@ function render(settings: ExtensionSettings) {
 
   flushIntervalInput.value = String(settings.flushIntervalMs);
   maxBatchSizeInput.value = String(settings.maxBatchSize);
-  captureNetworkBodiesInput.checked = settings.captureNetworkBodies;
   captureDomMutationsInput.checked = settings.captureDomMutations;
   capturePerformanceInput.checked = settings.capturePerformance;
   redactSensitiveDataInput.checked = settings.redactSensitiveData;
@@ -64,7 +60,6 @@ async function save() {
   if (
     !flushIntervalInput ||
     !maxBatchSizeInput ||
-    !captureNetworkBodiesInput ||
     !captureDomMutationsInput ||
     !capturePerformanceInput ||
     !redactSensitiveDataInput
@@ -90,7 +85,6 @@ async function save() {
       apiBaseUrl: DEFAULT_API_BASE_URL,
       flushIntervalMs,
       maxBatchSize,
-      captureNetworkBodies: captureNetworkBodiesInput.checked,
       captureDomMutations: captureDomMutationsInput.checked,
       capturePerformance: capturePerformanceInput.checked,
       redactSensitiveData: redactSensitiveDataInput.checked,

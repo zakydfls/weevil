@@ -16,7 +16,7 @@ import {
 import { MembershipStatus, UserStatus } from '@weevil/prisma-client';
 import {
   ReportEvents,
-  type ReportCaptureReadyEvent,
+  type ReportCaptureCreatedEvent,
   type ReportCommentCreatedEvent,
 } from '../domain/report-events';
 
@@ -48,10 +48,10 @@ export class ReportNotificationService {
     }
   }
 
-  @OnEvent(ReportEvents.CaptureReady, { suppressErrors: true })
-  async handleCaptureReady(event: ReportCaptureReadyEvent): Promise<void> {
+  @OnEvent(ReportEvents.CaptureCreated, { suppressErrors: true })
+  async handleCaptureCreated(event: ReportCaptureCreatedEvent): Promise<void> {
     try {
-      await this.notifyCaptureReady(event);
+      await this.notifyCaptureCreated(event);
     } catch (error) {
       this.logger.warn(
         `Capture notification event failed for report ${event.reportId}: ${errorMessage(error)}`,
@@ -97,22 +97,22 @@ export class ReportNotificationService {
     });
   }
 
-  private async notifyCaptureReady(event: ReportCaptureReadyEvent): Promise<void> {
+  private async notifyCaptureCreated(event: ReportCaptureCreatedEvent): Promise<void> {
     const report = await this.loadReport(event.reportId);
     if (!report) return;
 
     const recipients = await this.findRecipients(
       report.workspaceId,
       'emailOnNewCapture',
-      report.createdById,
+      event.actorUserId ?? report.createdById,
     );
     if (recipients.length === 0) return;
 
     const detail = this.toDetail(report);
     this.emitInAppNotifications(recipients, {
       workspaceId: report.workspaceId,
-      type: 'report_capture_ready',
-      title: 'New capture ready',
+      type: 'report_capture_created',
+      title: 'New capture created',
       body: `${report.title} · ${report.workspace.name}`,
       actionUrl: this.buildCapturePath(report.shareToken),
       metadata: {
@@ -130,7 +130,7 @@ export class ReportNotificationService {
         errorCount: report._count.runtimeErrors,
       }),
       metadata: {
-        notification_type: 'report_capture_ready',
+        notification_type: 'report_capture_created',
         report_id: report.id,
         workspace_id: report.workspaceId,
       },

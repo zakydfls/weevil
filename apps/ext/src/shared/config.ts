@@ -16,7 +16,6 @@ export const defaultSettings: ExtensionSettings = {
   apiBaseUrl: DEFAULT_API_BASE_URL,
   flushIntervalMs: DEFAULT_FLUSH_INTERVAL_MS,
   maxBatchSize: DEFAULT_MAX_BATCH_SIZE,
-  captureNetworkBodies: true,
   captureDomMutations: true,
   capturePerformance: true,
   redactSensitiveData: true,

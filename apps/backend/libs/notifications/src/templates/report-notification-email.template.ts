@@ -30,7 +30,7 @@ export function reportCommentEmailSubject(input: { reportTitle: string }): strin
 }
 
 export function newCaptureEmailSubject(input: { reportTitle: string }): string {
-  return `New capture ready: ${input.reportTitle}`;
+  return `New capture: ${input.reportTitle}`;
 }
 
 export function renderReportCommentEmail(input: ReportCommentEmailTemplateInput): string {
@@ -63,11 +63,11 @@ export function renderNewCaptureEmail(input: NewCaptureEmailTemplateInput): stri
   const captureUrl = escapeHtml(report.captureUrl);
 
   return renderEmailLayout({
-    eyebrow: 'Weevil capture ready',
+    eyebrow: 'Weevil capture',
     title: report.title,
-    previewText: `A new capture is ready in ${report.workspaceName}.`,
+    previewText: `A new capture was created in ${report.workspaceName}.`,
     bodyHtml: `
-      <p style="margin:0 0 14px;">A new capture is ready in <strong>${escapeHtml(report.workspaceName)}</strong>.</p>
+      <p style="margin:0 0 14px;">A new capture was created in <strong>${escapeHtml(report.workspaceName)}</strong>.</p>
       ${renderTelemetrySummary(input)}
       ${renderReportDetails(report)}
     `,

@@ -218,7 +218,7 @@ export function SettingsView() {
               <SettingsCard
                 icon={Video}
                 title="New capture emails"
-                description="Email me when a new capture in this workspace is ready to review."
+                description="Email me when someone saves a new capture in this workspace."
                 trailing={
                   <Switch
                     checked={notificationPreferences.emailOnNewCapture}
@@ -347,21 +347,21 @@ function SettingsCard({
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 gap-3">
             <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--primary-subtle)] text-[var(--primary)]">
               <Icon className="h-5 w-5" aria-hidden />
             </div>
-            <div>
+            <div className="min-w-0">
               <h2 className="text-base font-semibold text-[var(--ink)]">{title}</h2>
               <p className="mt-1 max-w-xl text-sm leading-6 text-[var(--ink-muted)]">
                 {description}
               </p>
             </div>
           </div>
-          {trailing}
+          {trailing ? <div className="self-start sm:self-center">{trailing}</div> : null}
         </div>
-        {footer ? <div className="mt-3 pl-[3.25rem]">{footer}</div> : null}
+        {footer ? <div className="mt-3 sm:pl-[3.25rem]">{footer}</div> : null}
       </CardContent>
     </Card>
   );

@@ -352,13 +352,15 @@ export function CaptureDetailView({
   return (
     <section
       data-shell-mode="detail"
-      className={`weevil-fade-in grid ${isPublicShare ? 'h-screen max-h-screen' : 'h-[calc(100vh-3.5rem)] max-h-[calc(100vh-3.5rem)]'} grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-[var(--bg)] transition-[grid-template-columns] duration-200 ease-out ${
+      className={`weevil-fade-in grid min-h-[calc(100dvh-3.5rem)] grid-rows-[auto_auto] bg-[var(--bg)] transition-[grid-template-columns] duration-200 ease-out xl:grid-rows-[auto_minmax(0,1fr)] xl:overflow-hidden ${
+        isPublicShare ? 'xl:h-screen xl:max-h-screen' : 'xl:h-[calc(100vh-3.5rem)] xl:max-h-[calc(100vh-3.5rem)]'
+      } ${
         isDevToolsOpen ? 'xl:[grid-template-columns:minmax(0,1fr)_var(--devtools-width)]' : ''
       }`}
       style={{ '--devtools-width': `${devToolsWidth}px` } as CSSProperties}
     >
       <header
-        className={`flex min-h-14 items-center gap-2 border-b border-[var(--border)] bg-[var(--bg)]/95 px-3 backdrop-blur sm:gap-3 sm:px-4 lg:px-6 ${
+        className={`flex min-h-14 flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--bg)]/95 px-3 py-2 backdrop-blur sm:flex-nowrap sm:gap-3 sm:px-4 sm:py-0 lg:px-6 ${
           isDevToolsOpen ? 'xl:col-span-2' : ''
         }`}
       >
@@ -380,7 +382,7 @@ export function CaptureDetailView({
               <span className="truncate">{report.pageUrl ?? report.id}</span>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
             {!isDevToolsOpen ? (
               <Button
                 type="button"
@@ -446,13 +448,13 @@ export function CaptureDetailView({
           </div>
       </header>
 
-      <div className="grid min-h-0 grid-rows-[1fr_auto] overflow-hidden bg-[var(--bg)]">
-        <ScrollArea className="min-h-0">
+      <div className="grid min-h-0 grid-rows-[auto_auto] bg-[var(--bg)] xl:grid-rows-[1fr_auto] xl:overflow-hidden">
+        <ScrollArea className="min-h-0 xl:h-full">
           <div className={isDevToolsOpen ? '' : 'mx-auto max-w-[108rem]'}>
             {isPublicShare && commentGateReason === 'auth' ? (
               <GuestShareBanner returnPath={returnPath} />
             ) : null}
-            <div className="border-b border-[var(--border)] bg-[var(--bg)] px-4 pb-4 pt-4 lg:px-6">
+            <div className="border-b border-[var(--border)] bg-[var(--bg)] px-3 pb-4 pt-3 sm:px-4 sm:pt-4 lg:px-6">
               <div className="mx-auto w-full max-w-[88rem]">
                 <RecordingHero
                   report={report}
@@ -473,12 +475,12 @@ export function CaptureDetailView({
               </div>
             </div>
 
-            <div className="mx-auto w-full max-w-[82rem] px-4 py-8 lg:px-6">
+            <div className="mx-auto w-full max-w-[82rem] px-3 py-6 sm:px-4 sm:py-8 lg:px-6">
               <CaptureStats report={report} />
               <CaptureContextBar report={report} />
 
               <div className="mt-8">
-                <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.02em] text-[var(--ink)]">
+                <h1 className="text-2xl font-semibold leading-tight tracking-[-0.02em] text-[var(--ink)] sm:text-[28px]">
                   {report.title}
                 </h1>
                 {report.description ? (
@@ -507,7 +509,7 @@ export function CaptureDetailView({
                 {canComment ? (
                   <Card className="mt-4 overflow-hidden transition-colors focus-within:border-[var(--primary)]">
                     <CardContent className="p-4">
-                      <div className="flex gap-3">
+                      <div className="flex flex-col gap-3 sm:flex-row">
                         <CommentAvatar name="You" />
                         <Textarea
                           value={commentBody}
@@ -523,7 +525,7 @@ export function CaptureDetailView({
                               void handleCreateComment();
                             }
                           }}
-                          className="min-h-24 border-0 p-0 text-sm shadow-none focus:ring-0"
+                          className="min-h-24 w-full border-0 p-0 text-sm shadow-none focus:ring-0"
                           placeholder="Write a comment, paste a fix, or @mention..."
                         />
                       </div>
@@ -532,7 +534,7 @@ export function CaptureDetailView({
                           {commentError}
                         </div>
                       ) : null}
-                      <div className="mt-2 flex items-center justify-between text-[var(--ink-faint)]">
+                      <div className="mt-3 flex flex-col gap-3 text-[var(--ink-faint)] sm:flex-row sm:items-center sm:justify-between">
                         <span className="font-mono text-[10px] uppercase tracking-wider">cmd + enter</span>
                         <Button
                           type="button"
@@ -677,11 +679,11 @@ function GuestShareBanner({ returnPath }: { returnPath: string }) {
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 gap-2">
-          <Button asChild variant="secondary" size="sm">
+        <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex">
+          <Button asChild variant="secondary" size="sm" className="w-full justify-center sm:w-auto">
             <Link href={`/login?next=${next}`}>Sign in</Link>
           </Button>
-          <Button asChild size="sm">
+          <Button asChild size="sm" className="w-full justify-center sm:w-auto">
             <Link href={`/signup?next=${next}`}>Create account</Link>
           </Button>
         </div>
@@ -707,11 +709,12 @@ function DevToolsShell({
   currentTimeMs: number;
   seekTo: (ms: number) => void;
 }) {
+  const networkErrorCount = report.networkRequests.filter(isNetworkErrorRequest).length;
   const counts: Partial<Record<DevToolsTab, number>> = {
     Console: countConsoleActivityRows(report),
     Network: report.networkRequests.length,
     Actions: report.pageActions.length,
-    Errors: report.runtimeErrors.length,
+    Errors: report.runtimeErrors.length + networkErrorCount,
     Backend: report.backendTraces.length,
     Performance: report.performanceEntries.length,
     DOM: report.domEvents.length,
@@ -722,7 +725,7 @@ function DevToolsShell({
     <Tabs
       value={activeTab}
       onValueChange={(value) => onActiveTabChange(value as DevToolsTab)}
-      className={isCompact ? 'grid h-[min(36rem,76vh)] min-h-0 min-w-0 grid-rows-[auto_1fr] bg-[var(--bg)]' : 'grid h-full min-h-0 min-w-0 grid-rows-[auto_1fr] bg-[var(--bg)]'}
+      className={isCompact ? 'grid h-[min(44rem,82dvh)] min-h-0 min-w-0 grid-rows-[auto_1fr] bg-[var(--bg)]' : 'grid h-full min-h-0 min-w-0 grid-rows-[auto_1fr] bg-[var(--bg)]'}
     >
       <div className="flex h-11 items-stretch border-b border-[var(--border)] bg-[var(--surface)] pl-3 pr-1">
         <div className="hidden items-center gap-1.5 pr-3 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)] sm:flex">
@@ -806,7 +809,7 @@ function BodyPreview({
           <div className="rounded-md border border-dashed border-[var(--border)] bg-[var(--bg)] px-3 py-3">
             <div className="text-xs font-medium text-[var(--ink)]">Body not captured</div>
             <p className="mt-1 max-w-[56ch] text-xs leading-5 text-[var(--ink-muted)]">
-              New recordings capture readable Fetch/XHR bodies when Network bodies is enabled in the extension.
+              Weevil captures readable Fetch/XHR bodies automatically on new recordings. This request may be binary, streamed, blocked by the browser, or from an older capture.
             </p>
           </div>
         </div>
@@ -1089,11 +1092,11 @@ function PublicCommentGate({
             </div>
           </div>
           {isWorkspaceBlocked ? null : (
-            <div className="flex shrink-0 gap-2">
-              <Button asChild variant="secondary" size="sm">
+            <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex">
+              <Button asChild variant="secondary" size="sm" className="w-full justify-center sm:w-auto">
                 <Link href={`/signup?next=${next}`}>Create account</Link>
               </Button>
-              <Button asChild size="sm">
+              <Button asChild size="sm" className="w-full justify-center sm:w-auto">
                 <Link href={`/login?next=${next}`}>Sign in</Link>
               </Button>
             </div>
@@ -1303,22 +1306,22 @@ function RecordingHero({
                 type="button"
                 onClick={() => void loadRecording()}
                 disabled={isLoadingSource}
-                className="absolute left-1/2 top-1/2 flex h-[4.5rem] w-[4.5rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[var(--ink-strong)] shadow-[0_0_0_7px_rgba(255,255,255,0.22)]"
+                className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[var(--ink-strong)] shadow-[0_0_0_6px_rgba(255,255,255,0.22)] sm:h-[4.5rem] sm:w-[4.5rem] sm:shadow-[0_0_0_7px_rgba(255,255,255,0.22)]"
                 aria-label="Play recording"
               >
                 {isLoadingSource ? (
-                  <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
+                  <Loader2 className="h-6 w-6 animate-spin sm:h-8 sm:w-8" aria-hidden />
                 ) : (
-                  <Play className="ml-1 h-9 w-9 fill-[var(--ink-strong)]" aria-hidden />
+                  <Play className="ml-0.5 h-7 w-7 fill-[var(--ink-strong)] sm:ml-1 sm:h-9 sm:w-9" aria-hidden />
                 )}
               </button>
-              <div className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-xl bg-black/82 px-3 py-1.5 text-base font-medium text-white">
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-lg bg-black/82 px-2.5 py-1 text-sm font-medium text-white sm:bottom-5 sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-base">
                 {upload ? formatBytes(upload.byteSize) : 'No recording'}
               </div>
             </>
           ) : null}
           {isScreenshot ? (
-            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-xl bg-black/82 px-3 py-1.5 text-base font-medium text-white">
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-lg bg-black/82 px-2.5 py-1 text-sm font-medium text-white sm:bottom-5 sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-base">
               Screenshot · {formatBytes(upload?.byteSize)}
             </div>
           ) : null}
@@ -1344,15 +1347,15 @@ function RecordingHero({
             type="button"
             onClick={() => void loadRecording()}
             disabled={!upload || isLoadingSource}
-            className="absolute left-1/2 top-1/2 flex h-[4.5rem] w-[4.5rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[var(--ink-strong)] shadow-[0_0_0_7px_rgba(255,255,255,0.22)]"
+            className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[var(--ink-strong)] shadow-[0_0_0_6px_rgba(255,255,255,0.22)] sm:h-[4.5rem] sm:w-[4.5rem] sm:shadow-[0_0_0_7px_rgba(255,255,255,0.22)]"
           >
             {isLoadingSource ? (
-              <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
+              <Loader2 className="h-6 w-6 animate-spin sm:h-8 sm:w-8" aria-hidden />
             ) : (
-              <Play className="ml-1 h-9 w-9 fill-[var(--ink-strong)]" aria-hidden />
+              <Play className="ml-0.5 h-7 w-7 fill-[var(--ink-strong)] sm:ml-1 sm:h-9 sm:w-9" aria-hidden />
             )}
           </button>
-          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-xl bg-black/82 px-3 py-1.5 text-base font-medium text-white">
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-lg bg-black/82 px-2.5 py-1 text-sm font-medium text-white sm:bottom-5 sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-base">
             {upload ? `${isScreenshot ? 'Screenshot' : 'Recording'} · ${formatBytes(upload.byteSize)}` : 'No recording'}
           </div>
           {videoError ? (
@@ -1471,9 +1474,11 @@ function DevToolsPanel({
   }
 
   if (activeTab === 'Errors') {
+    const networkErrors = report.networkRequests.filter(isNetworkErrorRequest);
+    const hasErrors = report.runtimeErrors.length + networkErrors.length > 0;
     return (
       <ScrollArea className="h-full min-h-0 bg-[var(--bg)] p-3">
-        <PanelEmptyState isEmpty={report.runtimeErrors.length === 0} label="No runtime errors yet." />
+        <PanelEmptyState isEmpty={!hasErrors} label="No errors yet." />
         {report.runtimeErrors.map((entry) => (
           <TelemetryCard
             key={entry.id}
@@ -1488,6 +1493,24 @@ function DevToolsPanel({
               ['Stack', entry.stack ?? 'n/a'],
               ['Component stack', entry.componentStack ?? 'n/a'],
               ['Page URL', entry.pageUrl ?? 'n/a'],
+            ]}
+          />
+        ))}
+        {networkErrors.map((entry) => (
+          <TelemetryCard
+            key={entry.id}
+            title={`${entry.method} ${entry.statusCode ?? 'ERR'}`}
+            subtitle={shortRequestName(entry.url)}
+            tone="danger"
+            timestamp={entry.endedAt ?? entry.startedAt}
+            offsetMs={entry.offsetMs}
+            rows={[
+              ['Request URL', entry.url],
+              ['Status', entry.statusCode === null || entry.statusCode === undefined ? 'n/a' : String(entry.statusCode)],
+              ['Duration', entry.durationMs === null || entry.durationMs === undefined ? 'n/a' : `${entry.durationMs} ms`],
+              ['Error', entry.error ?? 'n/a'],
+              ['Type', classifyNetworkRequest(entry)],
+              ['Response body', entry.responseBody ?? 'n/a'],
             ]}
           />
         ))}
@@ -2580,7 +2603,7 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
             setActiveFilter(value as NetworkFilter);
             setSelectedRequestId(null);
           }}
-          className="scrollbar-none mt-2 flex justify-start gap-1 overflow-x-auto border-0 bg-transparent p-0 pb-0.5"
+          className="thin-scrollbar-x mt-2 flex justify-start gap-1 overflow-x-auto border-0 bg-transparent py-0 pl-0 pr-6 pb-0.5 [scroll-padding-inline:0.75rem]"
           aria-label="Network request type"
         >
           {networkFilterLabels.map((item) => {
@@ -2601,10 +2624,10 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
         </ToggleGroup>
       </div>
       <div
-        className="grid min-h-0 min-w-0 grid-cols-1 overflow-hidden lg:[grid-template-columns:var(--network-list-width)_6px_minmax(0,1fr)]"
+        className="grid min-h-0 min-w-0 grid-cols-1 overflow-y-auto lg:overflow-hidden lg:[grid-template-columns:var(--network-list-width)_6px_minmax(0,1fr)]"
         style={{ '--network-list-width': `${requestListWidth}px` } as CSSProperties}
       >
-        <ScrollArea className="min-h-0 border-b border-[var(--border)] bg-[var(--bg)] lg:border-b-0 lg:border-r">
+        <ScrollArea className="max-h-52 min-h-0 border-b border-[var(--border)] bg-[var(--bg)] lg:max-h-none lg:border-b-0 lg:border-r">
           <PanelEmptyState
             isEmpty={filteredRequests.length === 0}
             label={report.networkRequests.length === 0 ? 'No network requests yet.' : 'No matching requests.'}
@@ -2657,11 +2680,11 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
           className="hidden h-full cursor-col-resize border-r border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--primary-subtle)] lg:block"
           onPointerDown={handleRequestListResize}
         />
-        <div className="grid min-h-0 min-w-0 grid-rows-[auto_1fr] overflow-hidden bg-[var(--bg)]">
+        <div className="grid min-h-[22rem] min-w-0 grid-rows-[auto_1fr] overflow-hidden bg-[var(--bg)] lg:min-h-0">
           {/* One horizontally-scrollable strip. Every child is shrink-0 so the
               row overflows naturally and scrolls continuously to the very end
               (curl included). No flex-1, no pinned split, no ml-auto. */}
-          <div className="thin-scrollbar-x flex h-10 shrink-0 items-center gap-1 overflow-x-auto overflow-y-hidden border-b border-[var(--border)] bg-[var(--bg)] px-1.5">
+          <div className="thin-scrollbar-x flex h-10 shrink-0 items-center gap-1 overflow-x-auto overflow-y-hidden border-b border-[var(--border)] bg-[var(--bg)] py-0 pl-1.5 pr-8 [scroll-padding-inline:0.75rem]">
             <button
               type="button"
               onClick={() => {
