@@ -288,6 +288,30 @@ function CapturesChart({ data }: { data: Array<{ day: string; count: number }> }
     return out;
   }, [data]);
   const max = useMemo(() => Math.max(1, ...days.map((d) => d.count)), [days]);
+  const total = useMemo(() => days.reduce((sum, point) => sum + point.count, 0), [days]);
+  const hasData = total > 0;
+  const chart = useMemo(() => {
+    const width = 600;
+    const height = 220;
+    const padX = 18;
+    const padY = 18;
+    const innerWidth = width - padX * 2;
+    const innerHeight = height - padY * 2;
+    const baseline = height - padY;
+    const points = days.map((point, index) => {
+      const x = padX + (days.length <= 1 ? 0 : (index / (days.length - 1)) * innerWidth);
+      const y = baseline - (point.count / max) * innerHeight;
+      return { ...point, x, y };
+    });
+    const linePath = points
+      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+      .join(' ');
+    const areaPath =
+      points.length > 0
+        ? `${linePath} L ${points[points.length - 1].x.toFixed(2)} ${baseline} L ${points[0].x.toFixed(2)} ${baseline} Z`
+        : '';
+    return { width, height, padX, padY, baseline, points, linePath, areaPath };
+  }, [days, max]);
 
   return (
     <Card className="overflow-hidden bg-[var(--bg)]">
@@ -298,30 +322,92 @@ function CapturesChart({ data }: { data: Array<{ day: string; count: number }> }
             cross-tenant aggregate
           </p>
         </div>
-        <div className="font-mono text-[11px] text-[var(--ink-faint)]">peak {max}</div>
+        <div className="text-right font-mono text-[11px] text-[var(--ink-faint)]">
+          <div>peak {max}</div>
+          <div>{total} total</div>
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="flex h-40 items-end gap-[3px] sm:gap-1">
-          {days.map((point) => {
-            const heightPct = point.count === 0 ? 0 : Math.max(8, (point.count / max) * 100);
-            const isLast = point.day.toDateString() === days[days.length - 1]?.day.toDateString();
-            return (
-              <div
-                key={point.day.toISOString()}
-                className="group flex flex-1 flex-col items-center justify-end rounded-t bg-[var(--surface)]/55"
-                title={`${point.day.toDateString()}: ${point.count}`}
-              >
-                <div
-                  className={`w-full rounded-t transition-colors ${
-                    isLast
-                      ? 'bg-[var(--primary)]'
-                      : 'bg-[var(--primary-soft)] group-hover:bg-[var(--primary)]'
-                  }`}
-                  style={{ height: `${Math.max(2, heightPct)}%` }}
+        <div className="relative h-64 overflow-hidden rounded-lg border border-[var(--divider)] bg-[var(--surface)]">
+          <svg
+            className="h-full w-full"
+            role="img"
+            aria-label={`Capture trend for the last 30 days, ${total} total captures`}
+            viewBox={`0 0 ${chart.width} ${chart.height}`}
+            preserveAspectRatio="none"
+          >
+            <defs>
+              <linearGradient id="platform-captures-area" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.22" />
+                <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.02" />
+              </linearGradient>
+            </defs>
+            {[0, 1, 2, 3].map((line) => {
+              const y = chart.padY + (line / 3) * (chart.height - chart.padY * 2);
+              return (
+                <line
+                  key={line}
+                  x1={chart.padX}
+                  x2={chart.width - chart.padX}
+                  y1={y}
+                  y2={y}
+                  stroke="var(--divider)"
+                  strokeDasharray={line === 3 ? undefined : '4 8'}
+                  strokeWidth="1"
+                  vectorEffect="non-scaling-stroke"
                 />
+              );
+            })}
+            {hasData ? (
+              <>
+                <path d={chart.areaPath} fill="url(#platform-captures-area)" />
+                <path
+                  d={chart.linePath}
+                  fill="none"
+                  stroke="var(--primary)"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="3"
+                  vectorEffect="non-scaling-stroke"
+                />
+                {chart.points
+                  .filter((point) => point.count > 0)
+                  .map((point) => (
+                    <g key={point.day.toISOString()}>
+                      <line
+                        x1={point.x}
+                        x2={point.x}
+                        y1={point.y}
+                        y2={chart.baseline}
+                        stroke="var(--primary)"
+                        strokeOpacity="0.16"
+                        strokeWidth="1"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                      <circle
+                        cx={point.x}
+                        cy={point.y}
+                        r="4.5"
+                        fill="var(--bg)"
+                        stroke="var(--primary)"
+                        strokeWidth="2.5"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    </g>
+                  ))}
+              </>
+            ) : null}
+          </svg>
+          {!hasData ? (
+            <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
+              <div>
+                <div className="text-sm font-semibold text-[var(--ink)]">No captures yet</div>
+                <div className="mt-1 text-xs text-[var(--ink-muted)]">
+                  Cross-tenant activity will appear here once recordings are created.
+                </div>
               </div>
-            );
-          })}
+            </div>
+          ) : null}
         </div>
         <div className="mt-2 flex justify-between font-mono text-[10px] text-[var(--ink-faint)]">
           <span>

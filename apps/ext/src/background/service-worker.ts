@@ -354,6 +354,7 @@ async function startCapture(tab: chrome.tabs.Tab, captureSettings?: ExtensionSet
         startedAt: startedAt.toISOString(),
         reportId: report.id,
         consoleCaptureMode: 'off' satisfies ConsoleCaptureMode,
+        captureNetworkBodies: settings.captureNetworkBodies,
       },
     });
     chrome.alarms.create(flushAlarmName, { periodInMinutes: Math.max(0.1, settings.flushIntervalMs / 60_000) });
@@ -1161,6 +1162,7 @@ async function notifyConsoleCaptureMode(
       startedAt: state.startedAt,
       reportId: state.reportId ?? undefined,
       consoleCaptureMode,
+      captureNetworkBodies: (await getSettings()).captureNetworkBodies,
     },
   });
 }
@@ -1173,6 +1175,7 @@ async function refreshRecordingTab(tabId: number) {
 
   await injectContentScript(tabId);
   await injectPageBridge(tabId);
+  const settings = await getSettings();
   await notifyTab(tabId, {
     type: RuntimeMessageTypes.CaptureStarted,
     payload: {
@@ -1180,6 +1183,7 @@ async function refreshRecordingTab(tabId: number) {
       startedAt: state.startedAt,
       reportId: state.reportId ?? undefined,
       consoleCaptureMode: 'off' satisfies ConsoleCaptureMode,
+      captureNetworkBodies: settings.captureNetworkBodies,
     },
   });
 }
@@ -1317,7 +1321,7 @@ async function appendBrowserNetworkEntry(
 }
 
 function shouldSkipBrowserNetworkEntry(type: string) {
-  return type === 'websocket' || type === 'ping';
+  return type === 'xmlhttprequest' || type === 'websocket' || type === 'ping';
 }
 
 function mergeCapturedNetworkHeaders(

@@ -146,7 +146,6 @@ function BoardHeader({
             value={totalErrors}
             tone={totalErrors > 0 ? 'danger' : 'neutral'}
           />
-          <BoardSignal label="Synced" value="workspace" tone="primary" />
         </div>
       </div>
     </header>
@@ -160,11 +159,10 @@ function BoardSignal({
 }: {
   label: string;
   value: number | string;
-  tone: 'neutral' | 'primary' | 'danger';
+  tone: 'neutral' | 'danger';
 }) {
   const toneClass = {
     neutral: 'border-[var(--border)] bg-[var(--surface-elevated)] text-[var(--ink-muted)]',
-    primary: 'border-[var(--primary-soft)] bg-[var(--primary-subtle)] text-[var(--primary)]',
     danger: 'border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger)]',
   }[tone];
 

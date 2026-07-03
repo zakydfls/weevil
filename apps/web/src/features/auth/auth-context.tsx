@@ -84,13 +84,19 @@ const LEGACY_TOKEN_STORAGE_KEY = 'weevil.auth.token';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const PUBLIC_PATHS = new Set(['/login', '/signup', '/accept-invite', '/c/share']);
+const AUTH_PATHS = new Set(['/login', '/signup']);
+const PUBLIC_PATHS = new Set([...AUTH_PATHS, '/accept-invite', '/c/share']);
 
 function isPublicPath(pathname: string | null): boolean {
   if (!pathname) return false;
   return Array.from(PUBLIC_PATHS).some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
+}
+
+function isAuthPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return AUTH_PATHS.has(pathname);
 }
 
 function loadToken(): string | null {
@@ -190,6 +196,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (status !== 'unauthenticated') return;
     if (!pathname || isPublicPath(pathname)) return;
     router.replace('/login');
+  }, [status, pathname, router]);
+
+  // Auth pages are guest-only. If the browser already has a valid session,
+  // send users back to the app instead of showing login/signup again.
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    if (!isAuthPath(pathname)) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const inviteToken = params.get('inviteToken') ?? params.get('invite');
+    const nextPath = resolveRedirectTo(params.get('next') ?? undefined);
+
+    if (inviteToken) {
+      const inviteParams = new URLSearchParams({ inviteToken });
+      if (nextPath !== '/') {
+        inviteParams.set('next', nextPath);
+      }
+      router.replace(`/accept-invite?${inviteParams.toString()}`);
+      return;
+    }
+
+    router.replace(nextPath);
   }, [status, pathname, router]);
 
   // Handle 401 from any API call → log out

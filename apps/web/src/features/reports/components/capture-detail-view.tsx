@@ -799,7 +799,19 @@ function BodyPreview({
   viewMode?: BodyViewMode;
 }) {
   if (!value) {
-    return null;
+    return (
+      <>
+        <SectionTitle title={title} />
+        <div className="border-b border-[var(--border)] bg-[var(--surface)] px-3 py-3">
+          <div className="rounded-md border border-dashed border-[var(--border)] bg-[var(--bg)] px-3 py-3">
+            <div className="text-xs font-medium text-[var(--ink)]">Body not captured</div>
+            <p className="mt-1 max-w-[56ch] text-xs leading-5 text-[var(--ink-muted)]">
+              New recordings capture readable Fetch/XHR bodies when Network bodies is enabled in the extension.
+            </p>
+          </div>
+        </div>
+      </>
+    );
   }
 
   const formatted = formatBodyPreview(value, headers);

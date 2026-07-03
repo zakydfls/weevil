@@ -8,10 +8,26 @@ import { nowIso, safeStringify, truncateText } from '../shared/telemetry-utils';
 const installedFlag = '__WEevil_PAGE_BRIDGE_INSTALLED_20260604_CONSOLE_RECAPTURE__';
 const consoleControlMessageType = 'WEevil_PAGE_CONSOLE_CONTROL';
 const telemetryControlMessageType = 'WEevil_PAGE_TELEMETRY_CONTROL';
+const maxCapturedBodyChars = 20_000;
 const originalConsoleMethods = new Map<string, (...args: unknown[]) => void>();
 let originalConsoleAssert: ((condition?: boolean, ...args: unknown[]) => void) | undefined;
+let originalFetch: typeof window.fetch | undefined;
+let originalXhrOpen: typeof XMLHttpRequest.prototype.open | undefined;
+let originalXhrSend: typeof XMLHttpRequest.prototype.send | undefined;
+let originalXhrSetRequestHeader: typeof XMLHttpRequest.prototype.setRequestHeader | undefined;
 let isConsolePatched = false;
 let isTelemetryEnabled = false;
+let isNetworkPatched = false;
+let captureNetworkBodies = true;
+
+interface XhrCaptureState {
+  method: string;
+  url: string;
+  requestHeaders: Record<string, string>;
+  requestBody?: string | undefined;
+  startedAt?: string | undefined;
+  startedAtMs?: number | undefined;
+}
 
 declare global {
   interface Window {
@@ -24,6 +40,7 @@ if (!window[installedFlag]) {
   attachConsoleControlListener();
   attachTelemetryControlListener();
   attachErrorListeners();
+  patchNetwork();
   schedulePerformanceCollection();
 }
 
@@ -126,21 +143,372 @@ function attachTelemetryControlListener() {
       return;
     }
 
-    const data = event.data as { type?: string; enabled?: unknown };
+    const data = event.data as { type?: string; enabled?: unknown; captureNetworkBodies?: unknown };
     if (data.type !== telemetryControlMessageType) {
       return;
     }
 
-    setTelemetryEnabled(data.enabled === true);
+    setTelemetryEnabled(data.enabled === true, data.captureNetworkBodies !== false);
   });
 }
 
-function setTelemetryEnabled(enabled: boolean) {
+function setTelemetryEnabled(enabled: boolean, shouldCaptureNetworkBodies = true) {
   isTelemetryEnabled = enabled;
+  captureNetworkBodies = shouldCaptureNetworkBodies;
   if (enabled) {
     collectNavigationTiming();
     collectPaintEntries();
     collectResourceEntries();
+  }
+}
+
+function patchNetwork() {
+  if (isNetworkPatched) {
+    return;
+  }
+
+  isNetworkPatched = true;
+  patchFetch();
+  patchXhr();
+}
+
+function patchFetch() {
+  if (typeof window.fetch !== 'function') {
+    return;
+  }
+
+  originalFetch = window.fetch.bind(window);
+  window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    if (!isTelemetryEnabled || !originalFetch) {
+      return originalFetch ? originalFetch(input, init) : fetch(input, init);
+    }
+
+    const startedAtMs = Date.now();
+    const startedAt = new Date(startedAtMs).toISOString();
+    const info = describeFetchRequest(input, init);
+    const requestBodyPromise = captureNetworkBodies
+      ? captureFetchRequestBody(input, init)
+      : Promise.resolve<string | undefined>(undefined);
+
+    return originalFetch(input, init).then(
+      (response) => {
+        const endedAtMs = Date.now();
+        const responseClone = response.clone();
+        void Promise.all([
+          requestBodyPromise,
+          captureNetworkBodies ? captureResponseBody(responseClone, info.url) : Promise.resolve<string | undefined>(undefined),
+        ]).then(([requestBody, responseBody]) => {
+          postNetworkTelemetry({
+            method: info.method,
+            url: info.url,
+            statusCode: response.status || undefined,
+            durationMs: Math.max(0, Math.round(endedAtMs - startedAtMs)),
+            requestHeaders: info.requestHeaders,
+            responseHeaders: headersToRecord(response.headers),
+            requestBody,
+            responseBody,
+            startedAt,
+            endedAt: new Date(endedAtMs).toISOString(),
+          });
+        }).catch(() => undefined);
+
+        return response;
+      },
+      (error: unknown) => {
+        const endedAtMs = Date.now();
+        void requestBodyPromise.then((requestBody) => {
+          postNetworkTelemetry({
+            method: info.method,
+            url: info.url,
+            durationMs: Math.max(0, Math.round(endedAtMs - startedAtMs)),
+            requestHeaders: info.requestHeaders,
+            requestBody,
+            error: error instanceof Error ? error.message : String(error),
+            startedAt,
+            endedAt: new Date(endedAtMs).toISOString(),
+          });
+        }).catch(() => undefined);
+
+        throw error;
+      },
+    );
+  }) as typeof window.fetch;
+}
+
+function patchXhr() {
+  originalXhrOpen = XMLHttpRequest.prototype.open;
+  originalXhrSend = XMLHttpRequest.prototype.send;
+  originalXhrSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
+
+  XMLHttpRequest.prototype.open = function patchedOpen(
+    method: string,
+    url: string | URL,
+    async?: boolean,
+    username?: string | null,
+    password?: string | null,
+  ) {
+    xhrState.set(this, {
+      method: method || 'GET',
+      url: normalizeUrl(url),
+      requestHeaders: {},
+    });
+    if (!originalXhrOpen) {
+      return undefined;
+    }
+    const open = originalXhrOpen as unknown as (this: XMLHttpRequest, ...args: unknown[]) => void;
+    if (username !== undefined || password !== undefined) {
+      return open.call(this, method, url, async ?? true, username ?? null, password ?? null);
+    }
+    if (async !== undefined) {
+      return open.call(this, method, url, async);
+    }
+    return open.call(this, method, url);
+  };
+
+  XMLHttpRequest.prototype.setRequestHeader = function patchedSetRequestHeader(name: string, value: string) {
+    const state = xhrState.get(this);
+    if (state) {
+      state.requestHeaders[name] = value;
+    }
+    return originalXhrSetRequestHeader?.call(this, name, value);
+  };
+
+  XMLHttpRequest.prototype.send = function patchedSend(body?: Document | XMLHttpRequestBodyInit | null) {
+    const state = xhrState.get(this);
+    if (state && isTelemetryEnabled) {
+      state.startedAtMs = Date.now();
+      state.startedAt = new Date(state.startedAtMs).toISOString();
+      if (captureNetworkBodies) {
+        void serializeRequestBody(body).then((serialized) => {
+          state.requestBody = serialized;
+        }).catch(() => undefined);
+      }
+
+      const finalize = () => {
+        const endedAtMs = Date.now();
+        const responseHeaders = parseRawHeaders(safeGetAllResponseHeaders(this));
+        const responseBody = captureNetworkBodies ? readXhrResponseBody(this) : undefined;
+        postNetworkTelemetry({
+          method: state.method,
+          url: this.responseURL || state.url,
+          statusCode: this.status || undefined,
+          durationMs: state.startedAtMs ? Math.max(0, Math.round(endedAtMs - state.startedAtMs)) : undefined,
+          requestHeaders: state.requestHeaders,
+          responseHeaders,
+          requestBody: state.requestBody,
+          responseBody,
+          error: this.status === 0 ? 'Request failed or was blocked.' : undefined,
+          startedAt: state.startedAt ?? new Date(endedAtMs).toISOString(),
+          endedAt: new Date(endedAtMs).toISOString(),
+        });
+        xhrState.delete(this);
+      };
+
+      this.addEventListener('loadend', finalize, { once: true });
+    }
+
+    return originalXhrSend?.call(this, body ?? null);
+  };
+}
+
+const xhrState = new WeakMap<XMLHttpRequest, XhrCaptureState>();
+
+function postNetworkTelemetry(payload: {
+  method: string;
+  url: string;
+  statusCode?: number | undefined;
+  durationMs?: number | undefined;
+  requestHeaders?: Record<string, string> | undefined;
+  responseHeaders?: Record<string, string> | undefined;
+  requestBody?: string | undefined;
+  responseBody?: string | undefined;
+  error?: string | undefined;
+  startedAt: string;
+  endedAt?: string | undefined;
+}) {
+  if (!isTelemetryEnabled) {
+    return;
+  }
+
+  post(PageMessageTypes.Network, payload);
+}
+
+function describeFetchRequest(input: RequestInfo | URL, init?: RequestInit) {
+  const request = input instanceof Request ? input : null;
+  const method = String(init?.method ?? request?.method ?? 'GET').toUpperCase();
+  const url = request ? request.url : normalizeUrl(input);
+  const requestHeaders = {
+    ...(request ? headersToRecord(request.headers) : {}),
+    ...headersToRecord(init?.headers),
+  };
+
+  return { method, url, requestHeaders };
+}
+
+async function captureFetchRequestBody(input: RequestInfo | URL, init?: RequestInit) {
+  if (init?.body !== undefined && init.body !== null) {
+    return serializeRequestBody(init.body);
+  }
+
+  if (input instanceof Request && input.method.toUpperCase() !== 'GET' && input.method.toUpperCase() !== 'HEAD') {
+    try {
+      return truncateBodyText(await input.clone().text());
+    } catch {
+      return undefined;
+    }
+  }
+
+  return undefined;
+}
+
+async function captureResponseBody(response: Response, url: string) {
+  if (!shouldReadBody(response.headers.get('content-type'), url)) {
+    return undefined;
+  }
+
+  try {
+    return truncateBodyText(await response.text());
+  } catch {
+    return undefined;
+  }
+}
+
+async function serializeRequestBody(body: BodyInit | Document | null | undefined) {
+  if (body === null || body === undefined) {
+    return undefined;
+  }
+
+  if (typeof body === 'string') {
+    return truncateBodyText(body);
+  }
+
+  if (body instanceof URLSearchParams) {
+    return truncateBodyText(body.toString());
+  }
+
+  if (body instanceof FormData) {
+    return truncateBodyText(serializeFormData(body));
+  }
+
+  if (body instanceof Blob) {
+    if (!shouldReadBody(body.type, '')) {
+      return `[${body.type || 'blob'} body, ${body.size} bytes]`;
+    }
+    return truncateBodyText(await body.text());
+  }
+
+  if (body instanceof ArrayBuffer) {
+    return `[binary request body, ${body.byteLength} bytes]`;
+  }
+
+  if (ArrayBuffer.isView(body)) {
+    return `[binary request body, ${body.byteLength} bytes]`;
+  }
+
+  if (body instanceof Document) {
+    return truncateBodyText(new XMLSerializer().serializeToString(body));
+  }
+
+  return '[stream request body]';
+}
+
+function serializeFormData(formData: FormData) {
+  const entries: Record<string, unknown> = {};
+  formData.forEach((value, key) => {
+    entries[key] = value instanceof File ? `[file:${value.name}, ${value.size} bytes]` : value;
+  });
+  return safeStringify(entries, maxCapturedBodyChars);
+}
+
+function readXhrResponseBody(xhr: XMLHttpRequest) {
+  if (!shouldReadBody(xhr.getResponseHeader('content-type'), xhr.responseURL)) {
+    return undefined;
+  }
+
+  try {
+    if (xhr.responseType === '' || xhr.responseType === 'text') {
+      return truncateBodyText(xhr.responseText);
+    }
+    if (xhr.responseType === 'json') {
+      return truncateBodyText(safeStringify(xhr.response, maxCapturedBodyChars));
+    }
+    if (typeof xhr.response === 'string') {
+      return truncateBodyText(xhr.response);
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+}
+
+function shouldReadBody(contentType: string | null | undefined, url: string) {
+  const lowerType = (contentType ?? '').toLowerCase();
+  if (
+    lowerType.includes('json') ||
+    lowerType.includes('text/') ||
+    lowerType.includes('xml') ||
+    lowerType.includes('graphql') ||
+    lowerType.includes('x-www-form-urlencoded') ||
+    lowerType.includes('javascript') ||
+    lowerType.includes('html') ||
+    lowerType.includes('rsc') ||
+    lowerType.includes('vnd.turbo-stream')
+  ) {
+    return true;
+  }
+
+  return /\.(json|txt|html|htm|xml|js|css|svg)(?:[?#]|$)/i.test(url);
+}
+
+function truncateBodyText(value: string) {
+  return value.length > maxCapturedBodyChars
+    ? `${value.slice(0, maxCapturedBodyChars)}\n… truncated by Weevil (${value.length} chars total)`
+    : value;
+}
+
+function headersToRecord(headers: HeadersInit | Headers | undefined) {
+  const record: Record<string, string> = {};
+  if (!headers) {
+    return record;
+  }
+
+  try {
+    new Headers(headers).forEach((value, key) => {
+      record[key] = value;
+    });
+  } catch {
+    return record;
+  }
+
+  return record;
+}
+
+function parseRawHeaders(rawHeaders: string) {
+  const record: Record<string, string> = {};
+  rawHeaders.split(/\r?\n/).forEach((line) => {
+    const separatorIndex = line.indexOf(':');
+    if (separatorIndex <= 0) {
+      return;
+    }
+    record[line.slice(0, separatorIndex).trim()] = line.slice(separatorIndex + 1).trim();
+  });
+  return record;
+}
+
+function safeGetAllResponseHeaders(xhr: XMLHttpRequest) {
+  try {
+    return xhr.getAllResponseHeaders();
+  } catch {
+    return '';
+  }
+}
+
+function normalizeUrl(input: RequestInfo | URL) {
+  try {
+    return new URL(String(input), location.href).href;
+  } catch {
+    return String(input);
   }
 }
 

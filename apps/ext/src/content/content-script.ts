@@ -109,8 +109,15 @@ function connectRuntime() {
         startedAt: string;
         reportId?: string;
         consoleCaptureMode?: ConsoleCaptureMode;
+        captureNetworkBodies?: boolean;
       };
-      startLocalRecording(payload.sessionId, payload.startedAt, payload.reportId, payload.consoleCaptureMode);
+      startLocalRecording(
+        payload.sessionId,
+        payload.startedAt,
+        payload.reportId,
+        payload.consoleCaptureMode,
+        payload.captureNetworkBodies,
+      );
       sendResponse({ ok: true });
       return true;
     }
@@ -339,6 +346,7 @@ function startLocalRecording(
   startedAt: string,
   nextReportId?: string,
   consoleCaptureMode: ConsoleCaptureMode = 'off',
+  captureNetworkBodies = true,
 ) {
   if (stopRequested && stoppedSessionId === nextSessionId) {
     return;
@@ -369,7 +377,7 @@ function startLocalRecording(
   startFlushTimer();
   startStateSyncTimer();
   mountRecorderOverlay();
-  setPageTelemetryEnabled(true);
+  setPageTelemetryEnabled(true, captureNetworkBodies);
   setPageConsolePatchEnabled(consoleCaptureMode === 'page');
   flushPendingPageTelemetry();
 }
@@ -803,10 +811,11 @@ function setPageConsolePatchEnabled(enabled: boolean) {
   }, '*');
 }
 
-function setPageTelemetryEnabled(enabled: boolean) {
+function setPageTelemetryEnabled(enabled: boolean, captureNetworkBodies = true) {
   window.postMessage({
     type: pageTelemetryControlMessageType,
     enabled,
+    captureNetworkBodies,
   }, '*');
 }
 
