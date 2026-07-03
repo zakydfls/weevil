@@ -628,6 +628,8 @@ async function appendPageTelemetry(message: { type: string; payload: unknown }, 
   }
 
   if (message.type.endsWith('NETWORK')) {
+    const settings = await getSettings();
+    const shouldRedactHeaders = settings.redactSensitiveData;
     const networkStartedAt = optionalString(payload.startedAt) ?? new Date().toISOString();
     buffers.networkRequests.push(mergeCapturedNetworkHeaders({
       ...base,
@@ -639,14 +641,14 @@ async function appendPageTelemetry(message: { type: string; payload: unknown }, 
       url: requiredUrlString(payload.url ?? state.pageUrl),
       statusCode: optionalHttpStatus(payload.statusCode),
       durationMs: optionalBoundedInt(payload.durationMs, 0, maxTelemetryDurationMs),
-      requestHeaders: redactHeaderRecord(normalizeRecord(payload.requestHeaders)),
-      responseHeaders: redactHeaderRecord(normalizeRecord(payload.responseHeaders)),
+      requestHeaders: redactHeaderRecord(normalizeRecord(payload.requestHeaders), shouldRedactHeaders),
+      responseHeaders: redactHeaderRecord(normalizeRecord(payload.responseHeaders), shouldRedactHeaders),
       requestBody: optionalString(payload.requestBody, maxTelemetryBodyChars),
       responseBody: optionalString(payload.responseBody, maxTelemetryBodyChars),
       error: optionalString(payload.error, 4_000),
       startedAt: networkStartedAt,
       endedAt: optionalString(payload.endedAt),
-    }, tabId));
+    }, tabId, shouldRedactHeaders));
   }
 
   if (message.type.endsWith('RUNTIME_ERROR')) {
@@ -1278,6 +1280,8 @@ async function appendBrowserNetworkEntry(
   if (!state) {
     return;
   }
+  const settings = await getSettings();
+  const shouldRedactHeaders = settings.redactSensitiveData;
 
   purgeCapturedRequestHeaders();
   purgeCapturedResponseHeaders();
@@ -1300,8 +1304,8 @@ async function appendBrowserNetworkEntry(
     url: requiredUrlString(details.url),
     statusCode: 'statusCode' in details ? optionalHttpStatus(details.statusCode) : undefined,
     durationMs: optionalBoundedInt(Math.max(0, Math.round(endedAtMs - startedAtMs)), 0, maxTelemetryDurationMs),
-    requestHeaders: redactHeaderRecord(requestMatch?.capture.headers),
-    responseHeaders: redactHeaderRecord(responseMatch?.capture.headers),
+    requestHeaders: redactHeaderRecord(requestMatch?.capture.headers, shouldRedactHeaders),
+    responseHeaders: redactHeaderRecord(responseMatch?.capture.headers, shouldRedactHeaders),
     error: optionalString(error, 4_000),
     startedAt: new Date(startedAtMs).toISOString(),
     endedAt: new Date(endedAtMs).toISOString(),
@@ -1322,6 +1326,7 @@ function shouldSkipBrowserNetworkEntry(type: string) {
 function mergeCapturedNetworkHeaders(
   entry: NetworkTelemetryEntry,
   tabId: number | undefined,
+  shouldRedactHeaders: boolean,
 ): NetworkTelemetryEntry {
   if (!tabId) {
     return entry;
@@ -1344,11 +1349,11 @@ function mergeCapturedNetworkHeaders(
     ...entry,
     statusCode: entry.statusCode ?? responseMatch?.capture.statusCode,
     requestHeaders: requestMatch
-      ? mergeHeaderRecords(requestMatch.capture.headers, entry.requestHeaders)
-      : redactHeaderRecord(entry.requestHeaders),
+      ? mergeHeaderRecords(requestMatch.capture.headers, entry.requestHeaders, shouldRedactHeaders)
+      : redactHeaderRecord(entry.requestHeaders, shouldRedactHeaders),
     responseHeaders: responseMatch
-      ? mergeHeaderRecords(responseMatch.capture.headers, entry.responseHeaders)
-      : redactHeaderRecord(entry.responseHeaders),
+      ? mergeHeaderRecords(responseMatch.capture.headers, entry.responseHeaders, shouldRedactHeaders)
+      : redactHeaderRecord(entry.responseHeaders, shouldRedactHeaders),
   };
 }
 
@@ -1427,11 +1432,11 @@ function chromeHeadersToRecord(
 
     const existingKey = Object.keys(record).find((key) => key.toLowerCase() === name.toLowerCase());
     if (existingKey) {
-      record[existingKey] = redactHeaderValue(name, `${record[existingKey]}, ${value}`);
+      record[existingKey] = `${record[existingKey]}, ${value}`;
       return;
     }
 
-    record[name] = redactHeaderValue(name, value);
+    record[name] = value;
   });
 
   return record;
@@ -1440,16 +1445,17 @@ function chromeHeadersToRecord(
 function mergeHeaderRecords(
   browserHeaders: Record<string, string>,
   pageHeaders: Record<string, unknown> | undefined,
+  shouldRedactHeaders: boolean,
 ) {
-  const merged: Record<string, unknown> = redactHeaderRecord(pageHeaders) ?? {};
+  const merged: Record<string, unknown> = redactHeaderRecord(pageHeaders, shouldRedactHeaders) ?? {};
   Object.entries(browserHeaders).forEach(([key, value]) => {
     const existingKey = Object.keys(merged).find((header) => header.toLowerCase() === key.toLowerCase());
-    merged[existingKey ?? key] = redactHeaderValue(key, value);
+    merged[existingKey ?? key] = redactHeaderValue(key, value, shouldRedactHeaders);
   });
   return merged;
 }
 
-function redactHeaderRecord(headers: Record<string, unknown> | undefined) {
+function redactHeaderRecord(headers: Record<string, unknown> | undefined, shouldRedactHeaders: boolean) {
   if (!headers) {
     return undefined;
   }
@@ -1457,13 +1463,13 @@ function redactHeaderRecord(headers: Record<string, unknown> | undefined) {
   return Object.fromEntries(
     Object.entries(headers).map(([key, value]) => [
       key,
-      typeof value === 'string' ? redactHeaderValue(key, value) : value,
+      typeof value === 'string' ? redactHeaderValue(key, value, shouldRedactHeaders) : value,
     ]),
   );
 }
 
-function redactHeaderValue(name: string, value: string) {
-  return sensitiveHeaderPattern.test(name) ? redactedHeaderValue : value;
+function redactHeaderValue(name: string, value: string, shouldRedactHeaders: boolean) {
+  return shouldRedactHeaders && sensitiveHeaderPattern.test(name) ? redactedHeaderValue : value;
 }
 
 function normalizeUrlForMatch(value: string) {

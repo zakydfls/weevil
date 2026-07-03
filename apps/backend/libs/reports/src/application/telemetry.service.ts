@@ -70,7 +70,7 @@ export class TelemetryService {
     if (dto.entries.length === 0) {
       return 0;
     }
-    const { redactHeaders, redactText } = await this.getRedactors(reportId, options);
+    const { redactRecord, redactText } = await this.getRedactors(reportId, options);
 
     await this.prisma.$transaction([
       this.prisma.networkRequestEntry.createMany({
@@ -82,8 +82,8 @@ export class TelemetryService {
           url: redactText(entry.url) ?? entry.url,
           statusCode: entry.statusCode,
           durationMs: entry.durationMs,
-          requestHeaders: redactHeaders(entry.requestHeaders),
-          responseHeaders: redactHeaders(entry.responseHeaders),
+          requestHeaders: redactRecord(entry.requestHeaders),
+          responseHeaders: redactRecord(entry.responseHeaders),
           requestBody: redactText(entry.requestBody),
           responseBody: redactText(entry.responseBody),
           error: redactText(entry.error),
@@ -340,8 +340,6 @@ export class TelemetryService {
         shouldRedact ? this.redaction.redactText(value) : value,
       redactRecord: (value: Record<string, unknown> | undefined) =>
         this.toJson(shouldRedact ? this.redaction.redactRecord(value) : value),
-      redactHeaders: (value: Record<string, unknown> | undefined) =>
-        this.toJson(this.redaction.redactRecord(value)),
     };
   }
 }

@@ -9,8 +9,6 @@ const installedFlag = '__WEevil_PAGE_BRIDGE_INSTALLED_20260604_CONSOLE_RECAPTURE
 const consoleControlMessageType = 'WEevil_PAGE_CONSOLE_CONTROL';
 const telemetryControlMessageType = 'WEevil_PAGE_TELEMETRY_CONTROL';
 const maxCapturedBodyChars = 20_000;
-const redactedHeaderValue = '[REDACTED]';
-const sensitiveHeaderPattern = /^(authorization|cookie|set-cookie|proxy-authorization|x-api-key|api-key|x-auth-token|x-csrf-token|x-xsrf-token)$|token|secret|session/i;
 const originalConsoleMethods = new Map<string, (...args: unknown[]) => void>();
 let originalConsoleAssert: ((condition?: boolean, ...args: unknown[]) => void) | undefined;
 let originalFetch: typeof window.fetch | undefined;
@@ -471,7 +469,7 @@ function headersToRecord(headers: HeadersInit | Headers | undefined) {
 
   try {
     new Headers(headers).forEach((value, key) => {
-      record[key] = redactHeaderValue(key, value);
+      record[key] = value;
     });
   } catch {
     return record;
@@ -487,14 +485,9 @@ function parseRawHeaders(rawHeaders: string) {
     if (separatorIndex <= 0) {
       return;
     }
-    const name = line.slice(0, separatorIndex).trim();
-    record[name] = redactHeaderValue(name, line.slice(separatorIndex + 1).trim());
+    record[line.slice(0, separatorIndex).trim()] = line.slice(separatorIndex + 1).trim();
   });
   return record;
-}
-
-function redactHeaderValue(name: string, value: string) {
-  return sensitiveHeaderPattern.test(name) ? redactedHeaderValue : value;
 }
 
 function safeGetAllResponseHeaders(xhr: XMLHttpRequest) {
