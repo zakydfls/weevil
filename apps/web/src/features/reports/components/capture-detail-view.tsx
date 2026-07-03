@@ -1,7 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
@@ -127,6 +135,27 @@ const MIN_DEVTOOLS_WIDTH = 460;
 const MAX_DEVTOOLS_WIDTH = 920;
 const MIN_NETWORK_LIST_WIDTH = 176;
 const MAX_NETWORK_LIST_WIDTH = 360;
+
+// Horizontally-scrolling tab/chip strips only respond to a vertical mouse
+// wheel via shift+scroll or a trackpad swipe by default — plenty of users
+// never discover that and conclude the strip is "stuck" before its true
+// end. Redirect ordinary vertical wheel input into horizontal scroll so
+// hovering + scrolling always reaches the last item. Attached as a native
+// listener (not React's onWheel) because React 19 registers wheel handlers
+// as passive, which silently no-ops preventDefault and lets the page
+// scroll vertically at the same time.
+function attachHorizontalWheelScroll(node: HTMLElement | null) {
+  if (!node) return;
+  const handleWheel = (event: WheelEvent) => {
+    if (node.scrollWidth <= node.clientWidth || event.deltaY === 0) {
+      return;
+    }
+    event.preventDefault();
+    node.scrollLeft += event.deltaY;
+  };
+  node.addEventListener('wheel', handleWheel, { passive: false });
+  return () => node.removeEventListener('wheel', handleWheel);
+}
 
 export function CaptureDetailView({
   report,
@@ -733,7 +762,10 @@ function DevToolsShell({
           devtools
         </div>
         <div className="my-2 hidden w-px shrink-0 bg-[var(--border)] sm:block" />
-        <TabsList className="thin-scrollbar-x flex h-auto min-w-0 flex-1 items-stretch justify-start gap-1 overflow-x-auto rounded-none border-0 bg-transparent p-0 pl-1.5 pr-6 [scroll-padding-inline:0.75rem]">
+        <TabsList
+          ref={attachHorizontalWheelScroll}
+          className="thin-scrollbar-x flex h-auto min-w-0 flex-1 items-stretch justify-start gap-1 overflow-x-auto rounded-none border-0 bg-transparent p-0 pl-1.5 pr-6 [scroll-padding-inline:0.75rem]"
+        >
           {devToolsTabItems.map(({ id: tab, icon: Icon }) => {
             const isActive = activeTab === tab;
             const count = counts[tab];
@@ -2200,6 +2232,7 @@ function ConsoleActivityPanel({
           type="multiple"
           value={activeGroups}
           onValueChange={(value) => setActiveGroups(value as ConsoleRowGroup[])}
+          ref={attachHorizontalWheelScroll}
           className="thin-scrollbar-x mt-2 flex justify-start gap-1.5 overflow-x-auto border-0 bg-transparent pb-1 pr-6 [scroll-padding-inline:0.75rem]"
           aria-label="Console event groups"
         >
@@ -2588,7 +2621,7 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
           >
             <ToggleGroupItem
               value="errors"
-              className="h-8 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 font-mono text-[9px] uppercase tracking-wider data-[state=on]:border-[var(--danger-border)] data-[state=on]:bg-[var(--danger-bg)] data-[state=on]:text-[var(--danger)]"
+              className="h-8 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 font-mono text-[8px] uppercase tracking-wide data-[state=on]:border-[var(--danger-border)] data-[state=on]:bg-[var(--danger-bg)] data-[state=on]:text-[var(--danger)]"
             >
               <AlertTriangle className="h-3 w-3" aria-hidden />
               errors only
@@ -2603,6 +2636,7 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
             setActiveFilter(value as NetworkFilter);
             setSelectedRequestId(null);
           }}
+          ref={attachHorizontalWheelScroll}
           className="thin-scrollbar-x mt-2 flex justify-start gap-1 overflow-x-auto border-0 bg-transparent py-0 pl-0 pr-6 pb-0.5 [scroll-padding-inline:0.75rem]"
           aria-label="Network request type"
         >
@@ -2612,11 +2646,11 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
               <ToggleGroupItem
                 key={item}
                 value={item}
-                className={`h-7 shrink-0 px-2 py-1 font-mono text-[9px] uppercase tracking-wider data-[state=on]:shadow-none ${
+                className={`h-7 shrink-0 px-2 py-1 font-mono text-[8px] uppercase tracking-wide data-[state=on]:shadow-none ${
                   networkFilterButtonClass(item, active)
                 }`}
               >
-                <NetworkTypeIcon category={item} className={`h-3.5 w-3.5 ${networkTypeIconClass(item, active)}`} />
+                <NetworkTypeIcon category={item} className={`h-3 w-3 ${networkTypeIconClass(item, active)}`} />
                 {item}
               </ToggleGroupItem>
             );
@@ -2684,7 +2718,10 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
           {/* One horizontally-scrollable strip. Every child is shrink-0 so the
               row overflows naturally and scrolls continuously to the very end
               (curl included). No flex-1, no pinned split, no ml-auto. */}
-          <div className="thin-scrollbar-x flex h-10 shrink-0 items-center gap-1 overflow-x-auto overflow-y-hidden border-b border-[var(--border)] bg-[var(--bg)] py-0 pl-1.5 pr-8 [scroll-padding-inline:0.75rem]">
+          <div
+            ref={attachHorizontalWheelScroll}
+            className="thin-scrollbar-x flex h-10 shrink-0 items-center gap-1 overflow-x-auto overflow-y-hidden border-b border-[var(--border)] bg-[var(--bg)] py-0 pl-1.5 pr-8 [scroll-padding-inline:0.75rem]"
+          >
             <button
               type="button"
               onClick={() => {
@@ -2706,7 +2743,7 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
                   key={tab}
                   type="button"
                   onClick={() => setActiveDetailTab(tab)}
-                  className={`relative h-9 shrink-0 px-2.5 font-mono text-[9px] uppercase tracking-wider transition-colors ${
+                  className={`relative h-9 shrink-0 px-2.5 font-mono text-[8px] uppercase tracking-wide transition-colors ${
                     active
                       ? 'font-semibold text-[var(--ink)]'
                       : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'
@@ -2724,35 +2761,35 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
               type="button"
               variant="ghost"
               size="sm"
-              className="h-7 shrink-0 px-2 font-mono text-[9px] uppercase tracking-wider"
+              className="h-7 shrink-0 px-2 font-mono text-[8px] uppercase tracking-wide"
               title={bodyViewMode === 'tree' ? 'Show raw body' : 'Show parsed tree'}
               onClick={() => setBodyViewMode((mode) => (mode === 'tree' ? 'raw' : 'tree'))}
             >
-              {bodyViewMode === 'tree' ? <FileCode2 className="h-3.5 w-3.5" aria-hidden /> : <ListTree className="h-3.5 w-3.5" aria-hidden />}
+              {bodyViewMode === 'tree' ? <FileCode2 className="h-3 w-3" aria-hidden /> : <ListTree className="h-3 w-3" aria-hidden />}
               {bodyViewMode === 'tree' ? 'raw' : 'tree'}
             </Button>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="h-7 shrink-0 px-2 font-mono text-[9px] uppercase tracking-wider"
+              className="h-7 shrink-0 px-2 font-mono text-[8px] uppercase tracking-wide"
               disabled={!selected?.responseBody}
               title="Copy response body"
               onClick={() => void handleCopyResponseBody()}
             >
-              {copyFeedback === 'response' ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+              {copyFeedback === 'response' ? <Check className="h-3 w-3" aria-hidden /> : <Copy className="h-3 w-3" aria-hidden />}
               {copyFeedback === 'response' ? 'copied' : 'body'}
             </Button>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="h-7 shrink-0 px-2 font-mono text-[9px] uppercase tracking-wider"
+              className="h-7 shrink-0 px-2 font-mono text-[8px] uppercase tracking-wide"
               disabled={!selected}
               onClick={() => void handleCopyCurl()}
               title="Copy as cURL"
             >
-              {copyFeedback === 'curl' ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+              {copyFeedback === 'curl' ? <Check className="h-3 w-3" aria-hidden /> : <Copy className="h-3 w-3" aria-hidden />}
               {copyFeedback === 'curl' ? 'copied' : 'curl'}
             </Button>
           </div>
