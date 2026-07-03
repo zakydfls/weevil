@@ -2824,7 +2824,7 @@ function NetworkRequestDetails({
         <KeyValue label="Request URL" value={request.url} />
         <KeyValue label="Request Method" value={request.method} />
         <SectionTitle title="Request Headers" />
-        <KeyValueList entries={jsonRecordEntries(request.requestHeaders)} emptyLabel="headers" />
+        <KeyValueList entries={safeHeaderEntries(request.requestHeaders)} emptyLabel="headers" />
         <BodyPreview title="Request Body" value={request.requestBody} headers={request.requestHeaders} viewMode={bodyViewMode} />
       </div>
     );
@@ -2838,7 +2838,7 @@ function NetworkRequestDetails({
         <KeyValue label="Duration" value={request.durationMs === null || request.durationMs === undefined ? 'n/a' : `${request.durationMs} ms`} />
         <KeyValue label="Error" value={request.error ?? 'n/a'} />
         <SectionTitle title="Response Headers" />
-        <KeyValueList entries={jsonRecordEntries(request.responseHeaders)} emptyLabel="headers" />
+        <KeyValueList entries={safeHeaderEntries(request.responseHeaders)} emptyLabel="headers" />
         <BodyPreview title="Response Body" value={request.responseBody} headers={request.responseHeaders} viewMode={bodyViewMode} />
       </div>
     );
@@ -2853,9 +2853,9 @@ function NetworkRequestDetails({
       <KeyValue label="Type" value={isNextRscRequest(request) ? 'Next.js RSC / Flight' : classifyNetworkRequest(request)} />
       <KeyValue label="Offset" value={formatOffset(request.offsetMs)} />
       <SectionTitle title="Response Headers" />
-      <KeyValueList entries={jsonRecordEntries(request.responseHeaders)} emptyLabel="headers" />
+      <KeyValueList entries={safeHeaderEntries(request.responseHeaders)} emptyLabel="headers" />
       <SectionTitle title="Request Headers" />
-      <KeyValueList entries={jsonRecordEntries(request.requestHeaders)} emptyLabel="headers" />
+      <KeyValueList entries={safeHeaderEntries(request.requestHeaders)} emptyLabel="headers" />
     </div>
   );
 }
@@ -3309,7 +3309,7 @@ function getHeaderValue(headers: unknown, headerName: string) {
 function buildCurlCommand(request: NetworkRequestEntry) {
   const parts = ['curl', quoteShellValue(request.url), '-X', quoteShellValue(request.method)];
 
-  jsonRecordEntries(request.requestHeaders).forEach(([key, value]) => {
+  safeHeaderEntries(request.requestHeaders).forEach(([key, value]) => {
     parts.push('-H', quoteShellValue(`${key}: ${value}`));
   });
 
@@ -3318,6 +3318,17 @@ function buildCurlCommand(request: NetworkRequestEntry) {
   }
 
   return parts.join(' ');
+}
+
+function safeHeaderEntries(headers: unknown) {
+  return jsonRecordEntries(headers).map(([key, value]) => [
+    key,
+    isSensitiveHeaderName(key) ? '[REDACTED]' : value,
+  ] as [string, string]);
+}
+
+function isSensitiveHeaderName(key: string) {
+  return /^(authorization|cookie|set-cookie|proxy-authorization|x-api-key|api-key|x-auth-token|x-csrf-token|x-xsrf-token)$|token|secret|session/i.test(key);
 }
 
 function quoteShellValue(value: string) {

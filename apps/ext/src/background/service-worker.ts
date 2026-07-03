@@ -49,6 +49,8 @@ const maxTelemetryOperationChars = 240;
 const maxTelemetryShortTextChars = 160;
 const maxTelemetryOffsetMs = 86_400_000;
 const maxTelemetryDurationMs = 3_600_000;
+const redactedHeaderValue = '[REDACTED]';
+const sensitiveHeaderPattern = /^(authorization|cookie|set-cookie|proxy-authorization|x-api-key|api-key|x-auth-token|x-csrf-token|x-xsrf-token)$|token|secret|session/i;
 const webStartCaptureUnsupportedMessage =
   'Chrome only allows tab recording after you click the Weevil extension button on the page you want to capture. Open the target page, click the Weevil icon in the browser toolbar, then start capture there.';
 let attachedConsoleDebuggee: chrome.debugger.Debuggee | null = null;
@@ -637,8 +639,8 @@ async function appendPageTelemetry(message: { type: string; payload: unknown }, 
       url: requiredUrlString(payload.url ?? state.pageUrl),
       statusCode: optionalHttpStatus(payload.statusCode),
       durationMs: optionalBoundedInt(payload.durationMs, 0, maxTelemetryDurationMs),
-      requestHeaders: normalizeRecord(payload.requestHeaders),
-      responseHeaders: normalizeRecord(payload.responseHeaders),
+      requestHeaders: redactHeaderRecord(normalizeRecord(payload.requestHeaders)),
+      responseHeaders: redactHeaderRecord(normalizeRecord(payload.responseHeaders)),
       requestBody: optionalString(payload.requestBody, maxTelemetryBodyChars),
       responseBody: optionalString(payload.responseBody, maxTelemetryBodyChars),
       error: optionalString(payload.error, 4_000),
@@ -1298,8 +1300,8 @@ async function appendBrowserNetworkEntry(
     url: requiredUrlString(details.url),
     statusCode: 'statusCode' in details ? optionalHttpStatus(details.statusCode) : undefined,
     durationMs: optionalBoundedInt(Math.max(0, Math.round(endedAtMs - startedAtMs)), 0, maxTelemetryDurationMs),
-    requestHeaders: requestMatch?.capture.headers,
-    responseHeaders: responseMatch?.capture.headers,
+    requestHeaders: redactHeaderRecord(requestMatch?.capture.headers),
+    responseHeaders: redactHeaderRecord(responseMatch?.capture.headers),
     error: optionalString(error, 4_000),
     startedAt: new Date(startedAtMs).toISOString(),
     endedAt: new Date(endedAtMs).toISOString(),
@@ -1343,10 +1345,10 @@ function mergeCapturedNetworkHeaders(
     statusCode: entry.statusCode ?? responseMatch?.capture.statusCode,
     requestHeaders: requestMatch
       ? mergeHeaderRecords(requestMatch.capture.headers, entry.requestHeaders)
-      : entry.requestHeaders,
+      : redactHeaderRecord(entry.requestHeaders),
     responseHeaders: responseMatch
       ? mergeHeaderRecords(responseMatch.capture.headers, entry.responseHeaders)
-      : entry.responseHeaders,
+      : redactHeaderRecord(entry.responseHeaders),
   };
 }
 
@@ -1425,11 +1427,11 @@ function chromeHeadersToRecord(
 
     const existingKey = Object.keys(record).find((key) => key.toLowerCase() === name.toLowerCase());
     if (existingKey) {
-      record[existingKey] = `${record[existingKey]}, ${value}`;
+      record[existingKey] = redactHeaderValue(name, `${record[existingKey]}, ${value}`);
       return;
     }
 
-    record[name] = value;
+    record[name] = redactHeaderValue(name, value);
   });
 
   return record;
@@ -1439,12 +1441,29 @@ function mergeHeaderRecords(
   browserHeaders: Record<string, string>,
   pageHeaders: Record<string, unknown> | undefined,
 ) {
-  const merged: Record<string, unknown> = { ...(pageHeaders ?? {}) };
+  const merged: Record<string, unknown> = redactHeaderRecord(pageHeaders) ?? {};
   Object.entries(browserHeaders).forEach(([key, value]) => {
     const existingKey = Object.keys(merged).find((header) => header.toLowerCase() === key.toLowerCase());
-    merged[existingKey ?? key] = value;
+    merged[existingKey ?? key] = redactHeaderValue(key, value);
   });
   return merged;
+}
+
+function redactHeaderRecord(headers: Record<string, unknown> | undefined) {
+  if (!headers) {
+    return undefined;
+  }
+
+  return Object.fromEntries(
+    Object.entries(headers).map(([key, value]) => [
+      key,
+      typeof value === 'string' ? redactHeaderValue(key, value) : value,
+    ]),
+  );
+}
+
+function redactHeaderValue(name: string, value: string) {
+  return sensitiveHeaderPattern.test(name) ? redactedHeaderValue : value;
 }
 
 function normalizeUrlForMatch(value: string) {
