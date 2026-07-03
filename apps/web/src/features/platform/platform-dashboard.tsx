@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { Bar, BarChart, CartesianGrid, XAxis } from 'recharts';
 import {
   Activity,
   AlertTriangle,
@@ -18,11 +19,16 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useDialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiClient } from '@/lib/api/client';
+
+const capturesChartConfig = {
+  count: { label: 'Captures', color: 'var(--primary)' },
+} satisfies ChartConfig;
 
 type Tab = 'overview' | 'tenants' | 'users';
 
@@ -254,7 +260,7 @@ function StatTile({
           </span>
           {label}
         </div>
-        <div className="mt-2 text-2xl font-semibold tabular-nums text-[var(--ink)]">
+        <div className="mt-2 text-2xl font-semibold text-[var(--ink)]">
           {value.toLocaleString()}
         </div>
         <div className={`mt-1 inline-flex items-center gap-1 font-mono text-[11px] ${toneClass}`}>
@@ -290,28 +296,15 @@ function CapturesChart({ data }: { data: Array<{ day: string; count: number }> }
   const max = useMemo(() => Math.max(1, ...days.map((d) => d.count)), [days]);
   const total = useMemo(() => days.reduce((sum, point) => sum + point.count, 0), [days]);
   const hasData = total > 0;
-  const chart = useMemo(() => {
-    const width = 600;
-    const height = 220;
-    const padX = 18;
-    const padY = 18;
-    const innerWidth = width - padX * 2;
-    const innerHeight = height - padY * 2;
-    const baseline = height - padY;
-    const points = days.map((point, index) => {
-      const x = padX + (days.length <= 1 ? 0 : (index / (days.length - 1)) * innerWidth);
-      const y = baseline - (point.count / max) * innerHeight;
-      return { ...point, x, y };
-    });
-    const linePath = points
-      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
-      .join(' ');
-    const areaPath =
-      points.length > 0
-        ? `${linePath} L ${points[points.length - 1].x.toFixed(2)} ${baseline} L ${points[0].x.toFixed(2)} ${baseline} Z`
-        : '';
-    return { width, height, padX, padY, baseline, points, linePath, areaPath };
-  }, [days, max]);
+
+  const chartData = useMemo(
+    () =>
+      days.map((point) => ({
+        label: point.day.toLocaleDateString('en', { month: 'short', day: 'numeric' }),
+        count: point.count,
+      })),
+    [days],
+  );
 
   return (
     <Card className="overflow-hidden bg-[var(--bg)]">
@@ -328,93 +321,32 @@ function CapturesChart({ data }: { data: Array<{ day: string; count: number }> }
         </div>
       </CardHeader>
       <CardContent>
-        <div className="relative h-64 overflow-hidden rounded-lg border border-[var(--divider)] bg-[var(--surface)]">
-          <svg
-            className="h-full w-full"
-            role="img"
-            aria-label={`Capture trend for the last 30 days, ${total} total captures`}
-            viewBox={`0 0 ${chart.width} ${chart.height}`}
-            preserveAspectRatio="none"
-          >
-            <defs>
-              <linearGradient id="platform-captures-area" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.22" />
-                <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.02" />
-              </linearGradient>
-            </defs>
-            {[0, 1, 2, 3].map((line) => {
-              const y = chart.padY + (line / 3) * (chart.height - chart.padY * 2);
-              return (
-                <line
-                  key={line}
-                  x1={chart.padX}
-                  x2={chart.width - chart.padX}
-                  y1={y}
-                  y2={y}
-                  stroke="var(--divider)"
-                  strokeDasharray={line === 3 ? undefined : '4 8'}
-                  strokeWidth="1"
-                  vectorEffect="non-scaling-stroke"
-                />
-              );
-            })}
-            {hasData ? (
-              <>
-                <path d={chart.areaPath} fill="url(#platform-captures-area)" />
-                <path
-                  d={chart.linePath}
-                  fill="none"
-                  stroke="var(--primary)"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="3"
-                  vectorEffect="non-scaling-stroke"
-                />
-                {chart.points
-                  .filter((point) => point.count > 0)
-                  .map((point) => (
-                    <g key={point.day.toISOString()}>
-                      <line
-                        x1={point.x}
-                        x2={point.x}
-                        y1={point.y}
-                        y2={chart.baseline}
-                        stroke="var(--primary)"
-                        strokeOpacity="0.16"
-                        strokeWidth="1"
-                        vectorEffect="non-scaling-stroke"
-                      />
-                      <circle
-                        cx={point.x}
-                        cy={point.y}
-                        r="4.5"
-                        fill="var(--bg)"
-                        stroke="var(--primary)"
-                        strokeWidth="2.5"
-                        vectorEffect="non-scaling-stroke"
-                      />
-                    </g>
-                  ))}
-              </>
-            ) : null}
-          </svg>
-          {!hasData ? (
-            <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
-              <div>
-                <div className="text-sm font-semibold text-[var(--ink)]">No captures yet</div>
-                <div className="mt-1 text-xs text-[var(--ink-muted)]">
-                  Cross-tenant activity will appear here once recordings are created.
-                </div>
+        {hasData ? (
+          <ChartContainer config={capturesChartConfig} className="aspect-auto h-64 w-full">
+            <BarChart data={chartData} margin={{ left: 0, right: 0, top: 8, bottom: 0 }} barCategoryGap="35%">
+              <CartesianGrid vertical={false} stroke="var(--divider)" />
+              <XAxis
+                dataKey="label"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                interval="preserveStartEnd"
+                tick={{ fill: 'var(--ink-faint)', fontSize: 10 }}
+              />
+              <ChartTooltip cursor={{ fill: 'var(--surface-deep)' }} content={<ChartTooltipContent />} />
+              <Bar dataKey="count" fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={18} minPointSize={2} />
+            </BarChart>
+          </ChartContainer>
+        ) : (
+          <div className="flex h-64 items-center justify-center rounded-lg border border-[var(--divider)] bg-[var(--surface)] px-6 text-center">
+            <div>
+              <div className="text-sm font-semibold text-[var(--ink)]">No captures yet</div>
+              <div className="mt-1 text-xs text-[var(--ink-muted)]">
+                Cross-tenant activity will appear here once recordings are created.
               </div>
             </div>
-          ) : null}
-        </div>
-        <div className="mt-2 flex justify-between font-mono text-[10px] text-[var(--ink-faint)]">
-          <span>
-            {days[0].day.toLocaleDateString('en', { month: 'short', day: 'numeric' })}
-          </span>
-          <span>{days[days.length - 1]?.day.toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>
-        </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
