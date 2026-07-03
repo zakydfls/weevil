@@ -1,4 +1,4 @@
-import { WeevilApiClient } from '../shared/api-client';
+import { ApiError, WeevilApiClient } from '../shared/api-client';
 import {
   BackendTraceStatus,
   DEFAULT_MAX_BATCH_SIZE,
@@ -50,6 +50,8 @@ const maxTelemetryShortTextChars = 160;
 const maxTelemetryOffsetMs = 86_400_000;
 const maxTelemetryDurationMs = 3_600_000;
 const redactedHeaderValue = '[REDACTED]';
+const unavailableHeaderValue = '[unavailable]';
+const emptyHeaderValue = '[empty]';
 const sensitiveHeaderPattern = /^(authorization|cookie|set-cookie|proxy-authorization|x-api-key|api-key|x-auth-token|x-csrf-token|x-xsrf-token)$|token|secret|session/i;
 const webStartCaptureUnsupportedMessage =
   'Chrome only allows tab recording after you click the Weevil extension button on the page you want to capture. Open the target page, click the Weevil icon in the browser toolbar, then start capture there.';
@@ -631,6 +633,11 @@ async function appendPageTelemetry(message: { type: string; payload: unknown }, 
     const settings = await getSettings();
     const shouldRedactHeaders = settings.redactSensitiveData;
     const networkStartedAt = optionalString(payload.startedAt) ?? new Date().toISOString();
+    const url = optionalNetworkUrl(payload.url ?? state.pageUrl);
+    if (!url) {
+      return;
+    }
+
     buffers.networkRequests.push(mergeCapturedNetworkHeaders({
       ...base,
       // Offset from the request's REAL start, overriding base's flush-time value,
@@ -638,7 +645,7 @@ async function appendPageTelemetry(message: { type: string; payload: unknown }, 
       offsetMs: offsetFromClamped(state.startedAt, networkStartedAt),
       requestId: optionalString(payload.requestId, maxTelemetryShortTextChars),
       method: limitText(String(payload.method ?? 'GET'), maxTelemetryMethodChars),
-      url: requiredUrlString(payload.url ?? state.pageUrl),
+      url,
       statusCode: optionalHttpStatus(payload.statusCode),
       durationMs: optionalBoundedInt(payload.durationMs, 0, maxTelemetryDurationMs),
       requestHeaders: redactHeaderRecord(normalizeRecord(payload.requestHeaders), shouldRedactHeaders),
@@ -878,12 +885,11 @@ async function flushTelemetry() {
     ));
 
   if (failed.length > 0) {
-    console.error('[Weevil] telemetry upload failed', failed.map(({ task, result }) => ({ kind: task.kind, error: getErrorMessage(result.reason) })));
-    await markError(
-      `Telemetry upload failed: ${failed
-        .map(({ task, result }) => `${task.kind}: ${getErrorMessage(result.reason)}`)
-        .join('; ')}`,
-    );
+    const summary = failed
+      .map(({ task, result }) => `${task.kind}: ${describeTelemetryUploadError(result.reason)}`)
+      .join('; ');
+    console.warn(`[Weevil] telemetry upload skipped: ${summary}`);
+    await markError(`Telemetry upload skipped: ${summary}`);
   }
 }
 
@@ -1227,6 +1233,9 @@ async function captureRequestHeaders(details: chrome.webRequest.OnBeforeSendHead
   if (!(await isRecordingTabRequest(details.tabId))) {
     return;
   }
+  if (!isHttpNetworkUrl(details.url)) {
+    return;
+  }
 
   purgeCapturedRequestHeaders();
   requestHeaderCaptures.push({
@@ -1241,6 +1250,9 @@ async function captureRequestHeaders(details: chrome.webRequest.OnBeforeSendHead
 
 async function captureResponseHeaders(details: chrome.webRequest.OnHeadersReceivedDetails) {
   if (!(await isRecordingTabRequest(details.tabId))) {
+    return;
+  }
+  if (!isHttpNetworkUrl(details.url)) {
     return;
   }
 
@@ -1282,6 +1294,10 @@ async function appendBrowserNetworkEntry(
   }
   const settings = await getSettings();
   const shouldRedactHeaders = settings.redactSensitiveData;
+  const url = optionalNetworkUrl(details.url);
+  if (!url) {
+    return;
+  }
 
   purgeCapturedRequestHeaders();
   purgeCapturedResponseHeaders();
@@ -1301,7 +1317,7 @@ async function appendBrowserNetworkEntry(
     sessionId: state.sessionId,
     requestId: limitText(details.requestId, maxTelemetryShortTextChars),
     method: limitText(details.method, maxTelemetryMethodChars),
-    url: requiredUrlString(details.url),
+    url,
     statusCode: 'statusCode' in details ? optionalHttpStatus(details.statusCode) : undefined,
     durationMs: optionalBoundedInt(Math.max(0, Math.round(endedAtMs - startedAtMs)), 0, maxTelemetryDurationMs),
     requestHeaders: redactHeaderRecord(requestMatch?.capture.headers, shouldRedactHeaders),
@@ -1425,11 +1441,13 @@ function chromeHeadersToRecord(
   const record: Record<string, string> = {};
   headers?.forEach((header) => {
     const name = header.name;
-    const value = header.value ?? (header.binaryValue ? String(header.binaryValue) : '');
-    if (!name || !value) {
+    if (!name) {
       return;
     }
 
+    const value = normalizeCapturedHeaderValue(
+      header.value ?? (header.binaryValue ? String(header.binaryValue) : undefined),
+    );
     const existingKey = Object.keys(record).find((key) => key.toLowerCase() === name.toLowerCase());
     if (existingKey) {
       record[existingKey] = `${record[existingKey]}, ${value}`;
@@ -1472,6 +1490,16 @@ function redactHeaderValue(name: string, value: string, shouldRedactHeaders: boo
   return shouldRedactHeaders && sensitiveHeaderPattern.test(name) ? redactedHeaderValue : value;
 }
 
+function normalizeCapturedHeaderValue(value: string | null | undefined) {
+  if (value === undefined || value === null) {
+    return unavailableHeaderValue;
+  }
+  if (value === '') {
+    return emptyHeaderValue;
+  }
+  return value;
+}
+
 function normalizeUrlForMatch(value: string) {
   try {
     return new URL(value).toString();
@@ -1500,8 +1528,8 @@ async function injectPageBridge(tabId: number) {
       world: 'MAIN',
     });
   } catch {
-    // The manifest also injects the bridge at document_start. Programmatic injection
-    // can fail on restricted pages, but capture should continue when content scripts exist.
+    // Programmatic injection can fail on restricted pages, but video capture can
+    // still continue when Chrome allows tabCapture.
   }
 }
 
@@ -1667,8 +1695,22 @@ function optionalUrlString(value: unknown) {
   return optionalString(value, maxTelemetryUrlChars);
 }
 
-function requiredUrlString(value: unknown) {
-  return optionalUrlString(value) ?? '';
+function optionalNetworkUrl(value: unknown) {
+  const url = optionalUrlString(value);
+  if (!url || !isHttpNetworkUrl(url)) {
+    return undefined;
+  }
+
+  return url;
+}
+
+function isHttpNetworkUrl(value: string) {
+  try {
+    const protocol = new URL(value).protocol;
+    return protocol === 'http:' || protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 function offsetFromClamped(startedAt: string | null | undefined, occurredAt?: string | null | undefined) {
@@ -1778,6 +1820,47 @@ async function markError(error: unknown) {
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function describeTelemetryUploadError(error: unknown) {
+  if (error instanceof ApiError) {
+    const status = error.status > 0 ? `HTTP ${error.status}` : 'network';
+    const payload = summarizePayload(error.payload);
+    return payload ? `${status} ${error.message} (${payload})` : `${status} ${error.message}`;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return summarizePayload(error) ?? String(error);
+}
+
+function summarizePayload(payload: unknown) {
+  if (payload === null || payload === undefined) {
+    return undefined;
+  }
+
+  if (typeof payload === 'string') {
+    return limitText(payload, 1_000);
+  }
+
+  if (typeof payload === 'object') {
+    const record = payload as Record<string, unknown>;
+    const message = Array.isArray(record.message) ? record.message.join(', ') : record.message;
+    if (typeof message === 'string' && message.trim()) {
+      return limitText(message, 1_000);
+    }
+    if (typeof record.error === 'string' && record.error.trim()) {
+      return limitText(record.error, 1_000);
+    }
+  }
+
+  try {
+    return limitText(JSON.stringify(payload), 1_000);
+  } catch {
+    return String(payload);
+  }
 }
 
 function delay(durationMs: number) {

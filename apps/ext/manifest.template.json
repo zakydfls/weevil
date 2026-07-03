@@ -32,13 +32,6 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["page/page-bridge.js"],
-      "run_at": "document_start",
-      "all_frames": false,
-      "world": "MAIN"
-    },
-    {
-      "matches": ["<all_urls>"],
       "js": ["content/content-script.js"],
       "run_at": "document_start",
       "all_frames": false

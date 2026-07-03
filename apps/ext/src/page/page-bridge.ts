@@ -9,6 +9,8 @@ const installedFlag = '__WEevil_PAGE_BRIDGE_INSTALLED_20260604_CONSOLE_RECAPTURE
 const consoleControlMessageType = 'WEevil_PAGE_CONSOLE_CONTROL';
 const telemetryControlMessageType = 'WEevil_PAGE_TELEMETRY_CONTROL';
 const maxCapturedBodyChars = 20_000;
+const unavailableHeaderValue = '[unavailable]';
+const emptyHeaderValue = '[empty]';
 const originalConsoleMethods = new Map<string, (...args: unknown[]) => void>();
 let originalConsoleAssert: ((condition?: boolean, ...args: unknown[]) => void) | undefined;
 let originalFetch: typeof window.fetch | undefined;
@@ -39,7 +41,6 @@ if (!window[installedFlag]) {
   attachConsoleControlListener();
   attachTelemetryControlListener();
   attachErrorListeners();
-  patchNetwork();
   schedulePerformanceCollection();
 }
 
@@ -154,10 +155,14 @@ function attachTelemetryControlListener() {
 function setTelemetryEnabled(enabled: boolean) {
   isTelemetryEnabled = enabled;
   if (enabled) {
+    patchNetwork();
     collectNavigationTiming();
     collectPaintEntries();
     collectResourceEntries();
+    return;
   }
+
+  unpatchNetwork();
 }
 
 function patchNetwork() {
@@ -175,10 +180,10 @@ function patchFetch() {
     return;
   }
 
-  originalFetch = window.fetch.bind(window);
+  originalFetch = window.fetch;
   window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
     if (!isTelemetryEnabled || !originalFetch) {
-      return originalFetch ? originalFetch(input, init) : fetch(input, init);
+      return originalFetch ? originalFetch.call(window, input, init) : fetch(input, init);
     }
 
     const startedAtMs = Date.now();
@@ -186,7 +191,7 @@ function patchFetch() {
     const info = describeFetchRequest(input, init);
     const requestBodyPromise = captureFetchRequestBody(input, init);
 
-    return originalFetch(input, init).then(
+    return originalFetch.call(window, input, init).then(
       (response) => {
         const endedAtMs = Date.now();
         const responseClone = response.clone();
@@ -232,10 +237,15 @@ function patchFetch() {
 }
 
 function patchXhr() {
-  originalXhrOpen = XMLHttpRequest.prototype.open;
-  originalXhrSend = XMLHttpRequest.prototype.send;
-  originalXhrSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
-
+  if (!originalXhrOpen) {
+    originalXhrOpen = XMLHttpRequest.prototype.open;
+  }
+  if (!originalXhrSend) {
+    originalXhrSend = XMLHttpRequest.prototype.send;
+  }
+  if (!originalXhrSetRequestHeader) {
+    originalXhrSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
+  }
   XMLHttpRequest.prototype.open = function patchedOpen(
     method: string,
     url: string | URL,
@@ -264,7 +274,7 @@ function patchXhr() {
   XMLHttpRequest.prototype.setRequestHeader = function patchedSetRequestHeader(name: string, value: string) {
     const state = xhrState.get(this);
     if (state) {
-      state.requestHeaders[name] = value;
+      state.requestHeaders[name] = normalizeCapturedHeaderValue(value);
     }
     return originalXhrSetRequestHeader?.call(this, name, value);
   };
@@ -306,6 +316,31 @@ function patchXhr() {
 }
 
 const xhrState = new WeakMap<XMLHttpRequest, XhrCaptureState>();
+
+function unpatchNetwork() {
+  if (!isNetworkPatched) {
+    return;
+  }
+
+  if (originalFetch) {
+    window.fetch = originalFetch;
+  }
+  if (originalXhrOpen) {
+    XMLHttpRequest.prototype.open = originalXhrOpen;
+  }
+  if (originalXhrSend) {
+    XMLHttpRequest.prototype.send = originalXhrSend;
+  }
+  if (originalXhrSetRequestHeader) {
+    XMLHttpRequest.prototype.setRequestHeader = originalXhrSetRequestHeader;
+  }
+
+  originalFetch = undefined;
+  originalXhrOpen = undefined;
+  originalXhrSend = undefined;
+  originalXhrSetRequestHeader = undefined;
+  isNetworkPatched = false;
+}
 
 function postNetworkTelemetry(payload: {
   method: string;
@@ -469,7 +504,7 @@ function headersToRecord(headers: HeadersInit | Headers | undefined) {
 
   try {
     new Headers(headers).forEach((value, key) => {
-      record[key] = value;
+      record[key] = normalizeCapturedHeaderValue(value);
     });
   } catch {
     return record;
@@ -485,9 +520,21 @@ function parseRawHeaders(rawHeaders: string) {
     if (separatorIndex <= 0) {
       return;
     }
-    record[line.slice(0, separatorIndex).trim()] = line.slice(separatorIndex + 1).trim();
+    record[line.slice(0, separatorIndex).trim()] = normalizeCapturedHeaderValue(
+      line.slice(separatorIndex + 1).trim(),
+    );
   });
   return record;
+}
+
+function normalizeCapturedHeaderValue(value: string | null | undefined) {
+  if (value === undefined || value === null) {
+    return unavailableHeaderValue;
+  }
+  if (value === '') {
+    return emptyHeaderValue;
+  }
+  return value;
 }
 
 function safeGetAllResponseHeaders(xhr: XMLHttpRequest) {
