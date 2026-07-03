@@ -733,7 +733,7 @@ function DevToolsShell({
           devtools
         </div>
         <div className="my-2 hidden w-px shrink-0 bg-[var(--border)] sm:block" />
-        <TabsList className="thin-scrollbar-x flex h-auto min-w-0 flex-1 items-stretch justify-start gap-1 overflow-x-auto rounded-none border-0 bg-transparent p-0 pl-1.5">
+        <TabsList className="thin-scrollbar-x flex h-auto min-w-0 flex-1 items-stretch justify-start gap-1 overflow-x-auto rounded-none border-0 bg-transparent p-0 pl-1.5 pr-6 [scroll-padding-inline:0.75rem]">
           {devToolsTabItems.map(({ id: tab, icon: Icon }) => {
             const isActive = activeTab === tab;
             const count = counts[tab];
@@ -2200,7 +2200,7 @@ function ConsoleActivityPanel({
           type="multiple"
           value={activeGroups}
           onValueChange={(value) => setActiveGroups(value as ConsoleRowGroup[])}
-          className="thin-scrollbar-x mt-2 flex justify-start gap-1.5 overflow-x-auto border-0 bg-transparent pb-1"
+          className="thin-scrollbar-x mt-2 flex justify-start gap-1.5 overflow-x-auto border-0 bg-transparent pb-1 pr-6 [scroll-padding-inline:0.75rem]"
           aria-label="Console event groups"
         >
           {consoleGroupOptions.map(({ value, label, icon: Icon }) => (
@@ -2588,7 +2588,7 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
           >
             <ToggleGroupItem
               value="errors"
-              className="h-8 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 font-mono text-[10px] uppercase tracking-wider data-[state=on]:border-[var(--danger-border)] data-[state=on]:bg-[var(--danger-bg)] data-[state=on]:text-[var(--danger)]"
+              className="h-8 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 font-mono text-[9px] uppercase tracking-wider data-[state=on]:border-[var(--danger-border)] data-[state=on]:bg-[var(--danger-bg)] data-[state=on]:text-[var(--danger)]"
             >
               <AlertTriangle className="h-3 w-3" aria-hidden />
               errors only
@@ -2612,7 +2612,7 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
               <ToggleGroupItem
                 key={item}
                 value={item}
-                className={`h-7 shrink-0 px-2 py-1 font-mono text-[10px] uppercase tracking-wider data-[state=on]:shadow-none ${
+                className={`h-7 shrink-0 px-2 py-1 font-mono text-[9px] uppercase tracking-wider data-[state=on]:shadow-none ${
                   networkFilterButtonClass(item, active)
                 }`}
               >
@@ -2706,7 +2706,7 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
                   key={tab}
                   type="button"
                   onClick={() => setActiveDetailTab(tab)}
-                  className={`relative h-9 shrink-0 px-2.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+                  className={`relative h-9 shrink-0 px-2.5 font-mono text-[9px] uppercase tracking-wider transition-colors ${
                     active
                       ? 'font-semibold text-[var(--ink)]'
                       : 'text-[var(--ink-muted)] hover:text-[var(--ink)]'
@@ -2724,7 +2724,7 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
               type="button"
               variant="ghost"
               size="sm"
-              className="h-7 shrink-0 px-2 font-mono text-[10px] uppercase tracking-wider"
+              className="h-7 shrink-0 px-2 font-mono text-[9px] uppercase tracking-wider"
               title={bodyViewMode === 'tree' ? 'Show raw body' : 'Show parsed tree'}
               onClick={() => setBodyViewMode((mode) => (mode === 'tree' ? 'raw' : 'tree'))}
             >
@@ -2735,7 +2735,7 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
               type="button"
               variant="ghost"
               size="sm"
-              className="h-7 shrink-0 px-2 font-mono text-[10px] uppercase tracking-wider"
+              className="h-7 shrink-0 px-2 font-mono text-[9px] uppercase tracking-wider"
               disabled={!selected?.responseBody}
               title="Copy response body"
               onClick={() => void handleCopyResponseBody()}
@@ -2747,7 +2747,7 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
               type="button"
               variant="ghost"
               size="sm"
-              className="h-7 shrink-0 px-2 font-mono text-[10px] uppercase tracking-wider"
+              className="h-7 shrink-0 px-2 font-mono text-[9px] uppercase tracking-wider"
               disabled={!selected}
               onClick={() => void handleCopyCurl()}
               title="Copy as cURL"
