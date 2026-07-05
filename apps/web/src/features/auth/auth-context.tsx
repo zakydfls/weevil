@@ -81,11 +81,12 @@ interface AuthContextValue {
 
 const WORKSPACE_STORAGE_KEY = 'weevil.auth.workspace';
 const LEGACY_TOKEN_STORAGE_KEY = 'weevil.auth.token';
+const SESSION_TOKEN_STORAGE_KEY = 'weevil.auth.session_token';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const AUTH_PATHS = new Set(['/login', '/signup']);
-const PUBLIC_PATHS = new Set([...AUTH_PATHS, '/accept-invite', '/c/share']);
+const PUBLIC_PATHS = new Set([...AUTH_PATHS, '/accept-invite', '/c/share', '/', '/support', '/privacy']);
 
 function isPublicPath(pathname: string | null): boolean {
   if (!pathname) return false;
@@ -100,13 +101,32 @@ function isAuthPath(pathname: string | null): boolean {
 }
 
 function loadToken(): string | null {
-  return null;
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.sessionStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
 }
 
 function saveToken(token: string | null) {
   setAuthToken(token);
   if (typeof window !== 'undefined') {
-    window.localStorage.removeItem(LEGACY_TOKEN_STORAGE_KEY);
+    try {
+      window.localStorage.removeItem(LEGACY_TOKEN_STORAGE_KEY);
+    } catch {
+      // Ignore private-mode storage quirks; auth still works for this tab.
+    }
+    try {
+      if (token) {
+        window.sessionStorage.setItem(SESSION_TOKEN_STORAGE_KEY, token);
+      } else {
+        window.sessionStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
+      }
+    } catch {
+      // Cookies remain the primary auth channel. Session storage is only a
+      // refresh fallback for browsers that block cross-site cookies.
+    }
   }
 }
 
@@ -178,7 +198,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Bootstrap from storage
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(LEGACY_TOKEN_STORAGE_KEY);
+      try {
+        window.localStorage.removeItem(LEGACY_TOKEN_STORAGE_KEY);
+      } catch {
+        // Ignore storage failures in private browsing modes.
+      }
     }
     const storedToken = loadToken();
     const storedSlug = loadWorkspaceSlug();

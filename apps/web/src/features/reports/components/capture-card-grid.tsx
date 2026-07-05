@@ -10,6 +10,10 @@ import { StatusBadge, isUserVisibleReportStatus } from './status-badge';
 import type { ReportReporter, ReportSummary } from '@/lib/api/types';
 import { apiClient } from '@/lib/api/client';
 
+const PREVIEW_LOAD_TIMEOUT_MS = 6500;
+const previewUrlCache = new Map<string, string>();
+const previewErrorCache = new Set<string>();
+
 interface CaptureCardGridProps {
   reports: ReportSummary[];
   isLoading: boolean;
@@ -196,39 +200,66 @@ function Divider() {
 
 function CaptureThumbnail({ report }: { report: ReportSummary }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [sourceUrl, setSourceUrl] = useState<string | null>(null);
+  const [rootRef, shouldLoadPreview] = useInViewport<HTMLDivElement>('480px');
   const [hasLoadedPreview, setHasLoadedPreview] = useState(false);
   const recordingId = report.primaryRecording?.id;
+  const previewKey = recordingId ? `${report.id}:${recordingId}` : null;
+  const [sourceUrl, setSourceUrl] = useState<string | null>(() =>
+    previewKey ? (previewUrlCache.get(previewKey) ?? null) : null,
+  );
+  const [isSourceLoading, setIsSourceLoading] = useState(false);
 
   useEffect(() => {
-    let isMounted = true;
+    setHasLoadedPreview(false);
 
-    async function loadThumbnail() {
-      setHasLoadedPreview(false);
+    if (!recordingId || !previewKey) {
       setSourceUrl(null);
-
-      if (!recordingId) {
-        return;
-      }
-
-      try {
-        const response = await apiClient.getDownloadUrl(report.id, recordingId);
-        if (isMounted) {
-          setSourceUrl(response.getUrl);
-        }
-      } catch {
-        if (isMounted) {
-          setSourceUrl(null);
-        }
-      }
+      setIsSourceLoading(false);
+      return undefined;
     }
 
-    void loadThumbnail();
+    const cachedUrl = previewUrlCache.get(previewKey);
+    if (cachedUrl) {
+      setSourceUrl(cachedUrl);
+      setIsSourceLoading(false);
+      return undefined;
+    }
+
+    if (!shouldLoadPreview || previewErrorCache.has(previewKey)) {
+      setSourceUrl(null);
+      setIsSourceLoading(false);
+      return undefined;
+    }
+
+    let isMounted = true;
+    const timeoutId = window.setTimeout(() => {
+      if (!isMounted) return;
+      setIsSourceLoading(false);
+    }, PREVIEW_LOAD_TIMEOUT_MS);
+
+    setIsSourceLoading(true);
+    apiClient
+      .getDownloadUrl(report.id, recordingId)
+      .then((response) => {
+        if (!isMounted) return;
+        window.clearTimeout(timeoutId);
+        previewUrlCache.set(previewKey, response.getUrl);
+        setSourceUrl(response.getUrl);
+        setIsSourceLoading(false);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        window.clearTimeout(timeoutId);
+        previewErrorCache.add(previewKey);
+        setSourceUrl(null);
+        setIsSourceLoading(false);
+      });
 
     return () => {
       isMounted = false;
+      window.clearTimeout(timeoutId);
     };
-  }, [recordingId, report.id]);
+  }, [previewKey, recordingId, report.id, shouldLoadPreview]);
 
   function handleLoadedMetadata() {
     const video = videoRef.current;
@@ -245,9 +276,13 @@ function CaptureThumbnail({ report }: { report: ReportSummary }) {
   }
 
   return (
-    <>
+    <div ref={rootRef} className="absolute inset-0">
       {!hasLoadedPreview ? (
-        <div className="absolute inset-0 bg-[var(--surface)]">
+        <div
+          className={`absolute inset-0 bg-[var(--surface)] ${
+            isSourceLoading ? 'weevil-skeleton' : ''
+          }`}
+        >
           <svg width="100%" height="100%" preserveAspectRatio="xMidYMid slice" aria-hidden>
             <defs>
               <pattern id={`grid-${report.id}`} width="24" height="24" patternUnits="userSpaceOnUse">
@@ -256,13 +291,6 @@ function CaptureThumbnail({ report }: { report: ReportSummary }) {
             </defs>
             <rect width="100%" height="100%" fill={`url(#grid-${report.id})`} />
           </svg>
-          {recordingId ? (
-            <div className="absolute inset-0 grid place-items-center">
-              <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
-                loading…
-              </span>
-            </div>
-          ) : null}
         </div>
       ) : null}
       {sourceUrl ? (
@@ -271,12 +299,19 @@ function CaptureThumbnail({ report }: { report: ReportSummary }) {
           src={sourceUrl}
           muted
           playsInline
-          preload="auto"
+          preload={shouldLoadPreview ? 'metadata' : 'none'}
           onLoadedMetadata={handleLoadedMetadata}
           onLoadedData={() => setHasLoadedPreview(true)}
           onCanPlay={() => setHasLoadedPreview(true)}
           onSeeked={() => setHasLoadedPreview(true)}
-          onError={() => setSourceUrl(null)}
+          onError={() => {
+            if (previewKey) {
+              previewUrlCache.delete(previewKey);
+              previewErrorCache.add(previewKey);
+            }
+            setHasLoadedPreview(false);
+            setSourceUrl(null);
+          }}
           className={`absolute inset-0 h-full w-full object-cover transition-[opacity,transform] duration-300 ${
             hasLoadedPreview ? 'opacity-100' : 'opacity-0'
           } group-hover:scale-[1.025]`}
@@ -289,8 +324,36 @@ function CaptureThumbnail({ report }: { report: ReportSummary }) {
           </span>
         </div>
       ) : null}
-    </>
+    </div>
   );
+}
+
+function useInViewport<T extends HTMLElement>(rootMargin = '320px') {
+  const ref = useRef<T | null>(null);
+  const [isInViewport, setIsInViewport] = useState(false);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || isInViewport) return undefined;
+    if (!('IntersectionObserver' in window)) {
+      setIsInViewport(true);
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        setIsInViewport(true);
+        observer.disconnect();
+      },
+      { rootMargin },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [isInViewport, rootMargin]);
+
+  return [ref, isInViewport] as const;
 }
 
 function shortDate(value: string) {

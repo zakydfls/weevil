@@ -7,6 +7,9 @@ import { apiClient } from '@/lib/api/client';
 import type { ReportSummary } from '@/lib/api/types';
 import { StatusBadge } from './status-badge';
 
+const previewUrlCache = new Map<string, string>();
+const previewErrorCache = new Set<string>();
+
 interface InboxFeedProps {
   reports: ReportSummary[];
   isLoading: boolean;
@@ -161,13 +164,29 @@ function scrollIntoView(container: HTMLDivElement | null, index: number) {
 
 function InboxThumbnail({ report }: { report: ReportSummary }) {
   const recordingId = report.primaryRecording?.id;
-  const [sourceUrl, setSourceUrl] = useState<string | null>(null);
+  const previewKey = recordingId ? `${report.id}:${recordingId}` : null;
+  const [sourceUrl, setSourceUrl] = useState<string | null>(() =>
+    previewKey ? (previewUrlCache.get(previewKey) ?? null) : null,
+  );
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [hasPreview, setHasPreview] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
-    if (!recordingId) {
+    setHasPreview(false);
+
+    if (!recordingId || !previewKey) {
+      setSourceUrl(null);
+      return undefined;
+    }
+
+    const cachedUrl = previewUrlCache.get(previewKey);
+    if (cachedUrl) {
+      setSourceUrl(cachedUrl);
+      return undefined;
+    }
+
+    if (previewErrorCache.has(previewKey)) {
       setSourceUrl(null);
       return undefined;
     }
@@ -175,16 +194,20 @@ function InboxThumbnail({ report }: { report: ReportSummary }) {
     apiClient
       .getDownloadUrl(report.id, recordingId)
       .then((response) => {
-        if (isMounted) setSourceUrl(response.getUrl);
+        if (!isMounted) return;
+        previewUrlCache.set(previewKey, response.getUrl);
+        setSourceUrl(response.getUrl);
       })
       .catch(() => {
-        if (isMounted) setSourceUrl(null);
+        if (!isMounted) return;
+        previewErrorCache.add(previewKey);
+        setSourceUrl(null);
       });
 
     return () => {
       isMounted = false;
     };
-  }, [recordingId, report.id]);
+  }, [previewKey, recordingId, report.id]);
 
   function handleLoadedMetadata() {
     const video = videoRef.current;
@@ -201,9 +224,11 @@ function InboxThumbnail({ report }: { report: ReportSummary }) {
     <>
       {!hasPreview ? (
         <div className="absolute inset-0 grid place-items-center bg-[var(--surface)]">
-          <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--ink-faint)]">
-            {recordingId ? 'loading' : 'no video'}
-          </span>
+          {!recordingId ? (
+            <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--ink-faint)]">
+              no video
+            </span>
+          ) : null}
         </div>
       ) : null}
       {sourceUrl ? (
@@ -212,12 +237,19 @@ function InboxThumbnail({ report }: { report: ReportSummary }) {
           src={sourceUrl}
           muted
           playsInline
-          preload="auto"
+          preload="metadata"
           onLoadedMetadata={handleLoadedMetadata}
           onLoadedData={() => setHasPreview(true)}
           onCanPlay={() => setHasPreview(true)}
           onSeeked={() => setHasPreview(true)}
-          onError={() => setSourceUrl(null)}
+          onError={() => {
+            if (previewKey) {
+              previewUrlCache.delete(previewKey);
+              previewErrorCache.add(previewKey);
+            }
+            setSourceUrl(null);
+            setHasPreview(false);
+          }}
           className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${hasPreview ? 'opacity-100' : 'opacity-0'}`}
         />
       ) : null}

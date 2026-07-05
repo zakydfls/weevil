@@ -92,12 +92,50 @@ export function getElementLabel(element: Element) {
   return truncateText(ariaLabel || title || text || undefined, 500);
 }
 
-export function getElementValue(element: Element) {
-  if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
-    return truncateText(element.value);
+export const REDACTED_VALUE = '[redacted]';
+
+// autocomplete tokens per the HTML spec (https://html.spec.whatwg.org/#attr-fe-autocomplete)
+// that mark a field as holding a credential or payment secret. `.includes('password')`
+// also catches `current-password`/`new-password` without listing them individually.
+const SENSITIVE_AUTOCOMPLETE_TOKENS = ['password', 'cc-number', 'cc-csc', 'cc-exp', 'one-time-code'];
+
+// Fallback for custom-built password fields that don't use type="password" or a
+// standard autocomplete token (e.g. type="text" with a JS-driven show/hide toggle).
+const SENSITIVE_NAME_PATTERN = /pass(word)?|pwd|secret|ssn|cvv|cvc|card.?number/i;
+
+export function isSensitiveElement(element: Element): boolean {
+  if (
+    !(
+      element instanceof HTMLInputElement ||
+      element instanceof HTMLTextAreaElement ||
+      element instanceof HTMLSelectElement
+    )
+  ) {
+    return false;
   }
 
-  if (element instanceof HTMLSelectElement) {
+  if (element instanceof HTMLInputElement && element.type === 'password') {
+    return true;
+  }
+
+  const autocomplete = element.getAttribute('autocomplete')?.toLowerCase() ?? '';
+  if (SENSITIVE_AUTOCOMPLETE_TOKENS.some((token) => autocomplete.includes(token))) {
+    return true;
+  }
+
+  const identifier = `${element.getAttribute('name') ?? ''} ${element.getAttribute('id') ?? ''}`;
+  return SENSITIVE_NAME_PATTERN.test(identifier);
+}
+
+export function getElementValue(element: Element) {
+  if (
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLTextAreaElement ||
+    element instanceof HTMLSelectElement
+  ) {
+    if (isSensitiveElement(element)) {
+      return REDACTED_VALUE;
+    }
     return truncateText(element.value);
   }
 

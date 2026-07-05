@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deflateRawSync, deflateSync } from 'node:zlib';
@@ -140,8 +140,17 @@ async function writeIcons() {
   const sizes = [16, 32, 48, 128];
   await mkdir(join(dist, 'icons'), { recursive: true });
   await Promise.all(
-    sizes.map((size) => writeFile(join(dist, 'icons', `icon-${size}.png`), createPngIcon(size)))
+    sizes.map((size) => writeIcon(size))
   );
+}
+
+async function writeIcon(size) {
+  const target = join(dist, 'icons', `icon-${size}.png`);
+  if (size === 128) {
+    await copyFile(join(root, 'assets/weevil-extension-icon-128.png'), target);
+    return;
+  }
+  await writeFile(target, createPngIcon(size));
 }
 
 function createPngIcon(size) {

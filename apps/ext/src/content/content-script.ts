@@ -12,8 +12,10 @@ import {
   getElementLabel,
   getElementValue,
   getNodePath,
+  isSensitiveElement,
   nowIso,
   offsetFrom,
+  REDACTED_VALUE,
   safeStringify,
   truncateText,
 } from '../shared/telemetry-utils';
@@ -495,18 +497,22 @@ function attachActionListeners() {
 
     liveCounts.action += 1;
     const target = event.target instanceof Element ? event.target : null;
+    // `event.code` (e.g. "KeyA") reveals which character was pressed just as
+    // directly as `event.key` does, so both must be redacted together for
+    // fields the user is typing a credential/secret into.
+    const sensitive = target ? isSensitiveElement(target) : false;
     actionBuffer.push({
       sessionId,
       kind: PageActionKind.KeyPress,
       selector: target ? getCssSelector(target) : undefined,
       nodePath: target ? getNodePath(target) : undefined,
-      label: event.key,
+      label: sensitive ? REDACTED_VALUE : event.key,
       tagName: target?.tagName.toLowerCase(),
       pageUrl: location.href,
       offsetMs: offsetFrom(recordingStartedAt),
       occurredAt: nowIso(),
       metadata: {
-        code: event.code,
+        code: sensitive ? undefined : event.code,
         altKey: event.altKey,
         ctrlKey: event.ctrlKey,
         metaKey: event.metaKey,

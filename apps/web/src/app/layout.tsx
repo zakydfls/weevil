@@ -9,10 +9,29 @@ import { AuthProvider } from '@/features/auth/auth-context';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Weevil',
-  description: 'Bug recording dashboard',
+  metadataBase: new URL('https://theweevil.space'),
+  title: {
+    default: 'Weevil — bug reports that answer their own questions',
+    template: '%s · Weevil',
+  },
+  description:
+    'Weevil records the screen, console, network, and every action on one scrubbable timeline — so bug reports come with the evidence, not a follow-up question.',
   icons: {
     icon: '/icon.svg',
+  },
+  openGraph: {
+    title: 'Weevil — bug reports that answer their own questions',
+    description:
+      'Weevil records the screen, console, network, and every action on one scrubbable timeline — so bug reports come with the evidence, not a follow-up question.',
+    url: 'https://theweevil.space',
+    siteName: 'Weevil',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Weevil — bug reports that answer their own questions',
+    description:
+      'Weevil records the screen, console, network, and every action on one scrubbable timeline.',
   },
 };
 
