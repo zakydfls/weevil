@@ -139,7 +139,11 @@ export function NotificationCenter() {
           ) : null}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[min(24rem,calc(100vw-1rem))] p-0">
+      <PopoverContent
+        align="end"
+        className="grid w-[min(24rem,calc(100vw-1rem))] grid-rows-[auto_1fr] overflow-hidden p-0"
+        style={{ maxHeight: 'min(32rem, var(--radix-popover-content-available-height, 32rem))' }}
+      >
         <div className="flex items-center justify-between gap-3 border-b border-[var(--divider)] bg-[var(--surface)] px-3 py-2.5">
           <div>
             <div className="text-sm font-semibold text-[var(--ink)]">Notifications</div>
@@ -159,7 +163,7 @@ export function NotificationCenter() {
             Read all
           </Button>
         </div>
-        <ScrollArea className="max-h-[28rem]">
+        <ScrollArea className="min-h-0">
           {isLoading && notifications.length === 0 ? (
             <div className="flex items-center justify-center gap-2 px-4 py-8 text-sm text-[var(--ink-muted)]">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -179,17 +183,40 @@ export function NotificationCenter() {
             <div className="divide-y divide-[var(--divider)]">
               {grouped.map(({ notification, icon: Icon }) => {
                 const unread = !notification.readAt;
+                // The backend already appends the workspace name to some
+                // notification bodies (e.g. "New capture created" ·
+                // report-notification.service.ts). Repeating it in the meta
+                // row below reads as a copy bug, so only show it here when
+                // the body doesn't already end with it.
+                const bodyHasWorkspace =
+                  notification.workspaceName != null &&
+                  notification.body != null &&
+                  notification.body.trim().toLowerCase().endsWith(notification.workspaceName.trim().toLowerCase());
+                const metaParts = [
+                  bodyHasWorkspace ? null : notification.workspaceName,
+                  relativeTime(notification.createdAt),
+                ].filter(Boolean);
+
                 return (
                   <button
                     key={notification.id}
                     type="button"
                     onClick={() => void handleOpenNotification(notification)}
                     className={cn(
-                      'grid w-full grid-cols-[2rem_minmax(0,1fr)_auto] gap-2 px-3 py-3 text-left transition-colors hover:bg-[var(--surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--primary)]',
-                      unread && 'bg-[var(--primary-subtle)]/45',
+                      'grid w-full grid-cols-[2rem_minmax(0,1fr)_auto] gap-2 px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--primary)]',
+                      unread
+                        ? 'bg-[var(--primary-subtle)]/45 hover:bg-[var(--primary-subtle)]/70'
+                        : 'hover:bg-[var(--surface)]',
                     )}
                   >
-                    <span className="grid h-8 w-8 place-items-center rounded-md bg-[var(--surface)] text-[var(--primary)] ring-1 ring-[var(--border)]">
+                    <span
+                      className={cn(
+                        'grid h-8 w-8 place-items-center rounded-md',
+                        unread
+                          ? 'bg-[var(--primary)] text-white'
+                          : 'bg-[var(--surface)] text-[var(--ink-muted)] ring-1 ring-[var(--border)]',
+                      )}
+                    >
                       <Icon className="h-4 w-4" aria-hidden />
                     </span>
                     <span className="min-w-0">
@@ -206,9 +233,11 @@ export function NotificationCenter() {
                           {notification.body}
                         </span>
                       ) : null}
-                      <span className="mt-1 block truncate font-mono text-[10px] text-[var(--ink-faint)]">
-                        {[notification.workspaceName, relativeTime(notification.createdAt)].filter(Boolean).join(' · ')}
-                      </span>
+                      {metaParts.length > 0 ? (
+                        <span className="mt-1 block truncate font-mono text-[10px] text-[var(--ink-faint)]">
+                          {metaParts.join(' · ')}
+                        </span>
+                      ) : null}
                     </span>
                   </button>
                 );
