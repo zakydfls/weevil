@@ -244,14 +244,6 @@ button[aria-label='Open Next.js Dev Tools'] {
   animation: weevil-event-dot 2.8s var(--ease-out-quart) infinite;
 }
 
-/* Marketing event-trail's active dot — plain scale/opacity pulse. Deliberately
-   not sharing weevil-event-dot's keyframe: that one bakes in a translateY(-50%)
-   for an absolutely-centered scrubber dot, which would misplace a plain flex
-   child like this one. */
-.weevil-trail-pulse {
-  animation: weevil-trail-pulse 2.4s var(--ease-out-quart) infinite;
-}
-
 .weevil-skeleton {
   position: relative;
   overflow: hidden;
@@ -365,15 +357,6 @@ button[aria-label='Open Next.js Dev Tools'] {
   50% {
     transform: translateY(-50%) scale(1.35);
     opacity: 1;
-  }
-}
-
-@keyframes weevil-trail-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgb(0 0 0 / 0);
-  }
-  50% {
-    box-shadow: 0 0 0 6px color-mix(in oklch, currentColor 25%, transparent);
   }
 }
 

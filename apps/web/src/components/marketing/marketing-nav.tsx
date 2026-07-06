@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { WeevilLogo } from '@/components/brand/weevil-mark';
+import { WeevilMark } from '@/components/brand/weevil-mark';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/features/auth/auth-context';
 
@@ -45,8 +45,12 @@ export function MarketingNav() {
       }`}
     >
       <div className="mx-auto flex h-16 w-full max-w-[82rem] items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2.5">
-          <WeevilLogo size={32} />
+        <Link href="/" className="group flex items-center gap-2">
+          <WeevilMark
+            size={30}
+            tone="primary"
+            className="shrink-0 transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-hover:-rotate-6 group-hover:scale-110"
+          />
           <span className="text-base font-semibold text-[var(--ink)]">Weevil</span>
         </Link>
 

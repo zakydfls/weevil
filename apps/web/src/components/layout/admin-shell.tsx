@@ -16,7 +16,7 @@ import {
   Settings,
   ShieldCheck,
 } from 'lucide-react';
-import { WeevilLogo } from '@/components/brand/weevil-mark';
+import { WeevilLogo, WeevilMark } from '@/components/brand/weevil-mark';
 import { NotificationCenter } from '@/components/layout/notification-center';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -102,10 +102,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <button
           type="button"
           onClick={() => router.push('/captures')}
-          className="flex items-center gap-2 sm:gap-2.5"
+          className="group flex items-center gap-2 sm:gap-2.5"
           aria-label="Weevil home"
         >
-          <WeevilLogo size={28} />
+          <WeevilMark
+            size={26}
+            tone="primary"
+            className="shrink-0 transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-hover:-rotate-6 group-hover:scale-110"
+          />
           <span className="hidden font-semibold tracking-tight text-[var(--ink)] sm:inline">Weevil</span>
         </button>
 

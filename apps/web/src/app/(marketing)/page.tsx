@@ -5,7 +5,6 @@ import type { Metadata } from 'next';
 import { ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WeevilLogo, WeevilMark } from '@/components/brand/weevil-mark';
-import { EventTrail, type TrailEvent } from '@/components/marketing/event-trail';
 import { ParallaxShowcase } from '@/components/marketing/parallax-showcase';
 import { WeevilMascot } from '@/components/marketing/weevil-mascot';
 
@@ -23,14 +22,6 @@ const VIEW_REDIRECTS: Record<string, string> = {
   settings: '/settings',
   platform: '/platform',
 };
-
-const TRAIL_EVENTS: TrailEvent[] = [
-  { id: 'hero', label: 'Capture starts', color: 'var(--tl-action)' },
-  { id: 'how-it-works', label: 'Console fires', color: 'var(--tl-console)' },
-  { id: 'differentiation', label: 'Network glows', color: 'var(--tl-network)' },
-  { id: 'extension', label: 'Error caught', color: 'var(--tl-error)' },
-  { id: 'cta', label: 'Fixed', color: 'var(--tl-performance)' },
-];
 
 const STEPS = [
   {
@@ -77,8 +68,6 @@ export default async function LandingPage({
 
   return (
     <>
-      <EventTrail events={TRAIL_EVENTS} />
-
       {/* ── Hero — Committed terracotta ─────────────────────────────── */}
       <section
         id="hero"
