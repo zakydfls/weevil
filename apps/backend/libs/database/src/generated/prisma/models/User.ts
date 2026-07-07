@@ -236,6 +236,8 @@ export type UserWhereInput = {
   invitesCreated?: Prisma.WorkspaceInviteListRelationFilter
   reports?: Prisma.BugReportListRelationFilter
   apiTokens?: Prisma.ApiTokenListRelationFilter
+  assignedReports?: Prisma.ReportAssigneeListRelationFilter
+  reportAssignmentsCreated?: Prisma.ReportAssigneeListRelationFilter
   notificationPreferences?: Prisma.UserNotificationPreferenceListRelationFilter
   inAppNotifications?: Prisma.InAppNotificationListRelationFilter
 }
@@ -258,6 +260,8 @@ export type UserOrderByWithRelationInput = {
   invitesCreated?: Prisma.WorkspaceInviteOrderByRelationAggregateInput
   reports?: Prisma.BugReportOrderByRelationAggregateInput
   apiTokens?: Prisma.ApiTokenOrderByRelationAggregateInput
+  assignedReports?: Prisma.ReportAssigneeOrderByRelationAggregateInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeOrderByRelationAggregateInput
   notificationPreferences?: Prisma.UserNotificationPreferenceOrderByRelationAggregateInput
   inAppNotifications?: Prisma.InAppNotificationOrderByRelationAggregateInput
 }
@@ -283,6 +287,8 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   invitesCreated?: Prisma.WorkspaceInviteListRelationFilter
   reports?: Prisma.BugReportListRelationFilter
   apiTokens?: Prisma.ApiTokenListRelationFilter
+  assignedReports?: Prisma.ReportAssigneeListRelationFilter
+  reportAssignmentsCreated?: Prisma.ReportAssigneeListRelationFilter
   notificationPreferences?: Prisma.UserNotificationPreferenceListRelationFilter
   inAppNotifications?: Prisma.InAppNotificationListRelationFilter
 }, "id" | "email">
@@ -338,6 +344,8 @@ export type UserCreateInput = {
   invitesCreated?: Prisma.WorkspaceInviteCreateNestedManyWithoutCreatedByInput
   reports?: Prisma.BugReportCreateNestedManyWithoutCreatedByInput
   apiTokens?: Prisma.ApiTokenCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeCreateNestedManyWithoutUserInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeCreateNestedManyWithoutAssignedByInput
   notificationPreferences?: Prisma.UserNotificationPreferenceCreateNestedManyWithoutUserInput
   inAppNotifications?: Prisma.InAppNotificationCreateNestedManyWithoutUserInput
 }
@@ -359,6 +367,8 @@ export type UserUncheckedCreateInput = {
   invitesCreated?: Prisma.WorkspaceInviteUncheckedCreateNestedManyWithoutCreatedByInput
   reports?: Prisma.BugReportUncheckedCreateNestedManyWithoutCreatedByInput
   apiTokens?: Prisma.ApiTokenUncheckedCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutUserInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutAssignedByInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedCreateNestedManyWithoutUserInput
   inAppNotifications?: Prisma.InAppNotificationUncheckedCreateNestedManyWithoutUserInput
 }
@@ -380,6 +390,8 @@ export type UserUpdateInput = {
   invitesCreated?: Prisma.WorkspaceInviteUpdateManyWithoutCreatedByNestedInput
   reports?: Prisma.BugReportUpdateManyWithoutCreatedByNestedInput
   apiTokens?: Prisma.ApiTokenUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUpdateManyWithoutUserNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUpdateManyWithoutAssignedByNestedInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUpdateManyWithoutUserNestedInput
   inAppNotifications?: Prisma.InAppNotificationUpdateManyWithoutUserNestedInput
 }
@@ -401,6 +413,8 @@ export type UserUncheckedUpdateInput = {
   invitesCreated?: Prisma.WorkspaceInviteUncheckedUpdateManyWithoutCreatedByNestedInput
   reports?: Prisma.BugReportUncheckedUpdateManyWithoutCreatedByNestedInput
   apiTokens?: Prisma.ApiTokenUncheckedUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutUserNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutAssignedByNestedInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedUpdateManyWithoutUserNestedInput
   inAppNotifications?: Prisma.InAppNotificationUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -668,6 +682,36 @@ export type UserUpdateOneWithoutReportsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutReportsInput, Prisma.UserUpdateWithoutReportsInput>, Prisma.UserUncheckedUpdateWithoutReportsInput>
 }
 
+export type UserCreateNestedOneWithoutAssignedReportsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAssignedReportsInput, Prisma.UserUncheckedCreateWithoutAssignedReportsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAssignedReportsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserCreateNestedOneWithoutReportAssignmentsCreatedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutReportAssignmentsCreatedInput, Prisma.UserUncheckedCreateWithoutReportAssignmentsCreatedInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutReportAssignmentsCreatedInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutAssignedReportsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAssignedReportsInput, Prisma.UserUncheckedCreateWithoutAssignedReportsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAssignedReportsInput
+  upsert?: Prisma.UserUpsertWithoutAssignedReportsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutAssignedReportsInput, Prisma.UserUpdateWithoutAssignedReportsInput>, Prisma.UserUncheckedUpdateWithoutAssignedReportsInput>
+}
+
+export type UserUpdateOneWithoutReportAssignmentsCreatedNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutReportAssignmentsCreatedInput, Prisma.UserUncheckedCreateWithoutReportAssignmentsCreatedInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutReportAssignmentsCreatedInput
+  upsert?: Prisma.UserUpsertWithoutReportAssignmentsCreatedInput
+  disconnect?: Prisma.UserWhereInput | boolean
+  delete?: Prisma.UserWhereInput | boolean
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutReportAssignmentsCreatedInput, Prisma.UserUpdateWithoutReportAssignmentsCreatedInput>, Prisma.UserUncheckedUpdateWithoutReportAssignmentsCreatedInput>
+}
+
 export type UserCreateWithoutDefaultWorkspaceInput = {
   id?: string
   email: string
@@ -684,6 +728,8 @@ export type UserCreateWithoutDefaultWorkspaceInput = {
   invitesCreated?: Prisma.WorkspaceInviteCreateNestedManyWithoutCreatedByInput
   reports?: Prisma.BugReportCreateNestedManyWithoutCreatedByInput
   apiTokens?: Prisma.ApiTokenCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeCreateNestedManyWithoutUserInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeCreateNestedManyWithoutAssignedByInput
   notificationPreferences?: Prisma.UserNotificationPreferenceCreateNestedManyWithoutUserInput
   inAppNotifications?: Prisma.InAppNotificationCreateNestedManyWithoutUserInput
 }
@@ -704,6 +750,8 @@ export type UserUncheckedCreateWithoutDefaultWorkspaceInput = {
   invitesCreated?: Prisma.WorkspaceInviteUncheckedCreateNestedManyWithoutCreatedByInput
   reports?: Prisma.BugReportUncheckedCreateNestedManyWithoutCreatedByInput
   apiTokens?: Prisma.ApiTokenUncheckedCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutUserInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutAssignedByInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedCreateNestedManyWithoutUserInput
   inAppNotifications?: Prisma.InAppNotificationUncheckedCreateNestedManyWithoutUserInput
 }
@@ -767,6 +815,8 @@ export type UserCreateWithoutMembershipsInput = {
   invitesCreated?: Prisma.WorkspaceInviteCreateNestedManyWithoutCreatedByInput
   reports?: Prisma.BugReportCreateNestedManyWithoutCreatedByInput
   apiTokens?: Prisma.ApiTokenCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeCreateNestedManyWithoutUserInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeCreateNestedManyWithoutAssignedByInput
   notificationPreferences?: Prisma.UserNotificationPreferenceCreateNestedManyWithoutUserInput
   inAppNotifications?: Prisma.InAppNotificationCreateNestedManyWithoutUserInput
 }
@@ -787,6 +837,8 @@ export type UserUncheckedCreateWithoutMembershipsInput = {
   invitesCreated?: Prisma.WorkspaceInviteUncheckedCreateNestedManyWithoutCreatedByInput
   reports?: Prisma.BugReportUncheckedCreateNestedManyWithoutCreatedByInput
   apiTokens?: Prisma.ApiTokenUncheckedCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutUserInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutAssignedByInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedCreateNestedManyWithoutUserInput
   inAppNotifications?: Prisma.InAppNotificationUncheckedCreateNestedManyWithoutUserInput
 }
@@ -823,6 +875,8 @@ export type UserUpdateWithoutMembershipsInput = {
   invitesCreated?: Prisma.WorkspaceInviteUpdateManyWithoutCreatedByNestedInput
   reports?: Prisma.BugReportUpdateManyWithoutCreatedByNestedInput
   apiTokens?: Prisma.ApiTokenUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUpdateManyWithoutUserNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUpdateManyWithoutAssignedByNestedInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUpdateManyWithoutUserNestedInput
   inAppNotifications?: Prisma.InAppNotificationUpdateManyWithoutUserNestedInput
 }
@@ -843,6 +897,8 @@ export type UserUncheckedUpdateWithoutMembershipsInput = {
   invitesCreated?: Prisma.WorkspaceInviteUncheckedUpdateManyWithoutCreatedByNestedInput
   reports?: Prisma.BugReportUncheckedUpdateManyWithoutCreatedByNestedInput
   apiTokens?: Prisma.ApiTokenUncheckedUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutUserNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutAssignedByNestedInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedUpdateManyWithoutUserNestedInput
   inAppNotifications?: Prisma.InAppNotificationUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -864,6 +920,8 @@ export type UserCreateWithoutNotificationPreferencesInput = {
   invitesCreated?: Prisma.WorkspaceInviteCreateNestedManyWithoutCreatedByInput
   reports?: Prisma.BugReportCreateNestedManyWithoutCreatedByInput
   apiTokens?: Prisma.ApiTokenCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeCreateNestedManyWithoutUserInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeCreateNestedManyWithoutAssignedByInput
   inAppNotifications?: Prisma.InAppNotificationCreateNestedManyWithoutUserInput
 }
 
@@ -884,6 +942,8 @@ export type UserUncheckedCreateWithoutNotificationPreferencesInput = {
   invitesCreated?: Prisma.WorkspaceInviteUncheckedCreateNestedManyWithoutCreatedByInput
   reports?: Prisma.BugReportUncheckedCreateNestedManyWithoutCreatedByInput
   apiTokens?: Prisma.ApiTokenUncheckedCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutUserInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutAssignedByInput
   inAppNotifications?: Prisma.InAppNotificationUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -920,6 +980,8 @@ export type UserUpdateWithoutNotificationPreferencesInput = {
   invitesCreated?: Prisma.WorkspaceInviteUpdateManyWithoutCreatedByNestedInput
   reports?: Prisma.BugReportUpdateManyWithoutCreatedByNestedInput
   apiTokens?: Prisma.ApiTokenUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUpdateManyWithoutUserNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUpdateManyWithoutAssignedByNestedInput
   inAppNotifications?: Prisma.InAppNotificationUpdateManyWithoutUserNestedInput
 }
 
@@ -940,6 +1002,8 @@ export type UserUncheckedUpdateWithoutNotificationPreferencesInput = {
   invitesCreated?: Prisma.WorkspaceInviteUncheckedUpdateManyWithoutCreatedByNestedInput
   reports?: Prisma.BugReportUncheckedUpdateManyWithoutCreatedByNestedInput
   apiTokens?: Prisma.ApiTokenUncheckedUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutUserNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutAssignedByNestedInput
   inAppNotifications?: Prisma.InAppNotificationUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -960,6 +1024,8 @@ export type UserCreateWithoutInAppNotificationsInput = {
   invitesCreated?: Prisma.WorkspaceInviteCreateNestedManyWithoutCreatedByInput
   reports?: Prisma.BugReportCreateNestedManyWithoutCreatedByInput
   apiTokens?: Prisma.ApiTokenCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeCreateNestedManyWithoutUserInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeCreateNestedManyWithoutAssignedByInput
   notificationPreferences?: Prisma.UserNotificationPreferenceCreateNestedManyWithoutUserInput
 }
 
@@ -980,6 +1046,8 @@ export type UserUncheckedCreateWithoutInAppNotificationsInput = {
   invitesCreated?: Prisma.WorkspaceInviteUncheckedCreateNestedManyWithoutCreatedByInput
   reports?: Prisma.BugReportUncheckedCreateNestedManyWithoutCreatedByInput
   apiTokens?: Prisma.ApiTokenUncheckedCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutUserInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutAssignedByInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -1016,6 +1084,8 @@ export type UserUpdateWithoutInAppNotificationsInput = {
   invitesCreated?: Prisma.WorkspaceInviteUpdateManyWithoutCreatedByNestedInput
   reports?: Prisma.BugReportUpdateManyWithoutCreatedByNestedInput
   apiTokens?: Prisma.ApiTokenUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUpdateManyWithoutUserNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUpdateManyWithoutAssignedByNestedInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUpdateManyWithoutUserNestedInput
 }
 
@@ -1036,6 +1106,8 @@ export type UserUncheckedUpdateWithoutInAppNotificationsInput = {
   invitesCreated?: Prisma.WorkspaceInviteUncheckedUpdateManyWithoutCreatedByNestedInput
   reports?: Prisma.BugReportUncheckedUpdateManyWithoutCreatedByNestedInput
   apiTokens?: Prisma.ApiTokenUncheckedUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutUserNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutAssignedByNestedInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -1055,6 +1127,8 @@ export type UserCreateWithoutInvitesCreatedInput = {
   sessions?: Prisma.AuthSessionCreateNestedManyWithoutUserInput
   reports?: Prisma.BugReportCreateNestedManyWithoutCreatedByInput
   apiTokens?: Prisma.ApiTokenCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeCreateNestedManyWithoutUserInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeCreateNestedManyWithoutAssignedByInput
   notificationPreferences?: Prisma.UserNotificationPreferenceCreateNestedManyWithoutUserInput
   inAppNotifications?: Prisma.InAppNotificationCreateNestedManyWithoutUserInput
 }
@@ -1075,6 +1149,8 @@ export type UserUncheckedCreateWithoutInvitesCreatedInput = {
   sessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutUserInput
   reports?: Prisma.BugReportUncheckedCreateNestedManyWithoutCreatedByInput
   apiTokens?: Prisma.ApiTokenUncheckedCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutUserInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutAssignedByInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedCreateNestedManyWithoutUserInput
   inAppNotifications?: Prisma.InAppNotificationUncheckedCreateNestedManyWithoutUserInput
 }
@@ -1111,6 +1187,8 @@ export type UserUpdateWithoutInvitesCreatedInput = {
   sessions?: Prisma.AuthSessionUpdateManyWithoutUserNestedInput
   reports?: Prisma.BugReportUpdateManyWithoutCreatedByNestedInput
   apiTokens?: Prisma.ApiTokenUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUpdateManyWithoutUserNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUpdateManyWithoutAssignedByNestedInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUpdateManyWithoutUserNestedInput
   inAppNotifications?: Prisma.InAppNotificationUpdateManyWithoutUserNestedInput
 }
@@ -1131,6 +1209,8 @@ export type UserUncheckedUpdateWithoutInvitesCreatedInput = {
   sessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutUserNestedInput
   reports?: Prisma.BugReportUncheckedUpdateManyWithoutCreatedByNestedInput
   apiTokens?: Prisma.ApiTokenUncheckedUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutUserNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutAssignedByNestedInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedUpdateManyWithoutUserNestedInput
   inAppNotifications?: Prisma.InAppNotificationUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -1151,6 +1231,8 @@ export type UserCreateWithoutSessionsInput = {
   invitesCreated?: Prisma.WorkspaceInviteCreateNestedManyWithoutCreatedByInput
   reports?: Prisma.BugReportCreateNestedManyWithoutCreatedByInput
   apiTokens?: Prisma.ApiTokenCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeCreateNestedManyWithoutUserInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeCreateNestedManyWithoutAssignedByInput
   notificationPreferences?: Prisma.UserNotificationPreferenceCreateNestedManyWithoutUserInput
   inAppNotifications?: Prisma.InAppNotificationCreateNestedManyWithoutUserInput
 }
@@ -1171,6 +1253,8 @@ export type UserUncheckedCreateWithoutSessionsInput = {
   invitesCreated?: Prisma.WorkspaceInviteUncheckedCreateNestedManyWithoutCreatedByInput
   reports?: Prisma.BugReportUncheckedCreateNestedManyWithoutCreatedByInput
   apiTokens?: Prisma.ApiTokenUncheckedCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutUserInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutAssignedByInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedCreateNestedManyWithoutUserInput
   inAppNotifications?: Prisma.InAppNotificationUncheckedCreateNestedManyWithoutUserInput
 }
@@ -1207,6 +1291,8 @@ export type UserUpdateWithoutSessionsInput = {
   invitesCreated?: Prisma.WorkspaceInviteUpdateManyWithoutCreatedByNestedInput
   reports?: Prisma.BugReportUpdateManyWithoutCreatedByNestedInput
   apiTokens?: Prisma.ApiTokenUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUpdateManyWithoutUserNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUpdateManyWithoutAssignedByNestedInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUpdateManyWithoutUserNestedInput
   inAppNotifications?: Prisma.InAppNotificationUpdateManyWithoutUserNestedInput
 }
@@ -1227,6 +1313,8 @@ export type UserUncheckedUpdateWithoutSessionsInput = {
   invitesCreated?: Prisma.WorkspaceInviteUncheckedUpdateManyWithoutCreatedByNestedInput
   reports?: Prisma.BugReportUncheckedUpdateManyWithoutCreatedByNestedInput
   apiTokens?: Prisma.ApiTokenUncheckedUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutUserNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutAssignedByNestedInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedUpdateManyWithoutUserNestedInput
   inAppNotifications?: Prisma.InAppNotificationUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -1247,6 +1335,8 @@ export type UserCreateWithoutApiTokensInput = {
   sessions?: Prisma.AuthSessionCreateNestedManyWithoutUserInput
   invitesCreated?: Prisma.WorkspaceInviteCreateNestedManyWithoutCreatedByInput
   reports?: Prisma.BugReportCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeCreateNestedManyWithoutUserInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeCreateNestedManyWithoutAssignedByInput
   notificationPreferences?: Prisma.UserNotificationPreferenceCreateNestedManyWithoutUserInput
   inAppNotifications?: Prisma.InAppNotificationCreateNestedManyWithoutUserInput
 }
@@ -1267,6 +1357,8 @@ export type UserUncheckedCreateWithoutApiTokensInput = {
   sessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutUserInput
   invitesCreated?: Prisma.WorkspaceInviteUncheckedCreateNestedManyWithoutCreatedByInput
   reports?: Prisma.BugReportUncheckedCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutUserInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutAssignedByInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedCreateNestedManyWithoutUserInput
   inAppNotifications?: Prisma.InAppNotificationUncheckedCreateNestedManyWithoutUserInput
 }
@@ -1303,6 +1395,8 @@ export type UserUpdateWithoutApiTokensInput = {
   sessions?: Prisma.AuthSessionUpdateManyWithoutUserNestedInput
   invitesCreated?: Prisma.WorkspaceInviteUpdateManyWithoutCreatedByNestedInput
   reports?: Prisma.BugReportUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUpdateManyWithoutUserNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUpdateManyWithoutAssignedByNestedInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUpdateManyWithoutUserNestedInput
   inAppNotifications?: Prisma.InAppNotificationUpdateManyWithoutUserNestedInput
 }
@@ -1323,6 +1417,8 @@ export type UserUncheckedUpdateWithoutApiTokensInput = {
   sessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutUserNestedInput
   invitesCreated?: Prisma.WorkspaceInviteUncheckedUpdateManyWithoutCreatedByNestedInput
   reports?: Prisma.BugReportUncheckedUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutUserNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutAssignedByNestedInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedUpdateManyWithoutUserNestedInput
   inAppNotifications?: Prisma.InAppNotificationUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -1343,6 +1439,8 @@ export type UserCreateWithoutReportsInput = {
   sessions?: Prisma.AuthSessionCreateNestedManyWithoutUserInput
   invitesCreated?: Prisma.WorkspaceInviteCreateNestedManyWithoutCreatedByInput
   apiTokens?: Prisma.ApiTokenCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeCreateNestedManyWithoutUserInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeCreateNestedManyWithoutAssignedByInput
   notificationPreferences?: Prisma.UserNotificationPreferenceCreateNestedManyWithoutUserInput
   inAppNotifications?: Prisma.InAppNotificationCreateNestedManyWithoutUserInput
 }
@@ -1363,6 +1461,8 @@ export type UserUncheckedCreateWithoutReportsInput = {
   sessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutUserInput
   invitesCreated?: Prisma.WorkspaceInviteUncheckedCreateNestedManyWithoutCreatedByInput
   apiTokens?: Prisma.ApiTokenUncheckedCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutUserInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutAssignedByInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedCreateNestedManyWithoutUserInput
   inAppNotifications?: Prisma.InAppNotificationUncheckedCreateNestedManyWithoutUserInput
 }
@@ -1399,6 +1499,8 @@ export type UserUpdateWithoutReportsInput = {
   sessions?: Prisma.AuthSessionUpdateManyWithoutUserNestedInput
   invitesCreated?: Prisma.WorkspaceInviteUpdateManyWithoutCreatedByNestedInput
   apiTokens?: Prisma.ApiTokenUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUpdateManyWithoutUserNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUpdateManyWithoutAssignedByNestedInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUpdateManyWithoutUserNestedInput
   inAppNotifications?: Prisma.InAppNotificationUpdateManyWithoutUserNestedInput
 }
@@ -1419,6 +1521,216 @@ export type UserUncheckedUpdateWithoutReportsInput = {
   sessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutUserNestedInput
   invitesCreated?: Prisma.WorkspaceInviteUncheckedUpdateManyWithoutCreatedByNestedInput
   apiTokens?: Prisma.ApiTokenUncheckedUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutUserNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutAssignedByNestedInput
+  notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedUpdateManyWithoutUserNestedInput
+  inAppNotifications?: Prisma.InAppNotificationUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutAssignedReportsInput = {
+  id?: string
+  email: string
+  emailVerified?: Date | string | null
+  displayName?: string | null
+  avatarUrl?: string | null
+  passwordHash?: string | null
+  platformRole?: $Enums.PlatformRole
+  status?: $Enums.UserStatus
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  defaultWorkspace?: Prisma.WorkspaceCreateNestedOneWithoutDefaultedByInput
+  memberships?: Prisma.WorkspaceMemberCreateNestedManyWithoutUserInput
+  sessions?: Prisma.AuthSessionCreateNestedManyWithoutUserInput
+  invitesCreated?: Prisma.WorkspaceInviteCreateNestedManyWithoutCreatedByInput
+  reports?: Prisma.BugReportCreateNestedManyWithoutCreatedByInput
+  apiTokens?: Prisma.ApiTokenCreateNestedManyWithoutCreatedByInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeCreateNestedManyWithoutAssignedByInput
+  notificationPreferences?: Prisma.UserNotificationPreferenceCreateNestedManyWithoutUserInput
+  inAppNotifications?: Prisma.InAppNotificationCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutAssignedReportsInput = {
+  id?: string
+  email: string
+  emailVerified?: Date | string | null
+  displayName?: string | null
+  avatarUrl?: string | null
+  passwordHash?: string | null
+  platformRole?: $Enums.PlatformRole
+  status?: $Enums.UserStatus
+  defaultWorkspaceId?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  memberships?: Prisma.WorkspaceMemberUncheckedCreateNestedManyWithoutUserInput
+  sessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutUserInput
+  invitesCreated?: Prisma.WorkspaceInviteUncheckedCreateNestedManyWithoutCreatedByInput
+  reports?: Prisma.BugReportUncheckedCreateNestedManyWithoutCreatedByInput
+  apiTokens?: Prisma.ApiTokenUncheckedCreateNestedManyWithoutCreatedByInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutAssignedByInput
+  notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedCreateNestedManyWithoutUserInput
+  inAppNotifications?: Prisma.InAppNotificationUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutAssignedReportsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutAssignedReportsInput, Prisma.UserUncheckedCreateWithoutAssignedReportsInput>
+}
+
+export type UserCreateWithoutReportAssignmentsCreatedInput = {
+  id?: string
+  email: string
+  emailVerified?: Date | string | null
+  displayName?: string | null
+  avatarUrl?: string | null
+  passwordHash?: string | null
+  platformRole?: $Enums.PlatformRole
+  status?: $Enums.UserStatus
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  defaultWorkspace?: Prisma.WorkspaceCreateNestedOneWithoutDefaultedByInput
+  memberships?: Prisma.WorkspaceMemberCreateNestedManyWithoutUserInput
+  sessions?: Prisma.AuthSessionCreateNestedManyWithoutUserInput
+  invitesCreated?: Prisma.WorkspaceInviteCreateNestedManyWithoutCreatedByInput
+  reports?: Prisma.BugReportCreateNestedManyWithoutCreatedByInput
+  apiTokens?: Prisma.ApiTokenCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeCreateNestedManyWithoutUserInput
+  notificationPreferences?: Prisma.UserNotificationPreferenceCreateNestedManyWithoutUserInput
+  inAppNotifications?: Prisma.InAppNotificationCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutReportAssignmentsCreatedInput = {
+  id?: string
+  email: string
+  emailVerified?: Date | string | null
+  displayName?: string | null
+  avatarUrl?: string | null
+  passwordHash?: string | null
+  platformRole?: $Enums.PlatformRole
+  status?: $Enums.UserStatus
+  defaultWorkspaceId?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  memberships?: Prisma.WorkspaceMemberUncheckedCreateNestedManyWithoutUserInput
+  sessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutUserInput
+  invitesCreated?: Prisma.WorkspaceInviteUncheckedCreateNestedManyWithoutCreatedByInput
+  reports?: Prisma.BugReportUncheckedCreateNestedManyWithoutCreatedByInput
+  apiTokens?: Prisma.ApiTokenUncheckedCreateNestedManyWithoutCreatedByInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutUserInput
+  notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedCreateNestedManyWithoutUserInput
+  inAppNotifications?: Prisma.InAppNotificationUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutReportAssignmentsCreatedInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutReportAssignmentsCreatedInput, Prisma.UserUncheckedCreateWithoutReportAssignmentsCreatedInput>
+}
+
+export type UserUpsertWithoutAssignedReportsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutAssignedReportsInput, Prisma.UserUncheckedUpdateWithoutAssignedReportsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutAssignedReportsInput, Prisma.UserUncheckedCreateWithoutAssignedReportsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutAssignedReportsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutAssignedReportsInput, Prisma.UserUncheckedUpdateWithoutAssignedReportsInput>
+}
+
+export type UserUpdateWithoutAssignedReportsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  platformRole?: Prisma.EnumPlatformRoleFieldUpdateOperationsInput | $Enums.PlatformRole
+  status?: Prisma.EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  defaultWorkspace?: Prisma.WorkspaceUpdateOneWithoutDefaultedByNestedInput
+  memberships?: Prisma.WorkspaceMemberUpdateManyWithoutUserNestedInput
+  sessions?: Prisma.AuthSessionUpdateManyWithoutUserNestedInput
+  invitesCreated?: Prisma.WorkspaceInviteUpdateManyWithoutCreatedByNestedInput
+  reports?: Prisma.BugReportUpdateManyWithoutCreatedByNestedInput
+  apiTokens?: Prisma.ApiTokenUpdateManyWithoutCreatedByNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUpdateManyWithoutAssignedByNestedInput
+  notificationPreferences?: Prisma.UserNotificationPreferenceUpdateManyWithoutUserNestedInput
+  inAppNotifications?: Prisma.InAppNotificationUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutAssignedReportsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  platformRole?: Prisma.EnumPlatformRoleFieldUpdateOperationsInput | $Enums.PlatformRole
+  status?: Prisma.EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
+  defaultWorkspaceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  memberships?: Prisma.WorkspaceMemberUncheckedUpdateManyWithoutUserNestedInput
+  sessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutUserNestedInput
+  invitesCreated?: Prisma.WorkspaceInviteUncheckedUpdateManyWithoutCreatedByNestedInput
+  reports?: Prisma.BugReportUncheckedUpdateManyWithoutCreatedByNestedInput
+  apiTokens?: Prisma.ApiTokenUncheckedUpdateManyWithoutCreatedByNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutAssignedByNestedInput
+  notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedUpdateManyWithoutUserNestedInput
+  inAppNotifications?: Prisma.InAppNotificationUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserUpsertWithoutReportAssignmentsCreatedInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutReportAssignmentsCreatedInput, Prisma.UserUncheckedUpdateWithoutReportAssignmentsCreatedInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutReportAssignmentsCreatedInput, Prisma.UserUncheckedCreateWithoutReportAssignmentsCreatedInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutReportAssignmentsCreatedInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutReportAssignmentsCreatedInput, Prisma.UserUncheckedUpdateWithoutReportAssignmentsCreatedInput>
+}
+
+export type UserUpdateWithoutReportAssignmentsCreatedInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  platformRole?: Prisma.EnumPlatformRoleFieldUpdateOperationsInput | $Enums.PlatformRole
+  status?: Prisma.EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  defaultWorkspace?: Prisma.WorkspaceUpdateOneWithoutDefaultedByNestedInput
+  memberships?: Prisma.WorkspaceMemberUpdateManyWithoutUserNestedInput
+  sessions?: Prisma.AuthSessionUpdateManyWithoutUserNestedInput
+  invitesCreated?: Prisma.WorkspaceInviteUpdateManyWithoutCreatedByNestedInput
+  reports?: Prisma.BugReportUpdateManyWithoutCreatedByNestedInput
+  apiTokens?: Prisma.ApiTokenUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUpdateManyWithoutUserNestedInput
+  notificationPreferences?: Prisma.UserNotificationPreferenceUpdateManyWithoutUserNestedInput
+  inAppNotifications?: Prisma.InAppNotificationUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutReportAssignmentsCreatedInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  platformRole?: Prisma.EnumPlatformRoleFieldUpdateOperationsInput | $Enums.PlatformRole
+  status?: Prisma.EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
+  defaultWorkspaceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  memberships?: Prisma.WorkspaceMemberUncheckedUpdateManyWithoutUserNestedInput
+  sessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutUserNestedInput
+  invitesCreated?: Prisma.WorkspaceInviteUncheckedUpdateManyWithoutCreatedByNestedInput
+  reports?: Prisma.BugReportUncheckedUpdateManyWithoutCreatedByNestedInput
+  apiTokens?: Prisma.ApiTokenUncheckedUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutUserNestedInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedUpdateManyWithoutUserNestedInput
   inAppNotifications?: Prisma.InAppNotificationUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -1452,6 +1764,8 @@ export type UserUpdateWithoutDefaultWorkspaceInput = {
   invitesCreated?: Prisma.WorkspaceInviteUpdateManyWithoutCreatedByNestedInput
   reports?: Prisma.BugReportUpdateManyWithoutCreatedByNestedInput
   apiTokens?: Prisma.ApiTokenUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUpdateManyWithoutUserNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUpdateManyWithoutAssignedByNestedInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUpdateManyWithoutUserNestedInput
   inAppNotifications?: Prisma.InAppNotificationUpdateManyWithoutUserNestedInput
 }
@@ -1472,6 +1786,8 @@ export type UserUncheckedUpdateWithoutDefaultWorkspaceInput = {
   invitesCreated?: Prisma.WorkspaceInviteUncheckedUpdateManyWithoutCreatedByNestedInput
   reports?: Prisma.BugReportUncheckedUpdateManyWithoutCreatedByNestedInput
   apiTokens?: Prisma.ApiTokenUncheckedUpdateManyWithoutCreatedByNestedInput
+  assignedReports?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutUserNestedInput
+  reportAssignmentsCreated?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutAssignedByNestedInput
   notificationPreferences?: Prisma.UserNotificationPreferenceUncheckedUpdateManyWithoutUserNestedInput
   inAppNotifications?: Prisma.InAppNotificationUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -1500,6 +1816,8 @@ export type UserCountOutputType = {
   invitesCreated: number
   reports: number
   apiTokens: number
+  assignedReports: number
+  reportAssignmentsCreated: number
   notificationPreferences: number
   inAppNotifications: number
 }
@@ -1510,6 +1828,8 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   invitesCreated?: boolean | UserCountOutputTypeCountInvitesCreatedArgs
   reports?: boolean | UserCountOutputTypeCountReportsArgs
   apiTokens?: boolean | UserCountOutputTypeCountApiTokensArgs
+  assignedReports?: boolean | UserCountOutputTypeCountAssignedReportsArgs
+  reportAssignmentsCreated?: boolean | UserCountOutputTypeCountReportAssignmentsCreatedArgs
   notificationPreferences?: boolean | UserCountOutputTypeCountNotificationPreferencesArgs
   inAppNotifications?: boolean | UserCountOutputTypeCountInAppNotificationsArgs
 }
@@ -1562,6 +1882,20 @@ export type UserCountOutputTypeCountApiTokensArgs<ExtArgs extends runtime.Types.
 /**
  * UserCountOutputType without action
  */
+export type UserCountOutputTypeCountAssignedReportsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ReportAssigneeWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountReportAssignmentsCreatedArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ReportAssigneeWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
 export type UserCountOutputTypeCountNotificationPreferencesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.UserNotificationPreferenceWhereInput
 }
@@ -1592,6 +1926,8 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   invitesCreated?: boolean | Prisma.User$invitesCreatedArgs<ExtArgs>
   reports?: boolean | Prisma.User$reportsArgs<ExtArgs>
   apiTokens?: boolean | Prisma.User$apiTokensArgs<ExtArgs>
+  assignedReports?: boolean | Prisma.User$assignedReportsArgs<ExtArgs>
+  reportAssignmentsCreated?: boolean | Prisma.User$reportAssignmentsCreatedArgs<ExtArgs>
   notificationPreferences?: boolean | Prisma.User$notificationPreferencesArgs<ExtArgs>
   inAppNotifications?: boolean | Prisma.User$inAppNotificationsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
@@ -1649,6 +1985,8 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   invitesCreated?: boolean | Prisma.User$invitesCreatedArgs<ExtArgs>
   reports?: boolean | Prisma.User$reportsArgs<ExtArgs>
   apiTokens?: boolean | Prisma.User$apiTokensArgs<ExtArgs>
+  assignedReports?: boolean | Prisma.User$assignedReportsArgs<ExtArgs>
+  reportAssignmentsCreated?: boolean | Prisma.User$reportAssignmentsCreatedArgs<ExtArgs>
   notificationPreferences?: boolean | Prisma.User$notificationPreferencesArgs<ExtArgs>
   inAppNotifications?: boolean | Prisma.User$inAppNotificationsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
@@ -1669,6 +2007,8 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     invitesCreated: Prisma.$WorkspaceInvitePayload<ExtArgs>[]
     reports: Prisma.$BugReportPayload<ExtArgs>[]
     apiTokens: Prisma.$ApiTokenPayload<ExtArgs>[]
+    assignedReports: Prisma.$ReportAssigneePayload<ExtArgs>[]
+    reportAssignmentsCreated: Prisma.$ReportAssigneePayload<ExtArgs>[]
     notificationPreferences: Prisma.$UserNotificationPreferencePayload<ExtArgs>[]
     inAppNotifications: Prisma.$InAppNotificationPayload<ExtArgs>[]
   }
@@ -2093,6 +2433,8 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   invitesCreated<T extends Prisma.User$invitesCreatedArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$invitesCreatedArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WorkspaceInvitePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   reports<T extends Prisma.User$reportsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$reportsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BugReportPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   apiTokens<T extends Prisma.User$apiTokensArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$apiTokensArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ApiTokenPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  assignedReports<T extends Prisma.User$assignedReportsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$assignedReportsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ReportAssigneePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  reportAssignmentsCreated<T extends Prisma.User$reportAssignmentsCreatedArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$reportAssignmentsCreatedArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ReportAssigneePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   notificationPreferences<T extends Prisma.User$notificationPreferencesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$notificationPreferencesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UserNotificationPreferencePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   inAppNotifications<T extends Prisma.User$inAppNotificationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$inAppNotificationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InAppNotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
@@ -2672,6 +3014,54 @@ export type User$apiTokensArgs<ExtArgs extends runtime.Types.Extensions.Internal
   take?: number
   skip?: number
   distinct?: Prisma.ApiTokenScalarFieldEnum | Prisma.ApiTokenScalarFieldEnum[]
+}
+
+/**
+ * User.assignedReports
+ */
+export type User$assignedReportsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ReportAssignee
+   */
+  select?: Prisma.ReportAssigneeSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ReportAssignee
+   */
+  omit?: Prisma.ReportAssigneeOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ReportAssigneeInclude<ExtArgs> | null
+  where?: Prisma.ReportAssigneeWhereInput
+  orderBy?: Prisma.ReportAssigneeOrderByWithRelationInput | Prisma.ReportAssigneeOrderByWithRelationInput[]
+  cursor?: Prisma.ReportAssigneeWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ReportAssigneeScalarFieldEnum | Prisma.ReportAssigneeScalarFieldEnum[]
+}
+
+/**
+ * User.reportAssignmentsCreated
+ */
+export type User$reportAssignmentsCreatedArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ReportAssignee
+   */
+  select?: Prisma.ReportAssigneeSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ReportAssignee
+   */
+  omit?: Prisma.ReportAssigneeOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ReportAssigneeInclude<ExtArgs> | null
+  where?: Prisma.ReportAssigneeWhereInput
+  orderBy?: Prisma.ReportAssigneeOrderByWithRelationInput | Prisma.ReportAssigneeOrderByWithRelationInput[]
+  cursor?: Prisma.ReportAssigneeWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ReportAssigneeScalarFieldEnum | Prisma.ReportAssigneeScalarFieldEnum[]
 }
 
 /**

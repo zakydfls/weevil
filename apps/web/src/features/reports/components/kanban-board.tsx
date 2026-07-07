@@ -15,6 +15,7 @@ import {
 import { WeevilMark } from '@/components/brand/weevil-mark';
 import { ErrorState } from '@/components/ui/error-state';
 import type { ReportSummary } from '@/lib/api/types';
+import { AssigneeEditorPopover } from './report-assignees';
 import { StatusBadge } from './status-badge';
 
 interface KanbanBoardProps {
@@ -24,6 +25,7 @@ interface KanbanBoardProps {
   onRetry?: () => void;
   onOpenReport: (report: ReportSummary) => void;
   onMoveReport?: (reportId: string, toColumnId: string, toIndex: number) => void | Promise<void>;
+  canEditAssignees?: (report: ReportSummary) => boolean;
 }
 
 type ColumnId = 'backlog' | 'in-progress' | 'review' | 'done';
@@ -76,6 +78,7 @@ export function KanbanBoard({
   onRetry,
   onOpenReport,
   onMoveReport,
+  canEditAssignees,
 }: KanbanBoardProps) {
   const groupedReports = useMemo(() => groupReports(reports), [reports]);
   const totalErrors = useMemo(
@@ -111,6 +114,7 @@ export function KanbanBoard({
             reports={groupedReports[column.id] ?? []}
             isLoading={isLoading}
             onOpenReport={onOpenReport}
+            canEditAssignees={canEditAssignees}
             onDropReport={(reportId, toIndex) => {
               void onMoveReport?.(reportId, column.id, toIndex);
             }}
@@ -179,12 +183,14 @@ function BoardColumnView({
   reports,
   isLoading,
   onOpenReport,
+  canEditAssignees,
   onDropReport,
 }: {
   column: BoardColumn;
   reports: ReportSummary[];
   isLoading: boolean;
   onOpenReport: (report: ReportSummary) => void;
+  canEditAssignees?: (report: ReportSummary) => boolean;
   onDropReport: (reportId: string, toIndex: number) => void;
 }) {
   const Icon = column.icon;
@@ -269,6 +275,7 @@ function BoardColumnView({
             report={report}
             isAfterDropIndicator={dropIndicatorIndex === index}
             onOpen={() => onOpenReport(report)}
+            canEditAssignees={canEditAssignees?.(report) ?? false}
           />
         ))}
         {dropIndicatorIndex === reports.length ? <DropIndicator /> : null}
@@ -282,10 +289,12 @@ function KanbanCard({
   report,
   isAfterDropIndicator,
   onOpen,
+  canEditAssignees,
 }: {
   report: ReportSummary;
   isAfterDropIndicator: boolean;
   onOpen: () => void;
+  canEditAssignees: boolean;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const hasErrors = (report.runtimeErrorCount ?? 0) > 0;
@@ -363,12 +372,20 @@ function KanbanCard({
             />
             <CardStat icon={MessageSquare} label="com" value={report.commentCount ?? 0} />
           </div>
-
-          <div className="mt-3 flex items-center justify-between gap-2 font-mono text-[11px] text-[var(--ink-faint)]">
+        </button>
+        <div className="mt-3 flex items-center justify-between gap-2 pl-3">
+          <AssigneeEditorPopover
+            report={report}
+            canEdit={canEditAssignees}
+            compact
+            align="start"
+          />
+          <div className="min-w-0 flex items-center gap-2 font-mono text-[11px] text-[var(--ink-faint)]">
             <span className="truncate">{report.source.toLowerCase()}</span>
+            <span aria-hidden>·</span>
             <time>{formatBoardDate(report.updatedAt)}</time>
           </div>
-        </button>
+        </div>
       </article>
     </>
   );

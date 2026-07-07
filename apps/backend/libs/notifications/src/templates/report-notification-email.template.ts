@@ -25,12 +25,21 @@ export interface NewCaptureEmailTemplateInput {
   errorCount: number;
 }
 
+export interface ReportAssignedEmailTemplateInput {
+  report: ReportNotificationDetail;
+  assigneeLabel: string;
+}
+
 export function reportCommentEmailSubject(input: { reportTitle: string }): string {
   return `New comment on ${input.reportTitle}`;
 }
 
 export function newCaptureEmailSubject(input: { reportTitle: string }): string {
   return `New capture: ${input.reportTitle}`;
+}
+
+export function reportAssignedEmailSubject(input: { reportTitle: string }): string {
+  return `You were assigned: ${input.reportTitle}`;
 }
 
 export function renderReportCommentEmail(input: ReportCommentEmailTemplateInput): string {
@@ -69,6 +78,30 @@ export function renderNewCaptureEmail(input: NewCaptureEmailTemplateInput): stri
     bodyHtml: `
       <p style="margin:0 0 14px;">A new capture was created in <strong>${escapeHtml(report.workspaceName)}</strong>.</p>
       ${renderTelemetrySummary(input)}
+      ${renderReportDetails(report)}
+    `,
+    action: {
+      label: 'Open capture',
+      href: report.captureUrl,
+    },
+    footerHtml: `
+      Workspace: <strong>${escapeHtml(report.workspaceName)}</strong><br />
+      If the button does not work, open this link:<br />
+      <a href="${captureUrl}" style="color:#b94a0b;word-break:break-all;">${captureUrl}</a>
+    `,
+  });
+}
+
+export function renderReportAssignedEmail(input: ReportAssignedEmailTemplateInput): string {
+  const report = input.report;
+  const captureUrl = escapeHtml(report.captureUrl);
+
+  return renderEmailLayout({
+    eyebrow: 'Weevil capture assignment',
+    title: `You were assigned to ${report.title}`,
+    previewText: `You were assigned to ${report.title} in ${report.workspaceName}.`,
+    bodyHtml: `
+      <p style="margin:0 0 14px;">${escapeHtml(input.assigneeLabel)}, you were assigned to <strong>${escapeHtml(report.title)}</strong>.</p>
       ${renderReportDetails(report)}
     `,
     action: {

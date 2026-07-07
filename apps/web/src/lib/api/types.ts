@@ -7,6 +7,14 @@ export interface ReportReporter {
   avatarUrl?: string | null;
 }
 
+export interface ReportAssignee {
+  id: string;
+  email: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+  assignedAt: string;
+}
+
 export interface ReportSummary {
   id: string;
   workspaceId: string;
@@ -31,6 +39,7 @@ export interface ReportSummary {
   domEventCount?: number;
   backendTraceCount?: number;
   reporter?: ReportReporter | null;
+  assignees: ReportAssignee[];
   primaryRecording?: ReportUpload | null;
   createdAt: string;
   updatedAt: string;
@@ -49,6 +58,10 @@ export interface UpdateReportBoardInput {
   targetIndex?: number;
 }
 
+export interface UpdateReportAssigneesInput {
+  assigneeUserIds: string[];
+}
+
 export interface PaginatedReportsResponse {
   items: ReportSummary[];
   page: number;
@@ -60,6 +73,24 @@ export interface PaginatedReportsResponse {
 export interface NotificationPreferences {
   emailOnNewCapture: boolean;
   emailOnNewComment: boolean;
+}
+
+export interface WorkspaceMemberSummary {
+  id: string;
+  userId: string | null;
+  email: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  role: string;
+  status: string;
+  extraPermissions: string[];
+  deniedPermissions: string[];
+  effectivePermissions: string[];
+  joinedAt: string | null;
+  lastActiveAt: string | null;
+  expiresAt?: string;
+  inviteUrl?: string;
+  requestKind?: 'MEMBER' | 'INVITE' | 'JOIN_REQUEST';
 }
 
 export interface InAppNotification {

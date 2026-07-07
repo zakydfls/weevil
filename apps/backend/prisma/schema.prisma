@@ -219,6 +219,7 @@ model Workspace {
   invites      WorkspaceInvite[]
   sessions     AuthSession[]
   apiTokens    ApiToken[]
+  reportAssignees ReportAssignee[]
   notificationPreferences UserNotificationPreference[]
   inAppNotifications InAppNotification[]
   /// Users who have selected this workspace as their default.
@@ -266,6 +267,8 @@ model User {
   invitesCreated   WorkspaceInvite[]  @relation("InviteCreator")
   reports          BugReport[]
   apiTokens        ApiToken[]
+  assignedReports  ReportAssignee[]
+  reportAssignmentsCreated ReportAssignee[] @relation("ReportAssigner")
   notificationPreferences UserNotificationPreference[]
   inAppNotifications InAppNotification[]
 
@@ -472,6 +475,7 @@ model BugReport {
   consoleLogs     ConsoleLogEntry[]
   networkRequests NetworkRequestEntry[]
   comments        ReportComment[]
+  assignees       ReportAssignee[]
   captureSessions CaptureSession[]
   pageActions     PageActionEntry[]
   runtimeErrors   RuntimeErrorEntry[]
@@ -483,6 +487,25 @@ model BugReport {
   @@index([workspaceId, projectId, status, createdAt])
   @@index([shareToken])
   @@map("bug_reports")
+}
+
+model ReportAssignee {
+  id           String   @id @default(cuid())
+  reportId     String
+  workspaceId  String
+  userId       String
+  assignedById String?
+  createdAt    DateTime @default(now())
+
+  report     BugReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  workspace  Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedBy User?     @relation("ReportAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@unique([reportId, userId])
+  @@index([workspaceId, userId])
+  @@index([reportId, createdAt])
+  @@map("report_assignees")
 }
 
 model CaptureSession {

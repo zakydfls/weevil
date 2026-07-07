@@ -18,6 +18,7 @@ import {
   ListReportsQueryDto,
   CreateReportCommentDto,
   CreateReportDto,
+  UpdateReportAssigneesDto,
   UpdateReportDto,
   UpdateReportBoardDto,
   RouteParams,
@@ -86,6 +87,21 @@ export class ReportsController {
   ) {
     return this.reportsService.moveOnBoard(reportId, dto, {
       workspaceId: auth.workspace?.id,
+    });
+  }
+
+  @RequirePermissions([Permission.REPORT_UPDATE_ANY, Permission.REPORT_UPDATE_OWN], 'any')
+  @Patch(ApiRoutes.ReportAssigneesRelative)
+  setAssignees(
+    @CurrentAuth() auth: AuthContext,
+    @Param(RouteParams.ReportId) reportId: string,
+    @Body() dto: UpdateReportAssigneesDto,
+  ) {
+    return this.reportsService.setAssignees(reportId, dto, {
+      workspaceId: auth.workspace?.id,
+      actorUserId: auth.user.id,
+      canUpdateAny: auth.workspace?.permissions.has(Permission.REPORT_UPDATE_ANY) ?? false,
+      canUpdateOwn: auth.workspace?.permissions.has(Permission.REPORT_UPDATE_OWN) ?? false,
     });
   }
 

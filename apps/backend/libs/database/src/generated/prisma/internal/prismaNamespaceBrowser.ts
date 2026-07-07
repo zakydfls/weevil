@@ -62,6 +62,7 @@ export const ModelName = {
   AuthSession: 'AuthSession',
   ApiToken: 'ApiToken',
   BugReport: 'BugReport',
+  ReportAssignee: 'ReportAssignee',
   CaptureSession: 'CaptureSession',
   ReportComment: 'ReportComment',
   ReportUpload: 'ReportUpload',
@@ -280,6 +281,18 @@ export const BugReportScalarFieldEnum = {
 } as const
 
 export type BugReportScalarFieldEnum = (typeof BugReportScalarFieldEnum)[keyof typeof BugReportScalarFieldEnum]
+
+
+export const ReportAssigneeScalarFieldEnum = {
+  id: 'id',
+  reportId: 'reportId',
+  workspaceId: 'workspaceId',
+  userId: 'userId',
+  assignedById: 'assignedById',
+  createdAt: 'createdAt'
+} as const
+
+export type ReportAssigneeScalarFieldEnum = (typeof ReportAssigneeScalarFieldEnum)[keyof typeof ReportAssigneeScalarFieldEnum]
 
 
 export const CaptureSessionScalarFieldEnum = {

@@ -21,8 +21,10 @@ import type {
   ReportSummary,
   RuntimeErrorEntry,
   TimelineEntry,
+  UpdateReportAssigneesInput,
   UpdateReportBoardInput,
   UpdateReportInput,
+  WorkspaceMemberSummary,
 } from './types';
 import { appEnv, readPublicEnv } from '@/lib/env';
 
@@ -147,6 +149,12 @@ export const apiClient = {
 
   moveReportOnBoard: (reportId: string, input: UpdateReportBoardInput) =>
     request<ReportSummary>(`/reports/${reportId}/board`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+
+  updateReportAssignees: (reportId: string, input: UpdateReportAssigneesInput) =>
+    request<ReportSummary>(`/reports/${reportId}/assignees`, {
       method: 'PATCH',
       body: JSON.stringify(input),
     }),
@@ -378,26 +386,7 @@ export const apiClient = {
       body: JSON.stringify(body),
     }),
 
-  listMembers: () =>
-    request<
-      Array<{
-        id: string;
-        userId: string | null;
-        email: string;
-        displayName: string | null;
-        avatarUrl: string | null;
-        role: string;
-        status: string;
-        extraPermissions: string[];
-        deniedPermissions: string[];
-        effectivePermissions: string[];
-        joinedAt: string | null;
-        lastActiveAt: string | null;
-        expiresAt?: string;
-        inviteUrl?: string;
-        requestKind?: 'MEMBER' | 'INVITE' | 'JOIN_REQUEST';
-      }>
-    >('/workspaces/current/members'),
+  listMembers: () => request<WorkspaceMemberSummary[]>('/workspaces/current/members'),
 
   inviteMember: (body: { email: string; role: string }) =>
     request<{

@@ -79,6 +79,11 @@ export type ApiToken = Prisma.ApiTokenModel
  */
 export type BugReport = Prisma.BugReportModel
 /**
+ * Model ReportAssignee
+ * 
+ */
+export type ReportAssignee = Prisma.ReportAssigneeModel
+/**
  * Model CaptureSession
  * 
  */

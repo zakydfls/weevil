@@ -1,7 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/auth-context';
 import { apiClient } from '@/lib/api/client';
-import type { CreateReportInput, ListReportsParams, PaginatedReportsResponse } from '@/lib/api/types';
+import type {
+  CreateReportInput,
+  ListReportsParams,
+  PaginatedReportsResponse,
+  UpdateReportAssigneesInput,
+} from '@/lib/api/types';
 
 const NO_WORKSPACE_KEY = 'no-workspace';
 
@@ -100,6 +105,27 @@ export function useMoveReportOnBoard() {
     },
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: reportKeys.lists() });
+    },
+  });
+}
+
+export function useUpdateReportAssignees() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      reportId,
+      input,
+    }: {
+      reportId: string;
+      input: UpdateReportAssigneesInput;
+    }) => apiClient.updateReportAssignees(reportId, input),
+    onSuccess: async (report) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: reportKeys.lists() }),
+        queryClient.invalidateQueries({ queryKey: reportKeys.detail(report.id) }),
+        queryClient.invalidateQueries({ queryKey: reportKeys.publicDetail(report.shareToken) }),
+      ]);
     },
   });
 }

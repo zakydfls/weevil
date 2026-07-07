@@ -80,6 +80,7 @@ import { apiClient } from '@/lib/api/client';
 import { toast } from '@/components/ui/toaster';
 import { cn, formatBytes, formatDate } from '@/lib/utils';
 import { reportKeys } from '../queries';
+import { AssigneeEditorPopover } from './report-assignees';
 import { StatusBadge } from './status-badge';
 
 interface CaptureDetailViewProps {
@@ -406,6 +407,13 @@ export function CaptureDetailView({
             <div className="flex min-w-0 items-center gap-2">
               <StatusBadge status={report.status} />
               <span className="truncate text-sm font-semibold text-[var(--ink)]">{report.title}</span>
+              <AssigneeEditorPopover
+                report={report}
+                canEdit={canEdit}
+                compact
+                align="start"
+                className="shrink-0"
+              />
             </div>
             <div className="hidden items-center gap-3 font-mono text-[11px] text-[var(--ink-faint)] sm:flex">
               <span className="truncate">{report.pageUrl ?? report.id}</span>

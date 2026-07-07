@@ -9,13 +9,16 @@ import {
   MailerService,
   newCaptureEmailSubject,
   renderNewCaptureEmail,
+  renderReportAssignedEmail,
   renderReportCommentEmail,
+  reportAssignedEmailSubject,
   reportCommentEmailSubject,
   type ReportNotificationDetail,
 } from '@weevil/notifications';
 import { MembershipStatus, UserStatus } from '@weevil/prisma-client';
 import {
   ReportEvents,
+  type ReportAssigneesChangedEvent,
   type ReportCaptureCreatedEvent,
   type ReportCommentCreatedEvent,
 } from '../domain/report-events';
@@ -55,6 +58,17 @@ export class ReportNotificationService {
     } catch (error) {
       this.logger.warn(
         `Capture notification event failed for report ${event.reportId}: ${errorMessage(error)}`,
+      );
+    }
+  }
+
+  @OnEvent(ReportEvents.AssigneesChanged, { suppressErrors: true })
+  async handleAssigneesChanged(event: ReportAssigneesChangedEvent): Promise<void> {
+    try {
+      await this.notifyAssigneesChanged(event);
+    } catch (error) {
+      this.logger.warn(
+        `Assignee notification event failed for report ${event.reportId}: ${errorMessage(error)}`,
       );
     }
   }
@@ -137,6 +151,44 @@ export class ReportNotificationService {
     });
   }
 
+  private async notifyAssigneesChanged(event: ReportAssigneesChangedEvent): Promise<void> {
+    const addedUserIds = event.addedUserIds.filter((userId) => userId !== event.actorUserId);
+    if (addedUserIds.length === 0) return;
+
+    const report = await this.loadReport(event.reportId);
+    if (!report) return;
+
+    const recipients = await this.findAssignedRecipients(report.workspaceId, addedUserIds);
+    if (recipients.length === 0) return;
+
+    const detail = this.toDetail(report, this.buildPrivateCaptureUrl(report.id));
+    this.emitInAppNotifications(recipients, {
+      workspaceId: report.workspaceId,
+      type: 'report_assigned',
+      title: 'You were assigned',
+      body: report.title,
+      actionUrl: this.buildPrivateCapturePath(report.id),
+      metadata: {
+        report_id: report.id,
+        workspace_slug: report.workspace.slug,
+      },
+    });
+    await this.sendToRecipients(recipients, {
+      subject: reportAssignedEmailSubject({ reportTitle: report.title }),
+      html: '',
+      metadata: {
+        notification_type: 'report_assigned',
+        report_id: report.id,
+        workspace_id: report.workspaceId,
+      },
+      renderHtml: (recipient) =>
+        renderReportAssignedEmail({
+          report: detail,
+          assigneeLabel: recipient.displayName || recipient.email,
+        }),
+    });
+  }
+
   private async findRecipients(
     workspaceId: string,
     preferenceKey: 'emailOnNewCapture' | 'emailOnNewComment',
@@ -175,12 +227,44 @@ export class ReportNotificationService {
     }));
   }
 
+  private async findAssignedRecipients(
+    workspaceId: string,
+    userIds: string[],
+  ): Promise<ReportNotificationRecipient[]> {
+    const members = await this.prisma.workspaceMember.findMany({
+      where: {
+        workspaceId,
+        status: MembershipStatus.ACTIVE,
+        user: {
+          id: { in: userIds },
+          status: UserStatus.ACTIVE,
+        },
+      },
+      select: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            displayName: true,
+          },
+        },
+      },
+    });
+
+    return members.map((member) => ({
+      userId: member.user.id,
+      email: member.user.email,
+      displayName: member.user.displayName,
+    }));
+  }
+
   private async sendToRecipients(
     recipients: ReportNotificationRecipient[],
     message: {
       subject: string;
       html: string;
       metadata: Record<string, unknown>;
+      renderHtml?: (recipient: ReportNotificationRecipient) => string;
     },
   ) {
     const results = await Promise.allSettled(
@@ -188,7 +272,7 @@ export class ReportNotificationService {
         this.mailer.send({
           to: recipient.email,
           subject: message.subject,
-          html: message.html,
+          html: message.renderHtml ? message.renderHtml(recipient) : message.html,
           metadata: {
             ...message.metadata,
             recipient_user_id: recipient.userId,
@@ -274,6 +358,7 @@ export class ReportNotificationService {
 
   private toDetail(
     report: NonNullable<Awaited<ReturnType<ReportNotificationService['loadReport']>>>,
+    captureUrl = this.buildCaptureUrl(report.shareToken),
   ): ReportNotificationDetail {
     return {
       title: report.title,
@@ -283,7 +368,7 @@ export class ReportNotificationService {
       reporterLabel: report.createdBy?.displayName || report.createdBy?.email || null,
       browserLabel: [report.browserName, report.osName].filter(Boolean).join(' on ') || null,
       createdAt: report.createdAt,
-      captureUrl: this.buildCaptureUrl(report.shareToken),
+      captureUrl,
     };
   }
 
@@ -298,6 +383,19 @@ export class ReportNotificationService {
 
   private buildCapturePath(shareToken: string): string {
     return `/c/share/${encodeURIComponent(shareToken)}`;
+  }
+
+  private buildPrivateCaptureUrl(reportId: string): string {
+    const baseUrl = this.webBaseUrl();
+    const path = this.buildPrivateCapturePath(reportId);
+    if (!baseUrl) {
+      return path;
+    }
+    return new URL(path, `${baseUrl}/`).toString();
+  }
+
+  private buildPrivateCapturePath(reportId: string): string {
+    return `/c/${encodeURIComponent(reportId)}`;
   }
 
   private webBaseUrl(): string | null {

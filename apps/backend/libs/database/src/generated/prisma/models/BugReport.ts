@@ -380,6 +380,7 @@ export type BugReportWhereInput = {
   consoleLogs?: Prisma.ConsoleLogEntryListRelationFilter
   networkRequests?: Prisma.NetworkRequestEntryListRelationFilter
   comments?: Prisma.ReportCommentListRelationFilter
+  assignees?: Prisma.ReportAssigneeListRelationFilter
   captureSessions?: Prisma.CaptureSessionListRelationFilter
   pageActions?: Prisma.PageActionEntryListRelationFilter
   runtimeErrors?: Prisma.RuntimeErrorEntryListRelationFilter
@@ -421,6 +422,7 @@ export type BugReportOrderByWithRelationInput = {
   consoleLogs?: Prisma.ConsoleLogEntryOrderByRelationAggregateInput
   networkRequests?: Prisma.NetworkRequestEntryOrderByRelationAggregateInput
   comments?: Prisma.ReportCommentOrderByRelationAggregateInput
+  assignees?: Prisma.ReportAssigneeOrderByRelationAggregateInput
   captureSessions?: Prisma.CaptureSessionOrderByRelationAggregateInput
   pageActions?: Prisma.PageActionEntryOrderByRelationAggregateInput
   runtimeErrors?: Prisma.RuntimeErrorEntryOrderByRelationAggregateInput
@@ -465,6 +467,7 @@ export type BugReportWhereUniqueInput = Prisma.AtLeast<{
   consoleLogs?: Prisma.ConsoleLogEntryListRelationFilter
   networkRequests?: Prisma.NetworkRequestEntryListRelationFilter
   comments?: Prisma.ReportCommentListRelationFilter
+  assignees?: Prisma.ReportAssigneeListRelationFilter
   captureSessions?: Prisma.CaptureSessionListRelationFilter
   pageActions?: Prisma.PageActionEntryListRelationFilter
   runtimeErrors?: Prisma.RuntimeErrorEntryListRelationFilter
@@ -565,6 +568,7 @@ export type BugReportCreateInput = {
   consoleLogs?: Prisma.ConsoleLogEntryCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryCreateNestedManyWithoutReportInput
@@ -603,6 +607,7 @@ export type BugReportUncheckedCreateInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentUncheckedCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionUncheckedCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryUncheckedCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedCreateNestedManyWithoutReportInput
@@ -641,6 +646,7 @@ export type BugReportUpdateInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUpdateManyWithoutReportNestedInput
@@ -679,6 +685,7 @@ export type BugReportUncheckedUpdateInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUncheckedUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUncheckedUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUncheckedUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedUpdateManyWithoutReportNestedInput
@@ -1013,6 +1020,20 @@ export type NullableIntFieldUpdateOperationsInput = {
   divide?: number
 }
 
+export type BugReportCreateNestedOneWithoutAssigneesInput = {
+  create?: Prisma.XOR<Prisma.BugReportCreateWithoutAssigneesInput, Prisma.BugReportUncheckedCreateWithoutAssigneesInput>
+  connectOrCreate?: Prisma.BugReportCreateOrConnectWithoutAssigneesInput
+  connect?: Prisma.BugReportWhereUniqueInput
+}
+
+export type BugReportUpdateOneRequiredWithoutAssigneesNestedInput = {
+  create?: Prisma.XOR<Prisma.BugReportCreateWithoutAssigneesInput, Prisma.BugReportUncheckedCreateWithoutAssigneesInput>
+  connectOrCreate?: Prisma.BugReportCreateOrConnectWithoutAssigneesInput
+  upsert?: Prisma.BugReportUpsertWithoutAssigneesInput
+  connect?: Prisma.BugReportWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.BugReportUpdateToOneWithWhereWithoutAssigneesInput, Prisma.BugReportUpdateWithoutAssigneesInput>, Prisma.BugReportUncheckedUpdateWithoutAssigneesInput>
+}
+
 export type BugReportCreateNestedOneWithoutCaptureSessionsInput = {
   create?: Prisma.XOR<Prisma.BugReportCreateWithoutCaptureSessionsInput, Prisma.BugReportUncheckedCreateWithoutCaptureSessionsInput>
   connectOrCreate?: Prisma.BugReportCreateOrConnectWithoutCaptureSessionsInput
@@ -1196,6 +1217,7 @@ export type BugReportCreateWithoutWorkspaceInput = {
   consoleLogs?: Prisma.ConsoleLogEntryCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryCreateNestedManyWithoutReportInput
@@ -1233,6 +1255,7 @@ export type BugReportUncheckedCreateWithoutWorkspaceInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentUncheckedCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionUncheckedCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryUncheckedCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedCreateNestedManyWithoutReportInput
@@ -1326,6 +1349,7 @@ export type BugReportCreateWithoutProjectInput = {
   consoleLogs?: Prisma.ConsoleLogEntryCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryCreateNestedManyWithoutReportInput
@@ -1363,6 +1387,7 @@ export type BugReportUncheckedCreateWithoutProjectInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentUncheckedCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionUncheckedCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryUncheckedCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedCreateNestedManyWithoutReportInput
@@ -1426,6 +1451,7 @@ export type BugReportCreateWithoutCreatedByInput = {
   consoleLogs?: Prisma.ConsoleLogEntryCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryCreateNestedManyWithoutReportInput
@@ -1463,6 +1489,7 @@ export type BugReportUncheckedCreateWithoutCreatedByInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentUncheckedCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionUncheckedCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryUncheckedCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedCreateNestedManyWithoutReportInput
@@ -1497,6 +1524,174 @@ export type BugReportUpdateManyWithWhereWithoutCreatedByInput = {
   data: Prisma.XOR<Prisma.BugReportUpdateManyMutationInput, Prisma.BugReportUncheckedUpdateManyWithoutCreatedByInput>
 }
 
+export type BugReportCreateWithoutAssigneesInput = {
+  id?: string
+  title: string
+  description?: string | null
+  status?: $Enums.ReportStatus
+  source?: $Enums.ReportSource
+  shareToken: string
+  ingestToken?: string | null
+  pageUrl?: string | null
+  userAgent?: string | null
+  browserName?: string | null
+  browserVersion?: string | null
+  osName?: string | null
+  viewportWidth?: number | null
+  viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  failureReason?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  workspace: Prisma.WorkspaceCreateNestedOneWithoutReportsInput
+  project: Prisma.ProjectCreateNestedOneWithoutReportsInput
+  createdBy?: Prisma.UserCreateNestedOneWithoutReportsInput
+  uploads?: Prisma.ReportUploadCreateNestedManyWithoutReportInput
+  events?: Prisma.ReportEventCreateNestedManyWithoutReportInput
+  consoleLogs?: Prisma.ConsoleLogEntryCreateNestedManyWithoutReportInput
+  networkRequests?: Prisma.NetworkRequestEntryCreateNestedManyWithoutReportInput
+  comments?: Prisma.ReportCommentCreateNestedManyWithoutReportInput
+  captureSessions?: Prisma.CaptureSessionCreateNestedManyWithoutReportInput
+  pageActions?: Prisma.PageActionEntryCreateNestedManyWithoutReportInput
+  runtimeErrors?: Prisma.RuntimeErrorEntryCreateNestedManyWithoutReportInput
+  performanceEntries?: Prisma.PerformanceEntryCreateNestedManyWithoutReportInput
+  domEvents?: Prisma.DomEventEntryCreateNestedManyWithoutReportInput
+  backendTraces?: Prisma.BackendTraceEntryCreateNestedManyWithoutReportInput
+}
+
+export type BugReportUncheckedCreateWithoutAssigneesInput = {
+  id?: string
+  workspaceId: string
+  projectId: string
+  createdById?: string | null
+  title: string
+  description?: string | null
+  status?: $Enums.ReportStatus
+  source?: $Enums.ReportSource
+  shareToken: string
+  ingestToken?: string | null
+  pageUrl?: string | null
+  userAgent?: string | null
+  browserName?: string | null
+  browserVersion?: string | null
+  osName?: string | null
+  viewportWidth?: number | null
+  viewportHeight?: number | null
+  boardColumn?: string
+  boardOrder?: number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  failureReason?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  uploads?: Prisma.ReportUploadUncheckedCreateNestedManyWithoutReportInput
+  events?: Prisma.ReportEventUncheckedCreateNestedManyWithoutReportInput
+  consoleLogs?: Prisma.ConsoleLogEntryUncheckedCreateNestedManyWithoutReportInput
+  networkRequests?: Prisma.NetworkRequestEntryUncheckedCreateNestedManyWithoutReportInput
+  comments?: Prisma.ReportCommentUncheckedCreateNestedManyWithoutReportInput
+  captureSessions?: Prisma.CaptureSessionUncheckedCreateNestedManyWithoutReportInput
+  pageActions?: Prisma.PageActionEntryUncheckedCreateNestedManyWithoutReportInput
+  runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedCreateNestedManyWithoutReportInput
+  performanceEntries?: Prisma.PerformanceEntryUncheckedCreateNestedManyWithoutReportInput
+  domEvents?: Prisma.DomEventEntryUncheckedCreateNestedManyWithoutReportInput
+  backendTraces?: Prisma.BackendTraceEntryUncheckedCreateNestedManyWithoutReportInput
+}
+
+export type BugReportCreateOrConnectWithoutAssigneesInput = {
+  where: Prisma.BugReportWhereUniqueInput
+  create: Prisma.XOR<Prisma.BugReportCreateWithoutAssigneesInput, Prisma.BugReportUncheckedCreateWithoutAssigneesInput>
+}
+
+export type BugReportUpsertWithoutAssigneesInput = {
+  update: Prisma.XOR<Prisma.BugReportUpdateWithoutAssigneesInput, Prisma.BugReportUncheckedUpdateWithoutAssigneesInput>
+  create: Prisma.XOR<Prisma.BugReportCreateWithoutAssigneesInput, Prisma.BugReportUncheckedCreateWithoutAssigneesInput>
+  where?: Prisma.BugReportWhereInput
+}
+
+export type BugReportUpdateToOneWithWhereWithoutAssigneesInput = {
+  where?: Prisma.BugReportWhereInput
+  data: Prisma.XOR<Prisma.BugReportUpdateWithoutAssigneesInput, Prisma.BugReportUncheckedUpdateWithoutAssigneesInput>
+}
+
+export type BugReportUpdateWithoutAssigneesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
+  source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
+  shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browserVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  workspace?: Prisma.WorkspaceUpdateOneRequiredWithoutReportsNestedInput
+  project?: Prisma.ProjectUpdateOneRequiredWithoutReportsNestedInput
+  createdBy?: Prisma.UserUpdateOneWithoutReportsNestedInput
+  uploads?: Prisma.ReportUploadUpdateManyWithoutReportNestedInput
+  events?: Prisma.ReportEventUpdateManyWithoutReportNestedInput
+  consoleLogs?: Prisma.ConsoleLogEntryUpdateManyWithoutReportNestedInput
+  networkRequests?: Prisma.NetworkRequestEntryUpdateManyWithoutReportNestedInput
+  comments?: Prisma.ReportCommentUpdateManyWithoutReportNestedInput
+  captureSessions?: Prisma.CaptureSessionUpdateManyWithoutReportNestedInput
+  pageActions?: Prisma.PageActionEntryUpdateManyWithoutReportNestedInput
+  runtimeErrors?: Prisma.RuntimeErrorEntryUpdateManyWithoutReportNestedInput
+  performanceEntries?: Prisma.PerformanceEntryUpdateManyWithoutReportNestedInput
+  domEvents?: Prisma.DomEventEntryUpdateManyWithoutReportNestedInput
+  backendTraces?: Prisma.BackendTraceEntryUpdateManyWithoutReportNestedInput
+}
+
+export type BugReportUncheckedUpdateWithoutAssigneesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  workspaceId?: Prisma.StringFieldUpdateOperationsInput | string
+  projectId?: Prisma.StringFieldUpdateOperationsInput | string
+  createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumReportStatusFieldUpdateOperationsInput | $Enums.ReportStatus
+  source?: Prisma.EnumReportSourceFieldUpdateOperationsInput | $Enums.ReportSource
+  shareToken?: Prisma.StringFieldUpdateOperationsInput | string
+  ingestToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  userAgent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browserName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browserVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  osName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  viewportWidth?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  viewportHeight?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  boardColumn?: Prisma.StringFieldUpdateOperationsInput | string
+  boardOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  uploads?: Prisma.ReportUploadUncheckedUpdateManyWithoutReportNestedInput
+  events?: Prisma.ReportEventUncheckedUpdateManyWithoutReportNestedInput
+  consoleLogs?: Prisma.ConsoleLogEntryUncheckedUpdateManyWithoutReportNestedInput
+  networkRequests?: Prisma.NetworkRequestEntryUncheckedUpdateManyWithoutReportNestedInput
+  comments?: Prisma.ReportCommentUncheckedUpdateManyWithoutReportNestedInput
+  captureSessions?: Prisma.CaptureSessionUncheckedUpdateManyWithoutReportNestedInput
+  pageActions?: Prisma.PageActionEntryUncheckedUpdateManyWithoutReportNestedInput
+  runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedUpdateManyWithoutReportNestedInput
+  performanceEntries?: Prisma.PerformanceEntryUncheckedUpdateManyWithoutReportNestedInput
+  domEvents?: Prisma.DomEventEntryUncheckedUpdateManyWithoutReportNestedInput
+  backendTraces?: Prisma.BackendTraceEntryUncheckedUpdateManyWithoutReportNestedInput
+}
+
 export type BugReportCreateWithoutCaptureSessionsInput = {
   id?: string
   title: string
@@ -1527,6 +1722,7 @@ export type BugReportCreateWithoutCaptureSessionsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryCreateNestedManyWithoutReportInput
   performanceEntries?: Prisma.PerformanceEntryCreateNestedManyWithoutReportInput
@@ -1564,6 +1760,7 @@ export type BugReportUncheckedCreateWithoutCaptureSessionsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentUncheckedCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryUncheckedCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedCreateNestedManyWithoutReportInput
   performanceEntries?: Prisma.PerformanceEntryUncheckedCreateNestedManyWithoutReportInput
@@ -1617,6 +1814,7 @@ export type BugReportUpdateWithoutCaptureSessionsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUpdateManyWithoutReportNestedInput
   performanceEntries?: Prisma.PerformanceEntryUpdateManyWithoutReportNestedInput
@@ -1654,6 +1852,7 @@ export type BugReportUncheckedUpdateWithoutCaptureSessionsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUncheckedUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUncheckedUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedUpdateManyWithoutReportNestedInput
   performanceEntries?: Prisma.PerformanceEntryUncheckedUpdateManyWithoutReportNestedInput
@@ -1690,6 +1889,7 @@ export type BugReportCreateWithoutCommentsInput = {
   events?: Prisma.ReportEventCreateNestedManyWithoutReportInput
   consoleLogs?: Prisma.ConsoleLogEntryCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryCreateNestedManyWithoutReportInput
@@ -1727,6 +1927,7 @@ export type BugReportUncheckedCreateWithoutCommentsInput = {
   events?: Prisma.ReportEventUncheckedCreateNestedManyWithoutReportInput
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionUncheckedCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryUncheckedCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedCreateNestedManyWithoutReportInput
@@ -1780,6 +1981,7 @@ export type BugReportUpdateWithoutCommentsInput = {
   events?: Prisma.ReportEventUpdateManyWithoutReportNestedInput
   consoleLogs?: Prisma.ConsoleLogEntryUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUpdateManyWithoutReportNestedInput
@@ -1817,6 +2019,7 @@ export type BugReportUncheckedUpdateWithoutCommentsInput = {
   events?: Prisma.ReportEventUncheckedUpdateManyWithoutReportNestedInput
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUncheckedUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUncheckedUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedUpdateManyWithoutReportNestedInput
@@ -1854,6 +2057,7 @@ export type BugReportCreateWithoutUploadsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryCreateNestedManyWithoutReportInput
@@ -1891,6 +2095,7 @@ export type BugReportUncheckedCreateWithoutUploadsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentUncheckedCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionUncheckedCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryUncheckedCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedCreateNestedManyWithoutReportInput
@@ -1944,6 +2149,7 @@ export type BugReportUpdateWithoutUploadsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUpdateManyWithoutReportNestedInput
@@ -1981,6 +2187,7 @@ export type BugReportUncheckedUpdateWithoutUploadsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUncheckedUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUncheckedUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUncheckedUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedUpdateManyWithoutReportNestedInput
@@ -2019,6 +2226,7 @@ export type BugReportCreateWithoutPageActionsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryCreateNestedManyWithoutReportInput
   performanceEntries?: Prisma.PerformanceEntryCreateNestedManyWithoutReportInput
@@ -2056,6 +2264,7 @@ export type BugReportUncheckedCreateWithoutPageActionsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentUncheckedCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionUncheckedCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedCreateNestedManyWithoutReportInput
   performanceEntries?: Prisma.PerformanceEntryUncheckedCreateNestedManyWithoutReportInput
@@ -2109,6 +2318,7 @@ export type BugReportUpdateWithoutPageActionsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUpdateManyWithoutReportNestedInput
   performanceEntries?: Prisma.PerformanceEntryUpdateManyWithoutReportNestedInput
@@ -2146,6 +2356,7 @@ export type BugReportUncheckedUpdateWithoutPageActionsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUncheckedUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUncheckedUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedUpdateManyWithoutReportNestedInput
   performanceEntries?: Prisma.PerformanceEntryUncheckedUpdateManyWithoutReportNestedInput
@@ -2183,6 +2394,7 @@ export type BugReportCreateWithoutRuntimeErrorsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryCreateNestedManyWithoutReportInput
   performanceEntries?: Prisma.PerformanceEntryCreateNestedManyWithoutReportInput
@@ -2220,6 +2432,7 @@ export type BugReportUncheckedCreateWithoutRuntimeErrorsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentUncheckedCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionUncheckedCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryUncheckedCreateNestedManyWithoutReportInput
   performanceEntries?: Prisma.PerformanceEntryUncheckedCreateNestedManyWithoutReportInput
@@ -2273,6 +2486,7 @@ export type BugReportUpdateWithoutRuntimeErrorsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUpdateManyWithoutReportNestedInput
   performanceEntries?: Prisma.PerformanceEntryUpdateManyWithoutReportNestedInput
@@ -2310,6 +2524,7 @@ export type BugReportUncheckedUpdateWithoutRuntimeErrorsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUncheckedUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUncheckedUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUncheckedUpdateManyWithoutReportNestedInput
   performanceEntries?: Prisma.PerformanceEntryUncheckedUpdateManyWithoutReportNestedInput
@@ -2347,6 +2562,7 @@ export type BugReportCreateWithoutPerformanceEntriesInput = {
   consoleLogs?: Prisma.ConsoleLogEntryCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryCreateNestedManyWithoutReportInput
@@ -2384,6 +2600,7 @@ export type BugReportUncheckedCreateWithoutPerformanceEntriesInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentUncheckedCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionUncheckedCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryUncheckedCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedCreateNestedManyWithoutReportInput
@@ -2437,6 +2654,7 @@ export type BugReportUpdateWithoutPerformanceEntriesInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUpdateManyWithoutReportNestedInput
@@ -2474,6 +2692,7 @@ export type BugReportUncheckedUpdateWithoutPerformanceEntriesInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUncheckedUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUncheckedUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUncheckedUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedUpdateManyWithoutReportNestedInput
@@ -2511,6 +2730,7 @@ export type BugReportCreateWithoutDomEventsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryCreateNestedManyWithoutReportInput
@@ -2548,6 +2768,7 @@ export type BugReportUncheckedCreateWithoutDomEventsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentUncheckedCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionUncheckedCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryUncheckedCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedCreateNestedManyWithoutReportInput
@@ -2601,6 +2822,7 @@ export type BugReportUpdateWithoutDomEventsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUpdateManyWithoutReportNestedInput
@@ -2638,6 +2860,7 @@ export type BugReportUncheckedUpdateWithoutDomEventsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUncheckedUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUncheckedUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUncheckedUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedUpdateManyWithoutReportNestedInput
@@ -2675,6 +2898,7 @@ export type BugReportCreateWithoutBackendTracesInput = {
   consoleLogs?: Prisma.ConsoleLogEntryCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryCreateNestedManyWithoutReportInput
@@ -2712,6 +2936,7 @@ export type BugReportUncheckedCreateWithoutBackendTracesInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentUncheckedCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionUncheckedCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryUncheckedCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedCreateNestedManyWithoutReportInput
@@ -2765,6 +2990,7 @@ export type BugReportUpdateWithoutBackendTracesInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUpdateManyWithoutReportNestedInput
@@ -2802,6 +3028,7 @@ export type BugReportUncheckedUpdateWithoutBackendTracesInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUncheckedUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUncheckedUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUncheckedUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedUpdateManyWithoutReportNestedInput
@@ -2838,6 +3065,7 @@ export type BugReportCreateWithoutEventsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryCreateNestedManyWithoutReportInput
@@ -2875,6 +3103,7 @@ export type BugReportUncheckedCreateWithoutEventsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentUncheckedCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionUncheckedCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryUncheckedCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedCreateNestedManyWithoutReportInput
@@ -2928,6 +3157,7 @@ export type BugReportUpdateWithoutEventsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUpdateManyWithoutReportNestedInput
@@ -2965,6 +3195,7 @@ export type BugReportUncheckedUpdateWithoutEventsInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUncheckedUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUncheckedUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUncheckedUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedUpdateManyWithoutReportNestedInput
@@ -3002,6 +3233,7 @@ export type BugReportCreateWithoutConsoleLogsInput = {
   events?: Prisma.ReportEventCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryCreateNestedManyWithoutReportInput
@@ -3039,6 +3271,7 @@ export type BugReportUncheckedCreateWithoutConsoleLogsInput = {
   events?: Prisma.ReportEventUncheckedCreateNestedManyWithoutReportInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentUncheckedCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionUncheckedCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryUncheckedCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedCreateNestedManyWithoutReportInput
@@ -3092,6 +3325,7 @@ export type BugReportUpdateWithoutConsoleLogsInput = {
   events?: Prisma.ReportEventUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUpdateManyWithoutReportNestedInput
@@ -3129,6 +3363,7 @@ export type BugReportUncheckedUpdateWithoutConsoleLogsInput = {
   events?: Prisma.ReportEventUncheckedUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUncheckedUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUncheckedUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUncheckedUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedUpdateManyWithoutReportNestedInput
@@ -3166,6 +3401,7 @@ export type BugReportCreateWithoutNetworkRequestsInput = {
   events?: Prisma.ReportEventCreateNestedManyWithoutReportInput
   consoleLogs?: Prisma.ConsoleLogEntryCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryCreateNestedManyWithoutReportInput
@@ -3203,6 +3439,7 @@ export type BugReportUncheckedCreateWithoutNetworkRequestsInput = {
   events?: Prisma.ReportEventUncheckedCreateNestedManyWithoutReportInput
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedCreateNestedManyWithoutReportInput
   comments?: Prisma.ReportCommentUncheckedCreateNestedManyWithoutReportInput
+  assignees?: Prisma.ReportAssigneeUncheckedCreateNestedManyWithoutReportInput
   captureSessions?: Prisma.CaptureSessionUncheckedCreateNestedManyWithoutReportInput
   pageActions?: Prisma.PageActionEntryUncheckedCreateNestedManyWithoutReportInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedCreateNestedManyWithoutReportInput
@@ -3256,6 +3493,7 @@ export type BugReportUpdateWithoutNetworkRequestsInput = {
   events?: Prisma.ReportEventUpdateManyWithoutReportNestedInput
   consoleLogs?: Prisma.ConsoleLogEntryUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUpdateManyWithoutReportNestedInput
@@ -3293,6 +3531,7 @@ export type BugReportUncheckedUpdateWithoutNetworkRequestsInput = {
   events?: Prisma.ReportEventUncheckedUpdateManyWithoutReportNestedInput
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUncheckedUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUncheckedUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUncheckedUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedUpdateManyWithoutReportNestedInput
@@ -3356,6 +3595,7 @@ export type BugReportUpdateWithoutWorkspaceInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUpdateManyWithoutReportNestedInput
@@ -3393,6 +3633,7 @@ export type BugReportUncheckedUpdateWithoutWorkspaceInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUncheckedUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUncheckedUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUncheckedUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedUpdateManyWithoutReportNestedInput
@@ -3482,6 +3723,7 @@ export type BugReportUpdateWithoutProjectInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUpdateManyWithoutReportNestedInput
@@ -3519,6 +3761,7 @@ export type BugReportUncheckedUpdateWithoutProjectInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUncheckedUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUncheckedUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUncheckedUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedUpdateManyWithoutReportNestedInput
@@ -3608,6 +3851,7 @@ export type BugReportUpdateWithoutCreatedByInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUpdateManyWithoutReportNestedInput
@@ -3645,6 +3889,7 @@ export type BugReportUncheckedUpdateWithoutCreatedByInput = {
   consoleLogs?: Prisma.ConsoleLogEntryUncheckedUpdateManyWithoutReportNestedInput
   networkRequests?: Prisma.NetworkRequestEntryUncheckedUpdateManyWithoutReportNestedInput
   comments?: Prisma.ReportCommentUncheckedUpdateManyWithoutReportNestedInput
+  assignees?: Prisma.ReportAssigneeUncheckedUpdateManyWithoutReportNestedInput
   captureSessions?: Prisma.CaptureSessionUncheckedUpdateManyWithoutReportNestedInput
   pageActions?: Prisma.PageActionEntryUncheckedUpdateManyWithoutReportNestedInput
   runtimeErrors?: Prisma.RuntimeErrorEntryUncheckedUpdateManyWithoutReportNestedInput
@@ -3690,6 +3935,7 @@ export type BugReportCountOutputType = {
   consoleLogs: number
   networkRequests: number
   comments: number
+  assignees: number
   captureSessions: number
   pageActions: number
   runtimeErrors: number
@@ -3704,6 +3950,7 @@ export type BugReportCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensi
   consoleLogs?: boolean | BugReportCountOutputTypeCountConsoleLogsArgs
   networkRequests?: boolean | BugReportCountOutputTypeCountNetworkRequestsArgs
   comments?: boolean | BugReportCountOutputTypeCountCommentsArgs
+  assignees?: boolean | BugReportCountOutputTypeCountAssigneesArgs
   captureSessions?: boolean | BugReportCountOutputTypeCountCaptureSessionsArgs
   pageActions?: boolean | BugReportCountOutputTypeCountPageActionsArgs
   runtimeErrors?: boolean | BugReportCountOutputTypeCountRuntimeErrorsArgs
@@ -3755,6 +4002,13 @@ export type BugReportCountOutputTypeCountNetworkRequestsArgs<ExtArgs extends run
  */
 export type BugReportCountOutputTypeCountCommentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.ReportCommentWhereInput
+}
+
+/**
+ * BugReportCountOutputType without action
+ */
+export type BugReportCountOutputTypeCountAssigneesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ReportAssigneeWhereInput
 }
 
 /**
@@ -3833,6 +4087,7 @@ export type BugReportSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   consoleLogs?: boolean | Prisma.BugReport$consoleLogsArgs<ExtArgs>
   networkRequests?: boolean | Prisma.BugReport$networkRequestsArgs<ExtArgs>
   comments?: boolean | Prisma.BugReport$commentsArgs<ExtArgs>
+  assignees?: boolean | Prisma.BugReport$assigneesArgs<ExtArgs>
   captureSessions?: boolean | Prisma.BugReport$captureSessionsArgs<ExtArgs>
   pageActions?: boolean | Prisma.BugReport$pageActionsArgs<ExtArgs>
   runtimeErrors?: boolean | Prisma.BugReport$runtimeErrorsArgs<ExtArgs>
@@ -3939,6 +4194,7 @@ export type BugReportInclude<ExtArgs extends runtime.Types.Extensions.InternalAr
   consoleLogs?: boolean | Prisma.BugReport$consoleLogsArgs<ExtArgs>
   networkRequests?: boolean | Prisma.BugReport$networkRequestsArgs<ExtArgs>
   comments?: boolean | Prisma.BugReport$commentsArgs<ExtArgs>
+  assignees?: boolean | Prisma.BugReport$assigneesArgs<ExtArgs>
   captureSessions?: boolean | Prisma.BugReport$captureSessionsArgs<ExtArgs>
   pageActions?: boolean | Prisma.BugReport$pageActionsArgs<ExtArgs>
   runtimeErrors?: boolean | Prisma.BugReport$runtimeErrorsArgs<ExtArgs>
@@ -3969,6 +4225,7 @@ export type $BugReportPayload<ExtArgs extends runtime.Types.Extensions.InternalA
     consoleLogs: Prisma.$ConsoleLogEntryPayload<ExtArgs>[]
     networkRequests: Prisma.$NetworkRequestEntryPayload<ExtArgs>[]
     comments: Prisma.$ReportCommentPayload<ExtArgs>[]
+    assignees: Prisma.$ReportAssigneePayload<ExtArgs>[]
     captureSessions: Prisma.$CaptureSessionPayload<ExtArgs>[]
     pageActions: Prisma.$PageActionEntryPayload<ExtArgs>[]
     runtimeErrors: Prisma.$RuntimeErrorEntryPayload<ExtArgs>[]
@@ -4407,6 +4664,7 @@ export interface Prisma__BugReportClient<T, Null = never, ExtArgs extends runtim
   consoleLogs<T extends Prisma.BugReport$consoleLogsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.BugReport$consoleLogsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConsoleLogEntryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   networkRequests<T extends Prisma.BugReport$networkRequestsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.BugReport$networkRequestsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NetworkRequestEntryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   comments<T extends Prisma.BugReport$commentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.BugReport$commentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ReportCommentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  assignees<T extends Prisma.BugReport$assigneesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.BugReport$assigneesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ReportAssigneePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   captureSessions<T extends Prisma.BugReport$captureSessionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.BugReport$captureSessionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CaptureSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   pageActions<T extends Prisma.BugReport$pageActionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.BugReport$pageActionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PageActionEntryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   runtimeErrors<T extends Prisma.BugReport$runtimeErrorsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.BugReport$runtimeErrorsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RuntimeErrorEntryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -5003,6 +5261,30 @@ export type BugReport$commentsArgs<ExtArgs extends runtime.Types.Extensions.Inte
   take?: number
   skip?: number
   distinct?: Prisma.ReportCommentScalarFieldEnum | Prisma.ReportCommentScalarFieldEnum[]
+}
+
+/**
+ * BugReport.assignees
+ */
+export type BugReport$assigneesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ReportAssignee
+   */
+  select?: Prisma.ReportAssigneeSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ReportAssignee
+   */
+  omit?: Prisma.ReportAssigneeOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ReportAssigneeInclude<ExtArgs> | null
+  where?: Prisma.ReportAssigneeWhereInput
+  orderBy?: Prisma.ReportAssigneeOrderByWithRelationInput | Prisma.ReportAssigneeOrderByWithRelationInput[]
+  cursor?: Prisma.ReportAssigneeWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ReportAssigneeScalarFieldEnum | Prisma.ReportAssigneeScalarFieldEnum[]
 }
 
 /**

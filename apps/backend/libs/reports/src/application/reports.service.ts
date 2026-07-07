@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   CompleteCaptureSessionDto,
@@ -6,6 +6,7 @@ import {
   CreateReportDto,
   CreateReportCommentDto,
   ListReportsQueryDto,
+  UpdateReportAssigneesDto,
   UpdateReportBoardDto,
   UpdateReportDto,
   type PaginatedReportsResponse,
@@ -19,15 +20,18 @@ import {
 import { PrismaService } from '@weevil/database';
 import {
   CaptureSessionStatus,
+  MembershipStatus,
   Prisma,
   ReportEventKind,
   ReportSource,
   ReportStatus,
+  UserStatus,
 } from '@weevil/prisma-client';
 import { RedactionService } from '@weevil/redaction';
 import { nanoid } from 'nanoid';
 import {
   ReportEvents,
+  type ReportAssigneesChangedEvent,
   type ReportCaptureCreatedEvent,
   type ReportCommentCreatedEvent,
 } from '../domain/report-events';
@@ -47,6 +51,15 @@ const reportReporterSelect = {
   email: true,
   displayName: true,
   avatarUrl: true,
+} as const;
+
+const reportAssigneesInclude = {
+  orderBy: { createdAt: 'asc' },
+  include: {
+    user: {
+      select: reportReporterSelect,
+    },
+  },
 } as const;
 
 @Injectable()
@@ -103,6 +116,7 @@ export class ReportsService {
         createdBy: {
           select: reportReporterSelect,
         },
+        assignees: reportAssigneesInclude,
       },
     });
 
@@ -120,6 +134,7 @@ export class ReportsService {
         createdBy: {
           select: reportReporterSelect,
         },
+        assignees: reportAssigneesInclude,
       },
     });
     if (!report || report.deletedAt) {
@@ -178,6 +193,7 @@ export class ReportsService {
         createdBy: {
           select: reportReporterSelect,
         },
+        assignees: reportAssigneesInclude,
       },
     });
 
@@ -275,6 +291,7 @@ export class ReportsService {
           createdBy: {
             select: reportReporterSelect,
           },
+          assignees: reportAssigneesInclude,
           uploads: {
             where: {
               kind: 'SCREEN_RECORDING',
@@ -302,6 +319,119 @@ export class ReportsService {
     });
 
     return this.mapper.toSummary(report);
+  }
+
+  async setAssignees(
+    reportId: string,
+    dto: UpdateReportAssigneesDto,
+    options: {
+      workspaceId?: string;
+      actorUserId?: string;
+      canUpdateAny?: boolean;
+      canUpdateOwn?: boolean;
+    } = {},
+  ): Promise<ReportSummaryResponse> {
+    const workspaceId = requireWorkspaceId(options.workspaceId);
+    const current = await this.prisma.bugReport.findUnique({
+      where: { id: reportId },
+      select: {
+        id: true,
+        workspaceId: true,
+        createdById: true,
+        deletedAt: true,
+      },
+    });
+    if (!current || current.deletedAt) {
+      throw new NotFoundException(`Report ${reportId} not found.`);
+    }
+    assertWorkspaceAccess(current, workspaceId);
+    if (
+      !options.canUpdateAny &&
+      !(options.canUpdateOwn && current.createdById === options.actorUserId)
+    ) {
+      throw new ForbiddenException('Missing permission to update this report.');
+    }
+
+    const assigneeUserIds = normalizeAssigneeUserIds(dto.assigneeUserIds);
+    await this.assertAssignableMembers(workspaceId, assigneeUserIds);
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.reportAssignee.findMany({
+        where: { reportId },
+        select: { userId: true },
+      });
+      const existingUserIds = new Set(existing.map((assignee) => assignee.userId));
+      const nextUserIds = new Set(assigneeUserIds);
+      const removedUserIds = existing
+        .map((assignee) => assignee.userId)
+        .filter((userId) => !nextUserIds.has(userId));
+      const addedUserIds = assigneeUserIds.filter((userId) => !existingUserIds.has(userId));
+
+      if (removedUserIds.length > 0) {
+        await tx.reportAssignee.deleteMany({
+          where: {
+            reportId,
+            userId: { in: removedUserIds },
+          },
+        });
+      }
+
+      if (addedUserIds.length > 0) {
+        await tx.reportAssignee.createMany({
+          data: addedUserIds.map((userId) => ({
+            reportId,
+            workspaceId,
+            userId,
+            assignedById: options.actorUserId ?? null,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      const report = await tx.bugReport.findUniqueOrThrow({
+        where: { id: reportId },
+        include: {
+          createdBy: {
+            select: reportReporterSelect,
+          },
+          assignees: reportAssigneesInclude,
+          uploads: {
+            where: {
+              kind: 'SCREEN_RECORDING',
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 1,
+          },
+          _count: {
+            select: {
+              uploads: true,
+              consoleLogs: true,
+              networkRequests: true,
+              comments: true,
+              pageActions: true,
+              runtimeErrors: true,
+              performanceEntries: true,
+              domEvents: true,
+              backendTraces: true,
+            },
+          },
+        },
+      });
+
+      return { report, addedUserIds };
+    });
+
+    if (result.addedUserIds.length > 0) {
+      this.eventEmitter.emit(ReportEvents.AssigneesChanged, {
+        reportId,
+        actorUserId: options.actorUserId,
+        addedUserIds: result.addedUserIds,
+      } satisfies ReportAssigneesChangedEvent);
+    }
+
+    return this.mapper.toSummary(result.report);
   }
 
   async list(
@@ -344,6 +474,7 @@ export class ReportsService {
           createdBy: {
             select: reportReporterSelect,
           },
+          assignees: reportAssigneesInclude,
           uploads: {
             where: {
               kind: 'SCREEN_RECORDING',
@@ -411,16 +542,20 @@ export class ReportsService {
       throw new NotFoundException('Shared capture not found.');
     }
 
-    return this.loadDetail(reportRow.id);
+    return this.loadDetail(reportRow.id, { includeAssignees: false });
   }
 
-  private async loadDetail(reportId: string): Promise<ReportDetailResponse> {
+  private async loadDetail(
+    reportId: string,
+    options: { includeAssignees?: boolean } = {},
+  ): Promise<ReportDetailResponse> {
     const report = await this.prisma.bugReport.findUniqueOrThrow({
       where: { id: reportId },
       include: {
         createdBy: {
           select: reportReporterSelect,
         },
+        assignees: reportAssigneesInclude,
         captureSessions: {
           orderBy: { startedAt: 'asc' },
           take: 20,
@@ -479,7 +614,7 @@ export class ReportsService {
       },
     });
 
-    return this.mapper.toDetail(report);
+    return this.mapper.toDetail(report, { includeAssignees: options.includeAssignees });
   }
 
   async createCaptureSession(
@@ -683,6 +818,39 @@ export class ReportsService {
   private redactRecord(value: Record<string, unknown> | undefined, shouldRedact: boolean) {
     return shouldRedact ? this.redaction.redactRecord(value) : value;
   }
+
+  private async assertAssignableMembers(workspaceId: string, userIds: string[]): Promise<void> {
+    if (userIds.length === 0) return;
+
+    const members = await this.prisma.workspaceMember.findMany({
+      where: {
+        workspaceId,
+        userId: { in: userIds },
+        status: MembershipStatus.ACTIVE,
+        user: {
+          status: UserStatus.ACTIVE,
+        },
+      },
+      select: {
+        userId: true,
+      },
+    });
+    const activeUserIds = new Set(members.map((member) => member.userId));
+    const invalidUserIds = userIds.filter((userId) => !activeUserIds.has(userId));
+    if (invalidUserIds.length > 0) {
+      throw new BadRequestException('Assignees must be active members of this workspace.');
+    }
+  }
+}
+
+function normalizeAssigneeUserIds(values: string[] | undefined): string[] {
+  const unique = Array.from(
+    new Set((values ?? []).map((value) => value.trim()).filter(Boolean)),
+  );
+  if (unique.length > 20) {
+    throw new BadRequestException('A capture can have at most 20 assignees.');
+  }
+  return unique;
 }
 
 function normalizeBoardColumn(value: string): string {

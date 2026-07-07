@@ -9,10 +9,13 @@ import {
 } from '@weevil/prisma-client';
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayUnique,
   IsBoolean,
   IsEnum,
   IsDate,
   IsInt,
+  IsArray,
   IsNumber,
   IsObject,
   IsOptional,
@@ -111,6 +114,15 @@ export class UpdateReportBoardDto {
   targetIndex?: number;
 }
 
+export class UpdateReportAssigneesDto {
+  @IsArray()
+  @ArrayUnique()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(128, { each: true })
+  assigneeUserIds: string[];
+}
+
 export interface ReportSummaryResponse {
   id: string;
   workspaceId: string;
@@ -135,6 +147,7 @@ export interface ReportSummaryResponse {
   domEventCount?: number;
   backendTraceCount?: number;
   reporter?: ReportReporterResponse | null;
+  assignees: ReportAssigneeResponse[];
   primaryRecording?: ReportUploadResponse | null;
   createdAt: string;
   updatedAt: string;
@@ -145,6 +158,14 @@ export interface ReportReporterResponse {
   email: string;
   displayName?: string | null;
   avatarUrl?: string | null;
+}
+
+export interface ReportAssigneeResponse {
+  id: string;
+  email: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+  assignedAt: string;
 }
 
 export class ListReportsQueryDto {

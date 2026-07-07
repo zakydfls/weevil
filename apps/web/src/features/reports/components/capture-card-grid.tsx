@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { StatusBadge, isUserVisibleReportStatus } from './status-badge';
+import { AssigneeAvatarStack } from './report-assignees';
 import type { ReportReporter, ReportSummary } from '@/lib/api/types';
 import { apiClient } from '@/lib/api/client';
 
@@ -133,6 +134,14 @@ export function CaptureCardGrid({ reports, isLoading, isError, onRetry, onSelect
                       </div>
                     </div>
                   </div>
+                  {report.assignees.length > 0 ? (
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+                        Assigned
+                      </span>
+                      <AssigneeAvatarStack assignees={report.assignees} />
+                    </div>
+                  ) : null}
                 </div>
                 <time className="shrink-0 font-mono text-xs text-[var(--ink-faint)]">
                   {shortDate(report.createdAt)}

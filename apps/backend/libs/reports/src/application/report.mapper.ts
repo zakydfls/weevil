@@ -26,6 +26,7 @@ import type {
   PerformanceEntry,
   ReportComment,
   ReportEvent,
+  ReportAssignee,
   ReportUpload,
   RuntimeErrorEntry,
   User,
@@ -47,11 +48,13 @@ type ReportCountShape = {
 type ReportSummaryModel = BugReport & {
   uploads?: ReportUpload[];
   createdBy?: ReportReporterModel | null;
+  assignees?: ReportAssigneeModel[];
   _count?: ReportCountShape;
 };
 
 type ReportDetailModel = BugReport & {
   createdBy?: ReportReporterModel | null;
+  assignees?: ReportAssigneeModel[];
   uploads: ReportUpload[];
   events: ReportEvent[];
   consoleLogs: ConsoleLogEntry[];
@@ -67,13 +70,19 @@ type ReportDetailModel = BugReport & {
 };
 
 type ReportReporterModel = Pick<User, 'id' | 'email' | 'displayName' | 'avatarUrl'>;
+type ReportAssigneeModel = ReportAssignee & { user: ReportReporterModel };
+
+interface ReportMapOptions {
+  includeAssignees?: boolean;
+}
 
 @Injectable()
 export class ReportMapper {
   constructor(private readonly redaction: RedactionService) {}
 
-  toSummary(report: ReportSummaryModel): ReportSummaryResponse {
+  toSummary(report: ReportSummaryModel, options: ReportMapOptions = {}): ReportSummaryResponse {
     const shouldRedact = this.redaction.shouldRedact(report.metadata);
+    const includeAssignees = options.includeAssignees ?? true;
 
     return {
       id: report.id,
@@ -99,17 +108,18 @@ export class ReportMapper {
       domEventCount: report._count?.domEvents,
       backendTraceCount: report._count?.backendTraces,
       reporter: this.toReporter(report.createdBy),
+      assignees: includeAssignees ? this.toAssignees(report.assignees) : [],
       primaryRecording: this.findPrimaryRecording(report.uploads),
       createdAt: report.createdAt.toISOString(),
       updatedAt: report.updatedAt.toISOString(),
     };
   }
 
-  toDetail(report: ReportDetailModel): ReportDetailResponse {
+  toDetail(report: ReportDetailModel, options: ReportMapOptions = {}): ReportDetailResponse {
     const shouldRedact = this.redaction.shouldRedact(report.metadata);
 
     return {
-      ...this.toSummary(report),
+      ...this.toSummary(report, options),
       userAgent: report.userAgent,
       browserVersion: report.browserVersion,
       viewportWidth: report.viewportWidth,
@@ -163,6 +173,16 @@ export class ReportMapper {
       displayName: reporter.displayName,
       avatarUrl: reporter.avatarUrl,
     };
+  }
+
+  private toAssignees(assignees: ReportAssigneeModel[] | undefined) {
+    return (assignees ?? []).map((assignee) => ({
+      id: assignee.user.id,
+      email: assignee.user.email,
+      displayName: assignee.user.displayName,
+      avatarUrl: assignee.user.avatarUrl,
+      assignedAt: assignee.createdAt.toISOString(),
+    }));
   }
 
   private toEvent(event: ReportEvent): ReportEventResponse {

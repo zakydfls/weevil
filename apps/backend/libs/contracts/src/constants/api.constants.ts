@@ -22,6 +22,7 @@ export const ApiRoutes = {
   ReportComments: 'reports/:reportId/comments',
   ReportCommentsRelative: ':reportId/comments',
   ReportBoardRelative: ':reportId/board',
+  ReportAssigneesRelative: ':reportId/assignees',
   ReportCaptureSessionsRelative: ':reportId/capture-sessions',
   ReportCaptureSessionCompleteRelative: ':reportId/capture-sessions/:sessionId/complete',
   ReportTimelineRelative: ':reportId/timeline',
