@@ -97,6 +97,14 @@ EOF
 printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
 
 docker compose --env-file "$DEPLOY_ENV_FILE" -f "$COMPOSE_FILE" pull
+
+# One-time recovery for a bad migration that was shipped with a reference to a
+# later table. The migration SQL is now idempotent, but Prisma refuses to apply
+# any new migration while this row is marked failed in _prisma_migrations.
+docker compose --env-file "$DEPLOY_ENV_FILE" -f "$COMPOSE_FILE" run --rm migrate \
+  pnpm prisma migrate resolve --rolled-back 20260707090148_add_network_request_resource_type \
+  || true
+
 docker compose --env-file "$DEPLOY_ENV_FILE" -f "$COMPOSE_FILE" run --rm migrate
 
 case "${RUN_PROD_SEED,,}" in
