@@ -179,16 +179,34 @@ export function AssigneeEditorPopover({
     >
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button type="button" variant="secondary" size={compact ? 'sm' : 'sm'} className={compact ? 'h-7 gap-1.5 px-2' : 'h-8'}>
-            {report.assignees.length > 0 ? (
-              <AssigneeAvatarStack assignees={report.assignees} size="sm" />
-            ) : (
-              <UserPlus className="h-3.5 w-3.5" aria-hidden />
-            )}
-            <span className={compact ? 'sr-only' : 'hidden sm:inline'}>
-              {report.assignees.length > 0 ? 'Assignees' : 'Assign'}
-            </span>
-          </Button>
+          {compact ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-full p-0 transition-transform hover:scale-105 hover:bg-transparent"
+              aria-label={report.assignees.length > 0 ? `Change assignees — ${assigneeLabel(report.assignees)}` : 'Assign capture'}
+            >
+              {report.assignees.length > 0 ? (
+                <AssigneeAvatarStack assignees={report.assignees} size="sm" />
+              ) : (
+                <span className="grid h-7 w-7 place-items-center rounded-full border border-dashed border-[var(--border-strong)] text-[var(--ink-faint)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]">
+                  <UserPlus className="h-3.5 w-3.5" aria-hidden />
+                </span>
+              )}
+            </Button>
+          ) : (
+            <Button type="button" variant="secondary" size="sm" className="h-8 gap-1.5">
+              {report.assignees.length > 0 ? (
+                <AssigneeAvatarStack assignees={report.assignees} size="sm" />
+              ) : (
+                <UserPlus className="h-3.5 w-3.5" aria-hidden />
+              )}
+              <span className="hidden sm:inline">
+                {report.assignees.length > 0 ? 'Assignees' : 'Assign'}
+              </span>
+            </Button>
+          )}
         </PopoverTrigger>
         <PopoverContent align={align} className="w-[min(22rem,calc(100vw-1.5rem))] p-0">
           <div className="border-b border-[var(--divider)] p-3">
