@@ -82,7 +82,7 @@ function patchConsole() {
 
     originalConsoleMethods.set(method, original);
     console[method] = (...args: unknown[]) => {
-      postConsole(level, method, args, method === 'error' || method === 'trace');
+      postConsole(level, method, args);
       original.apply(console, args);
     };
   });
@@ -92,7 +92,7 @@ function patchConsole() {
     originalConsoleAssert = originalAssert;
     console.assert = (condition?: boolean, ...args: unknown[]) => {
       if (!condition) {
-        postConsole('ERROR', 'assert', args.length > 0 ? args : ['Assertion failed'], true);
+        postConsole('ERROR', 'assert', args.length > 0 ? args : ['Assertion failed']);
       }
       originalAssert.call(console, condition, ...args);
     };
@@ -553,12 +553,12 @@ function normalizeUrl(input: RequestInfo | URL) {
   }
 }
 
-function postConsole(level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR', method: string, args: unknown[], withStack = false) {
+function postConsole(level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR', method: string, args: unknown[]) {
   post(PageMessageTypes.Console, {
     level,
     message: formatConsoleMessage(method, args),
     args: normalizeArgs(args),
-    stack: withStack ? new Error().stack : undefined,
+    stack: extractErrorStack(args),
     pageUrl: location.href,
     timestamp: nowIso(),
   });
@@ -690,4 +690,36 @@ function normalizeArgs(args: unknown[]) {
     record[String(index)] = truncateText(safeStringify(item, 2_000), 2_000);
     return record;
   }, {});
+}
+
+function extractErrorStack(args: unknown[]): string | undefined {
+  for (const arg of args) {
+    const stack = stackFromConsoleArg(arg);
+    if (stack) {
+      return stack;
+    }
+  }
+
+  return undefined;
+}
+
+function stackFromConsoleArg(value: unknown): string | undefined {
+  if (value instanceof Error && typeof value.stack === 'string' && value.stack.trim()) {
+    return value.stack;
+  }
+
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+
+  const record = value as { stack?: unknown; name?: unknown; message?: unknown };
+  if (
+    typeof record.stack === 'string' &&
+    record.stack.trim() &&
+    (typeof record.message === 'string' || typeof record.name === 'string')
+  ) {
+    return record.stack;
+  }
+
+  return undefined;
 }

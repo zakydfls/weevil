@@ -617,13 +617,14 @@ async function appendPageTelemetry(message: { type: string; payload: unknown }, 
 
   if (message.type.endsWith('CONSOLE')) {
     const timestamp = optionalString(payload.timestamp) ?? new Date().toISOString();
+    const stack = sanitizeConsoleStack(optionalString(payload.stack, maxTelemetryTextChars));
     buffers.consoleLogs.push({
       ...base,
       offsetMs: offsetFromClamped(state.startedAt, timestamp),
       level: normalizeConsoleLevel(payload.level),
       message: limitText(String(payload.message ?? ''), maxTelemetryTextChars),
       args: normalizeRecord(payload.args),
-      stack: optionalString(payload.stack, maxTelemetryTextChars),
+      stack,
       pageUrl: optionalUrlString(payload.pageUrl),
       timestamp,
     });
@@ -1661,6 +1662,23 @@ function toRecord(value: unknown) {
 
 function optionalString(value: unknown, maxLength = maxTelemetryTextChars) {
   return typeof value === 'string' && value.length > 0 ? limitText(value, maxLength) : undefined;
+}
+
+function sanitizeConsoleStack(stack: string | undefined) {
+  if (!stack) {
+    return undefined;
+  }
+
+  const normalizedStack = stack.toLowerCase();
+  if (
+    normalizedStack.includes('page/page-bridge') ||
+    normalizedStack.includes('page-bridge.js') ||
+    normalizedStack.includes('weevil_page_bridge')
+  ) {
+    return undefined;
+  }
+
+  return stack;
 }
 
 function optionalNumber(value: unknown) {

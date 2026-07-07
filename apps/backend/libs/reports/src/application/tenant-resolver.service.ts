@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
+import { AppConfigService } from '@weevil/config';
 import { PrismaService } from '@weevil/database';
 import { DevTenant } from '@weevil/contracts';
 
@@ -9,7 +10,10 @@ export interface TenantContext {
 
 @Injectable()
 export class TenantResolverService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: AppConfigService,
+  ) {}
 
   /**
    * Resolve tenant for an authenticated workspace. Picks the project by projectId if given,
@@ -38,6 +42,9 @@ export class TenantResolverService {
   }
 
   async resolve(projectId?: string): Promise<TenantContext> {
+    if (this.config.nodeEnv === 'production') {
+      throw new ForbiddenException('Authentication is required to create reports.');
+    }
     if (projectId) {
       const project = await this.prisma.project.findUniqueOrThrow({
         where: { id: projectId },

@@ -43,6 +43,7 @@ export class ReportsController {
     return this.reportsService.create(dto, {
       workspaceId: auth?.workspace?.id,
       createdById: auth?.user?.id,
+      canCreate: auth?.workspace?.permissions.has(Permission.REPORT_CREATE) ?? false,
     });
   }
 
@@ -135,13 +136,11 @@ export class ReportsController {
   @Public()
   @Post(ApiRoutes.ReportCaptureSessionsRelative)
   createCaptureSession(
-    @OptionalAuth() auth: AuthContext | null,
     @Headers('x-weevil-report-token') reportToken: string | undefined,
     @Param(RouteParams.ReportId) reportId: string,
     @Body() dto: CreateCaptureSessionDto,
   ) {
     return this.reportsService.createCaptureSession(reportId, dto, {
-      workspaceId: auth?.workspace?.id,
       reportToken,
     });
   }
@@ -149,14 +148,12 @@ export class ReportsController {
   @Public()
   @Post(ApiRoutes.ReportCaptureSessionCompleteRelative)
   completeCaptureSession(
-    @OptionalAuth() auth: AuthContext | null,
     @Headers('x-weevil-report-token') reportToken: string | undefined,
     @Param(RouteParams.ReportId) reportId: string,
     @Param(RouteParams.SessionId) sessionId: string,
     @Body() dto: CompleteCaptureSessionDto,
   ) {
     return this.reportsService.completeCaptureSession(reportId, sessionId, dto, {
-      workspaceId: auth?.workspace?.id,
       reportToken,
     });
   }

@@ -29,6 +29,11 @@ interface WorkspaceNotificationPreferencesInput {
   emailOnNewComment?: boolean;
 }
 
+const OWNER_ONLY_PERMISSIONS = new Set<Permission>([
+  Permission.WORKSPACE_DELETE,
+  Permission.WORKSPACE_BILLING,
+]);
+
 @Injectable()
 export class WorkspaceService {
   constructor(
@@ -105,7 +110,10 @@ export class WorkspaceService {
       throw new NotFoundException('Workspace not found.');
     }
 
-    const workspaceContext = await this.permissionService.loadWorkspaceContext(userId, workspace.id);
+    const workspaceContext = await this.permissionService.loadWorkspaceContext(
+      userId,
+      workspace.id,
+    );
     if (!workspaceContext) {
       throw new ForbiddenException('You are not a member of this workspace.');
     }
@@ -235,6 +243,8 @@ export class WorkspaceService {
       }),
     ]);
     if (!workspace) throw new NotFoundException('Workspace not found.');
+    const inviterMember = await this.requireActiveMember(workspaceId, invitedById);
+    assertCanAssignRole(inviterMember.role, role);
 
     // Reject if already a member
     const existingUser = await this.prisma.user.findUnique({ where: { email: cleanEmail } });
@@ -288,10 +298,26 @@ export class WorkspaceService {
     };
   }
 
-  async changeRole(workspaceId: string, memberId: string, role: WorkspaceRole) {
-    const member = await this.prisma.workspaceMember.findUnique({ where: { id: memberId } });
+  async changeRole(
+    workspaceId: string,
+    memberId: string,
+    role: WorkspaceRole,
+    actingUserId: string,
+  ) {
+    const [member, actingMember] = await Promise.all([
+      this.prisma.workspaceMember.findUnique({ where: { id: memberId } }),
+      this.requireActiveMember(workspaceId, actingUserId),
+    ]);
     if (!member || member.workspaceId !== workspaceId) {
       throw new NotFoundException('Member not found.');
+    }
+    assertCanManageTarget(actingMember.role, member.role);
+    assertCanAssignRole(actingMember.role, role);
+    if (member.userId === actingUserId && roleRank(role) > roleRank(member.role)) {
+      throw new ForbiddenException('You cannot promote your own role.');
+    }
+    if (member.role === WorkspaceRole.OWNER && role !== WorkspaceRole.OWNER) {
+      await this.assertNotLastOwner(workspaceId);
     }
     return this.prisma.workspaceMember.update({
       where: { id: memberId },
@@ -304,10 +330,31 @@ export class WorkspaceService {
     memberId: string,
     extraPermissions: Permission[],
     deniedPermissions: Permission[],
+    actingUserId: string,
   ) {
-    const member = await this.prisma.workspaceMember.findUnique({ where: { id: memberId } });
+    const [member, actingMember] = await Promise.all([
+      this.prisma.workspaceMember.findUnique({ where: { id: memberId } }),
+      this.requireActiveMember(workspaceId, actingUserId),
+    ]);
     if (!member || member.workspaceId !== workspaceId) {
       throw new NotFoundException('Member not found.');
+    }
+    if (member.userId === actingUserId) {
+      throw new ForbiddenException('You cannot change your own permission overrides.');
+    }
+    assertCanManageTarget(actingMember.role, member.role);
+    const actingPermissions = resolveEffectivePermissions(
+      actingMember.role,
+      actingMember.extraPermissions,
+      actingMember.deniedPermissions,
+    );
+    for (const permission of extraPermissions) {
+      if (!actingPermissions.has(permission)) {
+        throw new ForbiddenException(`Cannot grant permission you do not have: ${permission}`);
+      }
+      if (OWNER_ONLY_PERMISSIONS.has(permission) && actingMember.role !== WorkspaceRole.OWNER) {
+        throw new ForbiddenException(`Only owners can grant permission: ${permission}`);
+      }
     }
     return this.prisma.workspaceMember.update({
       where: { id: memberId },
@@ -393,18 +440,17 @@ export class WorkspaceService {
   }
 
   async removeMember(workspaceId: string, memberId: string, actingUserId: string) {
-    const member = await this.prisma.workspaceMember.findUnique({ where: { id: memberId } });
+    const [member, actingMember] = await Promise.all([
+      this.prisma.workspaceMember.findUnique({ where: { id: memberId } }),
+      this.requireActiveMember(workspaceId, actingUserId),
+    ]);
     if (!member || member.workspaceId !== workspaceId) {
       throw new NotFoundException('Member not found.');
     }
+    assertCanManageTarget(actingMember.role, member.role);
     // Prevent removing the last OWNER
     if (member.role === WorkspaceRole.OWNER) {
-      const ownerCount = await this.prisma.workspaceMember.count({
-        where: { workspaceId, role: WorkspaceRole.OWNER, status: MembershipStatus.ACTIVE },
-      });
-      if (ownerCount <= 1) {
-        throw new ForbiddenException('Cannot remove the last owner. Promote someone else first.');
-      }
+      await this.assertNotLastOwner(workspaceId);
     }
     await this.prisma.workspaceMember.delete({ where: { id: memberId } });
     if (member.userId === actingUserId) {
@@ -425,10 +471,60 @@ export class WorkspaceService {
       throw new ForbiddenException('No active membership for this workspace.');
     }
   }
+
+  private async requireActiveMember(workspaceId: string, userId: string) {
+    const membership = await this.prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      select: {
+        role: true,
+        status: true,
+        extraPermissions: true,
+        deniedPermissions: true,
+      },
+    });
+    if (!membership || membership.status !== MembershipStatus.ACTIVE) {
+      throw new ForbiddenException('No active membership for this workspace.');
+    }
+    return membership;
+  }
+
+  private async assertNotLastOwner(workspaceId: string) {
+    const ownerCount = await this.prisma.workspaceMember.count({
+      where: { workspaceId, role: WorkspaceRole.OWNER, status: MembershipStatus.ACTIVE },
+    });
+    if (ownerCount <= 1) {
+      throw new ForbiddenException('Cannot remove the last owner. Promote someone else first.');
+    }
+  }
 }
 
 function compactBooleanUpdate(input: WorkspaceNotificationPreferencesInput) {
   return Object.fromEntries(
     Object.entries(input).filter(([, value]) => typeof value === 'boolean'),
   );
+}
+
+function assertCanManageTarget(actingRole: WorkspaceRole, targetRole: WorkspaceRole): void {
+  if (targetRole === WorkspaceRole.OWNER && actingRole !== WorkspaceRole.OWNER) {
+    throw new ForbiddenException('Only owners can manage another owner.');
+  }
+}
+
+function assertCanAssignRole(actingRole: WorkspaceRole, targetRole: WorkspaceRole): void {
+  if (roleRank(targetRole) > roleRank(actingRole)) {
+    throw new ForbiddenException('Cannot assign a role above your own role.');
+  }
+}
+
+function roleRank(role: WorkspaceRole): number {
+  switch (role) {
+    case WorkspaceRole.OWNER:
+      return 3;
+    case WorkspaceRole.ADMIN:
+      return 2;
+    case WorkspaceRole.MEMBER:
+      return 1;
+    case WorkspaceRole.VIEWER:
+      return 0;
+  }
 }

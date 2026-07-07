@@ -139,7 +139,7 @@ export class WorkspacesController {
     @Param('memberId') memberId: string,
     @Body() body: ChangeRoleDto,
   ) {
-    return this.workspaceService.changeRole(auth.workspace!.id, memberId, body.role);
+    return this.workspaceService.changeRole(auth.workspace!.id, memberId, body.role, auth.user.id);
   }
 
   @Patch('current/members/:memberId/permissions')
@@ -154,17 +154,14 @@ export class WorkspacesController {
       memberId,
       body.extraPermissions ?? [],
       body.deniedPermissions ?? [],
+      auth.user.id,
     );
   }
 
   @Post('current/join-requests/:memberId/approve')
   @RequirePermissions(Permission.MEMBER_INVITE)
   approveJoinRequest(@CurrentAuth() auth: AuthContext, @Param('memberId') memberId: string) {
-    return this.workspaceService.approveJoinRequest(
-      auth.workspace!.id,
-      memberId,
-      auth.user.id,
-    );
+    return this.workspaceService.approveJoinRequest(auth.workspace!.id, memberId, auth.user.id);
   }
 
   @Delete('current/join-requests/:memberId')

@@ -9,13 +9,9 @@ import {
   AttachRuntimeErrorsDto,
 } from '@weevil/contracts';
 import { PrismaService } from '@weevil/database';
-import {
-  BackendTraceStatus,
-  Prisma,
-  ReportEventKind,
-} from '@weevil/prisma-client';
+import { BackendTraceStatus, Prisma, ReportEventKind } from '@weevil/prisma-client';
 import { RedactionService } from '@weevil/redaction';
-import { assertReportAccess, type ReportAccessOptions } from './report-access';
+import { assertReportTokenAccess, type ReportAccessOptions } from './report-access';
 
 @Injectable()
 export class TelemetryService {
@@ -332,7 +328,7 @@ export class TelemetryService {
       where: { id: reportId },
       select: { metadata: true, workspaceId: true, shareToken: true, ingestToken: true },
     });
-    assertReportAccess(report, options);
+    assertReportTokenAccess(report, options.reportToken);
     const shouldRedact = this.redaction.shouldRedact(report.metadata);
 
     return {

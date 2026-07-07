@@ -8,6 +8,7 @@ import {
 } from '@weevil/prisma-client';
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
   IsDate,
   IsEnum,
@@ -21,6 +22,8 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+
+const MAX_TELEMETRY_BATCH_ENTRIES = 100;
 
 export class ConsoleLogEntryDto {
   @IsOptional()
@@ -62,6 +65,7 @@ export class ConsoleLogEntryDto {
 
 export class AttachConsoleLogsDto {
   @IsArray()
+  @ArrayMaxSize(MAX_TELEMETRY_BATCH_ENTRIES)
   @ValidateNested({ each: true })
   @Type(() => ConsoleLogEntryDto)
   entries: ConsoleLogEntryDto[];
@@ -141,6 +145,7 @@ export class NetworkRequestEntryDto {
 
 export class AttachNetworkRequestsDto {
   @IsArray()
+  @ArrayMaxSize(MAX_TELEMETRY_BATCH_ENTRIES)
   @ValidateNested({ each: true })
   @Type(() => NetworkRequestEntryDto)
   entries: NetworkRequestEntryDto[];
@@ -235,6 +240,7 @@ export class PageActionEntryDto {
 
 export class AttachPageActionsDto {
   @IsArray()
+  @ArrayMaxSize(MAX_TELEMETRY_BATCH_ENTRIES)
   @ValidateNested({ each: true })
   @Type(() => PageActionEntryDto)
   entries: PageActionEntryDto[];
@@ -304,6 +310,7 @@ export class RuntimeErrorEntryDto {
 
 export class AttachRuntimeErrorsDto {
   @IsArray()
+  @ArrayMaxSize(MAX_TELEMETRY_BATCH_ENTRIES)
   @ValidateNested({ each: true })
   @Type(() => RuntimeErrorEntryDto)
   entries: RuntimeErrorEntryDto[];
@@ -369,6 +376,7 @@ export class PerformanceEntryDto {
 
 export class AttachPerformanceEntriesDto {
   @IsArray()
+  @ArrayMaxSize(MAX_TELEMETRY_BATCH_ENTRIES)
   @ValidateNested({ each: true })
   @Type(() => PerformanceEntryDto)
   entries: PerformanceEntryDto[];
@@ -434,6 +442,7 @@ export class DomEventEntryDto {
 
 export class AttachDomEventsDto {
   @IsArray()
+  @ArrayMaxSize(MAX_TELEMETRY_BATCH_ENTRIES)
   @ValidateNested({ each: true })
   @Type(() => DomEventEntryDto)
   entries: DomEventEntryDto[];
@@ -519,6 +528,7 @@ export class BackendTraceEntryDto {
 
 export class AttachBackendTracesDto {
   @IsArray()
+  @ArrayMaxSize(MAX_TELEMETRY_BATCH_ENTRIES)
   @ValidateNested({ each: true })
   @Type(() => BackendTraceEntryDto)
   entries: BackendTraceEntryDto[];

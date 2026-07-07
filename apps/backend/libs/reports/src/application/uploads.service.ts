@@ -9,19 +9,34 @@ import {
   type DownloadUrlResponse,
 } from '@weevil/contracts';
 import { PrismaService } from '@weevil/database';
-import { Prisma, ReportEventKind, ReportStatus, UploadStatus } from '@weevil/prisma-client';
+import {
+  Prisma,
+  ReportEventKind,
+  ReportStatus,
+  UploadKind,
+  UploadStatus,
+} from '@weevil/prisma-client';
 import { QueueService } from '@weevil/queue';
 import { StorageService } from '@weevil/storage';
 import { nanoid } from 'nanoid';
 import { extensionFromContentType } from '../domain/content-type-extension.map';
 import {
-  assertReportAccess,
+  assertReportTokenAccess,
   assertWorkspaceAccess,
   type ReportAccessOptions,
 } from './report-access';
 
 const UPLOAD_ID_SIZE = 21;
 const MIN_SCREEN_RECORDING_BYTES = 1_024;
+const MAX_UPLOAD_BYTES_BY_KIND: Partial<Record<UploadKind, number>> = {
+  [UploadKind.SCREEN_RECORDING]: 250 * 1024 * 1024,
+  [UploadKind.SCREENSHOT]: 25 * 1024 * 1024,
+  [UploadKind.HAR]: 50 * 1024 * 1024,
+  [UploadKind.DOM_SNAPSHOT]: 25 * 1024 * 1024,
+  [UploadKind.CONSOLE_LOGS]: 10 * 1024 * 1024,
+  [UploadKind.NETWORK_LOGS]: 50 * 1024 * 1024,
+  [UploadKind.OTHER]: 50 * 1024 * 1024,
+};
 
 @Injectable()
 export class UploadsService {
@@ -48,7 +63,8 @@ export class UploadsService {
         ingestToken: true,
       },
     });
-    assertReportAccess(report, options);
+    assertReportTokenAccess(report, options.reportToken);
+    assertUploadSizeWithinLimit(dto.kind, dto.byteSize);
 
     const uploadId = nanoid(UPLOAD_ID_SIZE);
     const objectKey = this.storage.buildReportObjectKey({
@@ -122,13 +138,23 @@ export class UploadsService {
         },
       },
     });
-    assertReportAccess(upload.report, options);
+    assertReportTokenAccess(upload.report, options.reportToken);
     const objectMetadata = await this.storage.getObjectMetadata(upload.bucket, upload.objectKey);
 
     if (upload.kind === 'SCREEN_RECORDING' && objectMetadata.size < MIN_SCREEN_RECORDING_BYTES) {
       throw new BadRequestException(
         `Uploaded screen recording is too small (${objectMetadata.size} bytes).`,
       );
+    }
+    try {
+      assertUploadSizeWithinLimit(upload.kind, objectMetadata.size);
+    } catch (error) {
+      await this.storage.removeObject(upload.bucket, upload.objectKey).catch((removeError) => {
+        this.logger.warn(
+          `Failed to remove oversized upload ${uploadId}: ${formatError(removeError)}`,
+        );
+      });
+      throw error;
     }
 
     if (dto.byteSize && dto.byteSize !== objectMetadata.size) {
@@ -224,4 +250,18 @@ export class UploadsService {
       expiresInSeconds: UploadDefaults.PresignedGetExpirySeconds,
     };
   }
+}
+
+function assertUploadSizeWithinLimit(kind: UploadKind, byteSize: number | undefined): void {
+  if (!byteSize) return;
+  const maxBytes = MAX_UPLOAD_BYTES_BY_KIND[kind] ?? MAX_UPLOAD_BYTES_BY_KIND[UploadKind.OTHER]!;
+  if (byteSize > maxBytes) {
+    throw new BadRequestException(
+      `${kind} upload is too large. Maximum allowed size is ${maxBytes} bytes.`,
+    );
+  }
+}
+
+function formatError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

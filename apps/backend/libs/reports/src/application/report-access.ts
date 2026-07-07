@@ -35,6 +35,16 @@ export function assertReportAccess(subject: ReportAccessSubject, options: Report
   throw new ForbiddenException('You do not have access to this report.');
 }
 
+export function assertReportTokenAccess(
+  subject: ReportAccessSubject,
+  reportToken: string | null | undefined,
+) {
+  if (hasReportTokenAccess(subject, reportToken)) {
+    return;
+  }
+  throw new ForbiddenException('A valid report ingest token is required.');
+}
+
 export function hasReportTokenAccess(
   subject: ReportAccessSubject,
   reportToken: string | null | undefined,

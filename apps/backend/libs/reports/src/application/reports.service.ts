@@ -33,6 +33,7 @@ import {
 } from '../domain/report-events';
 import {
   assertReportAccess,
+  assertReportTokenAccess,
   assertWorkspaceAccess,
   hasReportTokenAccess,
   requireWorkspaceId,
@@ -60,11 +61,14 @@ export class ReportsService {
 
   async create(
     dto: CreateReportDto,
-    options: { workspaceId?: string; createdById?: string } = {},
+    options: { workspaceId?: string; createdById?: string; canCreate?: boolean } = {},
   ): Promise<ReportSummaryResponse & { ingestToken: string }> {
+    if (options.workspaceId && !options.canCreate) {
+      throw new ForbiddenException('Missing permission to create reports.');
+    }
     const tenant = options.workspaceId
       ? await this.tenantResolver.resolveForWorkspace(options.workspaceId, dto.projectId)
-      : await this.tenantResolver.resolve(dto.projectId);
+      : await this.tenantResolver.resolve();
     const title = dto.title?.trim() || ReportDefaults.UntitledReport;
     const shouldRedact = this.redaction.shouldRedact(dto.metadata);
 
@@ -487,7 +491,7 @@ export class ReportsService {
       where: { id: reportId },
       select: { id: true, metadata: true, workspaceId: true, shareToken: true, ingestToken: true },
     });
-    assertReportAccess(report, options);
+    assertReportTokenAccess(report, options.reportToken);
     const shouldRedact = this.redaction.shouldRedact(report.metadata);
 
     const session = await this.prisma.$transaction(async (tx) => {
@@ -667,7 +671,7 @@ export class ReportsService {
       where: { id: reportId },
       select: { metadata: true, workspaceId: true, shareToken: true, ingestToken: true },
     });
-    assertReportAccess(report, options);
+    assertReportTokenAccess(report, options.reportToken);
 
     return this.redaction.shouldRedact(report.metadata);
   }

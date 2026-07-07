@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
 import { ApiRoutes, CompleteUploadDto, CreateUploadDto, RouteParams } from '@weevil/contracts';
-import { CurrentAuth, OptionalAuth, Public, RequirePermissions } from '@weevil/auth';
+import { CurrentAuth, Public, RequirePermissions } from '@weevil/auth';
 import type { AuthContext } from '@weevil/auth';
 import { Permission } from '@weevil/prisma-client';
 import { UploadsService } from '../application/uploads.service';
@@ -14,13 +14,11 @@ export class UploadsController {
   @Public()
   @Post(ApiRoutes.ReportUploads)
   create(
-    @OptionalAuth() auth: AuthContext | null,
     @Headers('x-weevil-report-token') reportToken: string | undefined,
     @Param(RouteParams.ReportId) reportId: string,
     @Body() dto: CreateUploadDto,
   ) {
     return this.uploadsService.create(reportId, dto, {
-      workspaceId: auth?.workspace?.id,
       reportToken,
     });
   }
@@ -28,14 +26,12 @@ export class UploadsController {
   @Public()
   @Post(ApiRoutes.ReportUploadComplete)
   complete(
-    @OptionalAuth() auth: AuthContext | null,
     @Headers('x-weevil-report-token') reportToken: string | undefined,
     @Param(RouteParams.ReportId) reportId: string,
     @Param(RouteParams.UploadId) uploadId: string,
     @Body() dto: CompleteUploadDto,
   ) {
     return this.uploadsService.complete(reportId, uploadId, dto, {
-      workspaceId: auth?.workspace?.id,
       reportToken,
     });
   }
