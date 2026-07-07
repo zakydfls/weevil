@@ -58,6 +58,23 @@ export interface UpdateReportBoardInput {
   targetIndex?: number;
 }
 
+export interface ReportBoardColumn {
+  id: string;
+  key: string;
+  title: string;
+  description?: string | null;
+  color: string;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateReportBoardColumnInput {
+  title: string;
+  description?: string;
+  color?: string;
+}
+
 export interface UpdateReportAssigneesInput {
   assigneeUserIds: string[];
 }
@@ -140,6 +157,8 @@ export interface TimelineEntry {
   subtitle?: string | null;
   timestamp: string;
   offsetMs?: number | null;
+  // Only populated for NETWORK entries — see NetworkRequestEntry.resourceType.
+  resourceType?: string | null;
   payload?: unknown;
 }
 
@@ -206,6 +225,7 @@ export interface NetworkRequestEntry {
   requestBody?: string | null;
   responseBody?: string | null;
   error?: string | null;
+  resourceType?: string | null;
   offsetMs?: number | null;
   startedAt: string;
   endedAt?: string | null;

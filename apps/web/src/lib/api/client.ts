@@ -5,6 +5,7 @@ import type {
   CompleteCaptureSessionInput,
   ConsoleLogEntry,
   CreateCaptureSessionInput,
+  CreateReportBoardColumnInput,
   CreateReportInput,
   CreateUploadInput,
   CreateUploadResponse,
@@ -17,6 +18,7 @@ import type {
   PageActionEntry,
   PaginatedReportsResponse,
   PerformanceEntry,
+  ReportBoardColumn,
   ReportDetail,
   ReportSummary,
   RuntimeErrorEntry,
@@ -150,6 +152,14 @@ export const apiClient = {
   moveReportOnBoard: (reportId: string, input: UpdateReportBoardInput) =>
     request<ReportSummary>(`/reports/${reportId}/board`, {
       method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+
+  listReportBoardColumns: () => request<ReportBoardColumn[]>('/reports/board-columns'),
+
+  createReportBoardColumn: (input: CreateReportBoardColumnInput) =>
+    request<ReportBoardColumn>('/reports/board-columns', {
+      method: 'POST',
       body: JSON.stringify(input),
     }),
 

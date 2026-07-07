@@ -220,6 +220,7 @@ model Workspace {
   sessions     AuthSession[]
   apiTokens    ApiToken[]
   reportAssignees ReportAssignee[]
+  reportBoardColumns ReportBoardColumn[]
   notificationPreferences UserNotificationPreference[]
   inAppNotifications InAppNotification[]
   /// Users who have selected this workspace as their default.
@@ -508,6 +509,24 @@ model ReportAssignee {
   @@map("report_assignees")
 }
 
+model ReportBoardColumn {
+  id          String   @id @default(cuid())
+  workspaceId String
+  key         String
+  title       String
+  description String?
+  color       String   @default("primary")
+  order       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, key])
+  @@index([workspaceId, order])
+  @@map("report_board_columns")
+}
+
 model CaptureSession {
   id                  String               @id @default(cuid())
   reportId            String
@@ -771,6 +790,11 @@ model NetworkRequestEntry {
   requestBody     String?
   responseBody    String?
   error           String?
+  // Chrome's own webRequest ResourceType ("image", "script", "stylesheet",
+  // "font", "main_frame", ...) for browser-observed resource loads, or
+  // "fetch"/"xhr" for requests captured via the page-bridge's API patches.
+  // Null on rows captured before this field existed.
+  resourceType    String?
   offsetMs        Int?
   startedAt       DateTime
   endedAt         DateTime?

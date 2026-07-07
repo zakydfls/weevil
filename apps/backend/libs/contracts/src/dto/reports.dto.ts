@@ -16,6 +16,7 @@ import {
   IsDate,
   IsInt,
   IsArray,
+  IsIn,
   IsNumber,
   IsObject,
   IsOptional,
@@ -114,6 +115,22 @@ export class UpdateReportBoardDto {
   targetIndex?: number;
 }
 
+export class CreateReportBoardColumnDto {
+  @IsString()
+  @MaxLength(80)
+  title: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['cool', 'primary', 'warning', 'success', 'danger', 'neutral'])
+  color?: string;
+}
+
 export class UpdateReportAssigneesDto {
   @IsArray()
   @ArrayUnique()
@@ -166,6 +183,17 @@ export interface ReportAssigneeResponse {
   displayName?: string | null;
   avatarUrl?: string | null;
   assignedAt: string;
+}
+
+export interface ReportBoardColumnResponse {
+  id: string;
+  key: string;
+  title: string;
+  description?: string | null;
+  color: string;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export class ListReportsQueryDto {
@@ -423,6 +451,7 @@ export interface NetworkRequestResponse {
   requestBody?: string | null;
   responseBody?: string | null;
   error?: string | null;
+  resourceType?: string | null;
   offsetMs?: number | null;
   startedAt: string;
   endedAt?: string | null;
@@ -574,5 +603,7 @@ export interface ReportTimelineEntryResponse {
   severity: 'neutral' | 'info' | 'success' | 'warning' | 'danger';
   timestamp: string;
   offsetMs?: number | null;
+  // Only populated for NETWORK entries — see NetworkRequestEntry.resourceType.
+  resourceType?: string | null;
   payload?: unknown;
 }

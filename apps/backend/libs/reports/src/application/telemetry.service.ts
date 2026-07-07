@@ -83,6 +83,7 @@ export class TelemetryService {
           requestBody: redactText(entry.requestBody),
           responseBody: redactText(entry.responseBody),
           error: redactText(entry.error),
+          resourceType: entry.resourceType,
           offsetMs: entry.offsetMs,
           startedAt: entry.startedAt,
           endedAt: entry.endedAt,

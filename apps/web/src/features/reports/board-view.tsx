@@ -3,13 +3,15 @@
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/auth-context';
 import type { ReportSummary } from '@/lib/api/types';
-import { useMoveReportOnBoard, useReports } from './queries';
+import { useCreateReportBoardColumn, useMoveReportOnBoard, useReportBoardColumns, useReports } from './queries';
 import { KanbanBoard } from './components/kanban-board';
 
 export function BoardView() {
   const router = useRouter();
   const auth = useAuth();
   const moveReport = useMoveReportOnBoard();
+  const createBoardColumn = useCreateReportBoardColumn();
+  const boardColumnsQuery = useReportBoardColumns();
   // The board needs the full set in one go (drag across columns), so we pull a
   // large page rather than paginating.
   const reportsQuery = useReports({ page: 1, pageSize: 100 });
@@ -33,11 +35,19 @@ export function BoardView() {
   return (
     <KanbanBoard
       reports={reports}
+      columns={boardColumnsQuery.data ?? []}
       isLoading={isLoadingBoard}
-      isError={reportsQuery.isError}
-      onRetry={() => void reportsQuery.refetch()}
+      areColumnsLoading={boardColumnsQuery.isPending}
+      isError={reportsQuery.isError || boardColumnsQuery.isError}
+      canManageBoardColumns={auth.can('BOARD_MANAGE')}
+      onRetry={() => {
+        void reportsQuery.refetch();
+        void boardColumnsQuery.refetch();
+      }}
       onOpenReport={openCapture}
       canEditAssignees={canEditAssignees}
+      onCreateColumn={(input) => createBoardColumn.mutateAsync(input)}
+      isCreatingColumn={createBoardColumn.isPending}
       onMoveReport={(reportId, toColumnId, toIndex) => {
         moveReport.mutate({ reportId, boardColumn: toColumnId, targetIndex: toIndex });
       }}

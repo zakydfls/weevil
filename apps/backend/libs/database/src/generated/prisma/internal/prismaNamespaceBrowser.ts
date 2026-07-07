@@ -63,6 +63,7 @@ export const ModelName = {
   ApiToken: 'ApiToken',
   BugReport: 'BugReport',
   ReportAssignee: 'ReportAssignee',
+  ReportBoardColumn: 'ReportBoardColumn',
   CaptureSession: 'CaptureSession',
   ReportComment: 'ReportComment',
   ReportUpload: 'ReportUpload',
@@ -295,6 +296,21 @@ export const ReportAssigneeScalarFieldEnum = {
 export type ReportAssigneeScalarFieldEnum = (typeof ReportAssigneeScalarFieldEnum)[keyof typeof ReportAssigneeScalarFieldEnum]
 
 
+export const ReportBoardColumnScalarFieldEnum = {
+  id: 'id',
+  workspaceId: 'workspaceId',
+  key: 'key',
+  title: 'title',
+  description: 'description',
+  color: 'color',
+  order: 'order',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ReportBoardColumnScalarFieldEnum = (typeof ReportBoardColumnScalarFieldEnum)[keyof typeof ReportBoardColumnScalarFieldEnum]
+
+
 export const CaptureSessionScalarFieldEnum = {
   id: 'id',
   reportId: 'reportId',
@@ -518,6 +534,7 @@ export const NetworkRequestEntryScalarFieldEnum = {
   requestBody: 'requestBody',
   responseBody: 'responseBody',
   error: 'error',
+  resourceType: 'resourceType',
   offsetMs: 'offsetMs',
   startedAt: 'startedAt',
   endedAt: 'endedAt',

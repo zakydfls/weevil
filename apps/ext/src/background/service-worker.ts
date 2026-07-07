@@ -654,6 +654,7 @@ async function appendPageTelemetry(message: { type: string; payload: unknown }, 
       requestBody: optionalString(payload.requestBody, maxTelemetryBodyChars),
       responseBody: optionalString(payload.responseBody, maxTelemetryBodyChars),
       error: optionalString(payload.error, 4_000),
+      resourceType: optionalString(payload.resourceType, 32),
       startedAt: networkStartedAt,
       endedAt: optionalString(payload.endedAt),
     }, tabId, shouldRedactHeaders));
@@ -1324,6 +1325,7 @@ async function appendBrowserNetworkEntry(
     requestHeaders: redactHeaderRecord(requestMatch?.capture.headers, shouldRedactHeaders),
     responseHeaders: redactHeaderRecord(responseMatch?.capture.headers, shouldRedactHeaders),
     error: optionalString(error, 4_000),
+    resourceType: details.type,
     startedAt: new Date(startedAtMs).toISOString(),
     endedAt: new Date(endedAtMs).toISOString(),
     // Offset from the request's REAL start, not flush time — otherwise every

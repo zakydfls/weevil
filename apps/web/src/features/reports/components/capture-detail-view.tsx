@@ -407,13 +407,6 @@ export function CaptureDetailView({
             <div className="flex min-w-0 items-center gap-2">
               <StatusBadge status={report.status} />
               <span className="truncate text-sm font-semibold text-[var(--ink)]">{report.title}</span>
-              <AssigneeEditorPopover
-                report={report}
-                canEdit={canEdit}
-                compact
-                align="start"
-                className="shrink-0"
-              />
             </div>
             <div className="hidden items-center gap-3 font-mono text-[11px] text-[var(--ink-faint)] sm:flex">
               <span className="truncate">{report.pageUrl ?? report.id}</span>
@@ -431,6 +424,7 @@ export function CaptureDetailView({
                 DevTools
               </Button>
             ) : null}
+            <AssigneeEditorPopover report={report} canEdit={canEdit} align="end" />
             {canEdit ? (
               <Button
                 type="button"
@@ -3435,7 +3429,15 @@ function TimelineScrubber({
 }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const progressPct = durationMs > 0 ? clamp((currentMs / durationMs) * 100, 0, 100) : 0;
-  const visibleEntries = entries.filter((entry) => VISIBLE_TIMELINE_KINDS.has(entry.type));
+  // For NETWORK, the scrubber is meant to show API activity, not every asset
+  // load — browser-observed resource requests (images, scripts, css, fonts)
+  // share this same timeline kind but carry a different resourceType, so they're
+  // excluded here while remaining fully visible in the Network panel itself.
+  const visibleEntries = entries.filter(
+    (entry) =>
+      VISIBLE_TIMELINE_KINDS.has(entry.type) &&
+      (entry.type !== 'NETWORK' || entry.resourceType === 'fetch' || entry.resourceType === 'xhr'),
+  );
 
   // Only show legend chips for kinds that actually have positioned dots, so the
   // legend mirrors the track exactly (no phantom "network" when none recorded,

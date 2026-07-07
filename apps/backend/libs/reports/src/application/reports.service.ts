@@ -3,6 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   CompleteCaptureSessionDto,
   CreateCaptureSessionDto,
+  CreateReportBoardColumnDto,
   CreateReportDto,
   CreateReportCommentDto,
   ListReportsQueryDto,
@@ -15,6 +16,7 @@ import {
   type ReportCommentResponse,
   type ReportDetailResponse,
   type ReportTimelineEntryResponse,
+  type ReportBoardColumnResponse,
   type ReportSummaryResponse,
 } from '@weevil/contracts';
 import { PrismaService } from '@weevil/database';
@@ -61,6 +63,39 @@ const reportAssigneesInclude = {
     },
   },
 } as const;
+
+const DEFAULT_REPORT_BOARD_COLUMNS = [
+  {
+    key: 'backlog',
+    title: 'Backlog',
+    description: 'Fresh captures land here until someone triages them.',
+    color: 'cool',
+    order: 1000,
+  },
+  {
+    key: 'in-progress',
+    title: 'In progress',
+    description: 'Actively being investigated or fixed.',
+    color: 'primary',
+    order: 2000,
+  },
+  {
+    key: 'review',
+    title: 'Review',
+    description: 'Needs QA, product, or engineering confirmation.',
+    color: 'warning',
+    order: 3000,
+  },
+  {
+    key: 'done',
+    title: 'Done',
+    description: 'Resolved and verified.',
+    color: 'success',
+    order: 4000,
+  },
+] as const;
+
+const BOARD_COLUMN_COLORS = new Set(['cool', 'primary', 'warning', 'success', 'danger', 'neutral']);
 
 @Injectable()
 export class ReportsService {
@@ -243,6 +278,7 @@ export class ReportsService {
   ): Promise<ReportSummaryResponse> {
     const workspaceId = requireWorkspaceId(options.workspaceId);
     const boardColumn = normalizeBoardColumn(dto.boardColumn);
+    await this.ensureDefaultBoardColumns(workspaceId);
 
     const report = await this.prisma.$transaction(async (tx) => {
       const current = await tx.bugReport.findUnique({
@@ -257,6 +293,19 @@ export class ReportsService {
         throw new NotFoundException(`Report ${reportId} not found.`);
       }
       assertWorkspaceAccess(current, workspaceId);
+
+      const destinationColumn = await tx.reportBoardColumn.findUnique({
+        where: {
+          workspaceId_key: {
+            workspaceId,
+            key: boardColumn,
+          },
+        },
+        select: { id: true },
+      });
+      if (!destinationColumn) {
+        throw new BadRequestException('Board column not found.');
+      }
 
       const siblings = await tx.bugReport.findMany({
         where: {
@@ -319,6 +368,48 @@ export class ReportsService {
     });
 
     return this.mapper.toSummary(report);
+  }
+
+  async listBoardColumns(options: { workspaceId?: string } = {}): Promise<ReportBoardColumnResponse[]> {
+    const workspaceId = requireWorkspaceId(options.workspaceId);
+    await this.ensureDefaultBoardColumns(workspaceId);
+
+    const columns = await this.prisma.reportBoardColumn.findMany({
+      where: { workspaceId },
+      orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    return columns.map(toBoardColumnResponse);
+  }
+
+  async createBoardColumn(
+    dto: CreateReportBoardColumnDto,
+    options: { workspaceId?: string } = {},
+  ): Promise<ReportBoardColumnResponse> {
+    const workspaceId = requireWorkspaceId(options.workspaceId);
+    await this.ensureDefaultBoardColumns(workspaceId);
+
+    const title = normalizeBoardColumnTitle(dto.title);
+    const description = normalizeOptionalBoardColumnText(dto.description);
+    const key = await this.nextBoardColumnKey(workspaceId, normalizeBoardColumn(title));
+    const color = BOARD_COLUMN_COLORS.has(dto.color ?? '') ? dto.color! : 'primary';
+    const maxOrder = await this.prisma.reportBoardColumn.aggregate({
+      where: { workspaceId },
+      _max: { order: true },
+    });
+
+    const column = await this.prisma.reportBoardColumn.create({
+      data: {
+        workspaceId,
+        key,
+        title,
+        description,
+        color,
+        order: (maxOrder._max.order ?? 0) + 1000,
+      },
+    });
+
+    return toBoardColumnResponse(column);
   }
 
   async setAssignees(
@@ -841,6 +932,41 @@ export class ReportsService {
       throw new BadRequestException('Assignees must be active members of this workspace.');
     }
   }
+
+  private async ensureDefaultBoardColumns(workspaceId: string): Promise<void> {
+    await this.prisma.reportBoardColumn.createMany({
+      data: DEFAULT_REPORT_BOARD_COLUMNS.map((column) => ({
+        workspaceId,
+        key: column.key,
+        title: column.title,
+        description: column.description,
+        color: column.color,
+        order: column.order,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  private async nextBoardColumnKey(workspaceId: string, baseKey: string): Promise<string> {
+    const existing = await this.prisma.reportBoardColumn.findMany({
+      where: {
+        workspaceId,
+        key: {
+          startsWith: baseKey,
+        },
+      },
+      select: { key: true },
+    });
+    const keys = new Set(existing.map((column) => column.key));
+    if (!keys.has(baseKey)) return baseKey;
+
+    for (let index = 2; index <= 100; index += 1) {
+      const key = `${baseKey}-${index}`;
+      if (!keys.has(key)) return key;
+    }
+
+    throw new BadRequestException('Too many board columns with a similar name.');
+  }
 }
 
 function normalizeAssigneeUserIds(values: string[] | undefined): string[] {
@@ -862,6 +988,41 @@ function normalizeBoardColumn(value: string): string {
     .replace(/^-|-$/g, '')
     .slice(0, 80);
   return normalized || 'backlog';
+}
+
+function normalizeBoardColumnTitle(value: string | undefined): string {
+  const title = (value ?? '').trim().replace(/\s+/g, ' ');
+  if (!title) {
+    throw new BadRequestException('Board column title is required.');
+  }
+  return title.slice(0, 80);
+}
+
+function normalizeOptionalBoardColumnText(value: string | undefined): string | null {
+  const text = (value ?? '').trim().replace(/\s+/g, ' ');
+  return text ? text.slice(0, 160) : null;
+}
+
+function toBoardColumnResponse(column: {
+  id: string;
+  key: string;
+  title: string;
+  description: string | null;
+  color: string;
+  order: number;
+  createdAt: Date;
+  updatedAt: Date;
+}): ReportBoardColumnResponse {
+  return {
+    id: column.id,
+    key: column.key,
+    title: column.title,
+    description: column.description,
+    color: column.color,
+    order: column.order,
+    createdAt: column.createdAt.toISOString(),
+    updatedAt: column.updatedAt.toISOString(),
+  };
 }
 
 function clampBoardIndex(value: number | undefined, max: number): number {

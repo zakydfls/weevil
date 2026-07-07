@@ -119,34 +119,37 @@ export function CaptureCardGrid({ reports, isLoading, isError, onRetry, onSelect
                   <p className="mt-1 truncate font-mono text-xs text-[var(--ink-faint)]">
                     {report.pageUrl ?? report.id}
                   </p>
-                  <div className="mt-3 flex min-w-0 items-center gap-2.5 rounded-md bg-[var(--surface)] px-2.5 py-2">
-                    <Avatar className="h-7 w-7 rounded-full ring-1 ring-[var(--primary-soft)]">
-                      <AvatarFallback className="rounded-full bg-[var(--primary-subtle)] font-mono text-[10px] font-semibold uppercase text-[var(--primary)]">
-                        {reporter.initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-mono text-[9px] uppercase tracking-wider text-[var(--ink-faint)]">
-                        Reported by
-                      </div>
-                      <div className="mt-0.5 truncate text-xs font-semibold text-[var(--ink)]">
-                        {reporter.name}
-                      </div>
-                    </div>
-                  </div>
-                  {report.assignees.length > 0 ? (
-                    <div className="mt-3 flex items-center justify-between gap-3">
-                      <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
-                        Assigned
-                      </span>
-                      <AssigneeAvatarStack assignees={report.assignees} />
-                    </div>
-                  ) : null}
                 </div>
                 <time className="shrink-0 font-mono text-xs text-[var(--ink-faint)]">
                   {shortDate(report.createdAt)}
                 </time>
               </div>
+              {/* Siblings of the title row (not nested inside its flex-1 column) so
+                  they span the card's full width instead of stopping short where
+                  the date column above claims space. */}
+              <div className="flex min-w-0 items-center gap-2.5 rounded-md bg-[var(--surface)] px-2.5 py-2">
+                <Avatar className="h-7 w-7 rounded-full ring-1 ring-[var(--primary-soft)]">
+                  <AvatarFallback className="rounded-full bg-[var(--primary-subtle)] font-mono text-[10px] font-semibold uppercase text-[var(--primary)]">
+                    {reporter.initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="font-mono text-[9px] uppercase tracking-wider text-[var(--ink-faint)]">
+                    Reported by
+                  </div>
+                  <div className="mt-0.5 truncate text-xs font-semibold text-[var(--ink)]">
+                    {reporter.name}
+                  </div>
+                </div>
+              </div>
+              {report.assignees.length > 0 ? (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+                    Assigned
+                  </span>
+                  <AssigneeAvatarStack assignees={report.assignees} />
+                </div>
+              ) : null}
               <div className="flex items-center gap-3 border-t border-[var(--divider)] pt-3 font-mono text-[11px] text-[var(--ink-muted)]">
                 <Stat label="cn" value={report.consoleLogCount ?? 0} />
                 <Divider />

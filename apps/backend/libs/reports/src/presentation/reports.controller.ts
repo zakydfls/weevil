@@ -15,6 +15,7 @@ import {
   ApiRoutes,
   CompleteCaptureSessionDto,
   CreateCaptureSessionDto,
+  CreateReportBoardColumnDto,
   ListReportsQueryDto,
   CreateReportCommentDto,
   CreateReportDto,
@@ -52,6 +53,21 @@ export class ReportsController {
   @Get()
   list(@CurrentAuth() auth: AuthContext, @Query() query: ListReportsQueryDto) {
     return this.reportsService.list(query, { workspaceId: auth.workspace?.id });
+  }
+
+  @RequirePermissions(Permission.REPORT_READ_ALL)
+  @Get(ApiRoutes.ReportBoardColumnsRelative)
+  listBoardColumns(@CurrentAuth() auth: AuthContext) {
+    return this.reportsService.listBoardColumns({ workspaceId: auth.workspace?.id });
+  }
+
+  @RequirePermissions(Permission.BOARD_MANAGE)
+  @Post(ApiRoutes.ReportBoardColumnsRelative)
+  createBoardColumn(
+    @CurrentAuth() auth: AuthContext,
+    @Body() dto: CreateReportBoardColumnDto,
+  ) {
+    return this.reportsService.createBoardColumn(dto, { workspaceId: auth.workspace?.id });
   }
 
   @Public()

@@ -396,6 +396,7 @@ export const ModelName = {
   ApiToken: 'ApiToken',
   BugReport: 'BugReport',
   ReportAssignee: 'ReportAssignee',
+  ReportBoardColumn: 'ReportBoardColumn',
   CaptureSession: 'CaptureSession',
   ReportComment: 'ReportComment',
   ReportUpload: 'ReportUpload',
@@ -422,7 +423,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "workspace" | "project" | "user" | "otpChallenge" | "workspaceMember" | "userNotificationPreference" | "inAppNotification" | "workspaceInvite" | "authSession" | "apiToken" | "bugReport" | "reportAssignee" | "captureSession" | "reportComment" | "reportUpload" | "pageActionEntry" | "runtimeErrorEntry" | "performanceEntry" | "domEventEntry" | "backendTraceEntry" | "reportEvent" | "consoleLogEntry" | "networkRequestEntry"
+    modelProps: "workspace" | "project" | "user" | "otpChallenge" | "workspaceMember" | "userNotificationPreference" | "inAppNotification" | "workspaceInvite" | "authSession" | "apiToken" | "bugReport" | "reportAssignee" | "reportBoardColumn" | "captureSession" | "reportComment" | "reportUpload" | "pageActionEntry" | "runtimeErrorEntry" | "performanceEntry" | "domEventEntry" | "backendTraceEntry" | "reportEvent" | "consoleLogEntry" | "networkRequestEntry"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1311,6 +1312,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.ReportAssigneeCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.ReportAssigneeCountAggregateOutputType> | number
+        }
+      }
+    }
+    ReportBoardColumn: {
+      payload: Prisma.$ReportBoardColumnPayload<ExtArgs>
+      fields: Prisma.ReportBoardColumnFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ReportBoardColumnFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReportBoardColumnPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ReportBoardColumnFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReportBoardColumnPayload>
+        }
+        findFirst: {
+          args: Prisma.ReportBoardColumnFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReportBoardColumnPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ReportBoardColumnFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReportBoardColumnPayload>
+        }
+        findMany: {
+          args: Prisma.ReportBoardColumnFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReportBoardColumnPayload>[]
+        }
+        create: {
+          args: Prisma.ReportBoardColumnCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReportBoardColumnPayload>
+        }
+        createMany: {
+          args: Prisma.ReportBoardColumnCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ReportBoardColumnCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReportBoardColumnPayload>[]
+        }
+        delete: {
+          args: Prisma.ReportBoardColumnDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReportBoardColumnPayload>
+        }
+        update: {
+          args: Prisma.ReportBoardColumnUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReportBoardColumnPayload>
+        }
+        deleteMany: {
+          args: Prisma.ReportBoardColumnDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ReportBoardColumnUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ReportBoardColumnUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReportBoardColumnPayload>[]
+        }
+        upsert: {
+          args: Prisma.ReportBoardColumnUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ReportBoardColumnPayload>
+        }
+        aggregate: {
+          args: Prisma.ReportBoardColumnAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateReportBoardColumn>
+        }
+        groupBy: {
+          args: Prisma.ReportBoardColumnGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ReportBoardColumnGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ReportBoardColumnCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ReportBoardColumnCountAggregateOutputType> | number
         }
       }
     }
@@ -2370,6 +2445,21 @@ export const ReportAssigneeScalarFieldEnum = {
 export type ReportAssigneeScalarFieldEnum = (typeof ReportAssigneeScalarFieldEnum)[keyof typeof ReportAssigneeScalarFieldEnum]
 
 
+export const ReportBoardColumnScalarFieldEnum = {
+  id: 'id',
+  workspaceId: 'workspaceId',
+  key: 'key',
+  title: 'title',
+  description: 'description',
+  color: 'color',
+  order: 'order',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ReportBoardColumnScalarFieldEnum = (typeof ReportBoardColumnScalarFieldEnum)[keyof typeof ReportBoardColumnScalarFieldEnum]
+
+
 export const CaptureSessionScalarFieldEnum = {
   id: 'id',
   reportId: 'reportId',
@@ -2593,6 +2683,7 @@ export const NetworkRequestEntryScalarFieldEnum = {
   requestBody: 'requestBody',
   responseBody: 'responseBody',
   error: 'error',
+  resourceType: 'resourceType',
   offsetMs: 'offsetMs',
   startedAt: 'startedAt',
   endedAt: 'endedAt',
@@ -3141,6 +3232,7 @@ export type GlobalOmitConfig = {
   apiToken?: Prisma.ApiTokenOmit
   bugReport?: Prisma.BugReportOmit
   reportAssignee?: Prisma.ReportAssigneeOmit
+  reportBoardColumn?: Prisma.ReportBoardColumnOmit
   captureSession?: Prisma.CaptureSessionOmit
   reportComment?: Prisma.ReportCommentOmit
   reportUpload?: Prisma.ReportUploadOmit

@@ -1,71 +1,97 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
   Clock3,
   FileText,
   GripVertical,
+  ListTodo,
   MessageSquare,
   MousePointer2,
   Network,
+  Plus,
   SearchCheck,
+  type LucideIcon,
 } from 'lucide-react';
 import { WeevilMark } from '@/components/brand/weevil-mark';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { ErrorState } from '@/components/ui/error-state';
-import type { ReportSummary } from '@/lib/api/types';
+import { Input, Textarea } from '@/components/ui/input';
+import type { CreateReportBoardColumnInput, ReportBoardColumn, ReportSummary } from '@/lib/api/types';
 import { AssigneeEditorPopover } from './report-assignees';
 import { StatusBadge } from './status-badge';
 
 interface KanbanBoardProps {
   reports: ReportSummary[];
+  columns: ReportBoardColumn[];
   isLoading: boolean;
+  areColumnsLoading?: boolean;
   isError?: boolean;
+  canManageBoardColumns?: boolean;
+  isCreatingColumn?: boolean;
   onRetry?: () => void;
   onOpenReport: (report: ReportSummary) => void;
   onMoveReport?: (reportId: string, toColumnId: string, toIndex: number) => void | Promise<void>;
+  onCreateColumn?: (input: CreateReportBoardColumnInput) => void | Promise<unknown>;
   canEditAssignees?: (report: ReportSummary) => boolean;
 }
 
-type ColumnId = 'backlog' | 'in-progress' | 'review' | 'done';
-
 interface BoardColumn {
-  id: ColumnId;
+  id: string;
+  key: string;
   title: string;
-  description: string;
-  icon: typeof FileText;
+  description: string | null;
+  color: string;
+  icon: LucideIcon;
   accent: string;
 }
 
-const DEFAULT_COLUMN_ID: ColumnId = 'backlog';
+const DEFAULT_COLUMN_ID = 'backlog';
 
-const BOARD_COLUMNS: BoardColumn[] = [
+const FALLBACK_BOARD_COLUMNS: BoardColumn[] = [
   {
     id: 'backlog',
+    key: 'backlog',
     title: 'Backlog',
     description: 'Fresh captures land here until someone triages them.',
+    color: 'cool',
     icon: FileText,
     accent: 'var(--accent-cool)',
   },
   {
     id: 'in-progress',
+    key: 'in-progress',
     title: 'In progress',
     description: 'Actively being investigated or fixed.',
+    color: 'primary',
     icon: Clock3,
     accent: 'var(--primary)',
   },
   {
     id: 'review',
+    key: 'review',
     title: 'Review',
     description: 'Needs QA, product, or engineering confirmation.',
+    color: 'warning',
     icon: SearchCheck,
     accent: 'var(--warning)',
   },
   {
     id: 'done',
+    key: 'done',
     title: 'Done',
     description: 'Resolved and verified.',
+    color: 'success',
     icon: CheckCircle2,
     accent: 'var(--success)',
   },
@@ -73,18 +99,26 @@ const BOARD_COLUMNS: BoardColumn[] = [
 
 export function KanbanBoard({
   reports,
+  columns,
   isLoading,
+  areColumnsLoading,
   isError,
+  canManageBoardColumns,
+  isCreatingColumn,
   onRetry,
   onOpenReport,
   onMoveReport,
+  onCreateColumn,
   canEditAssignees,
 }: KanbanBoardProps) {
-  const groupedReports = useMemo(() => groupReports(reports), [reports]);
+  const [isAddStateOpen, setIsAddStateOpen] = useState(false);
+  const boardColumns = useMemo(() => toBoardColumns(columns), [columns]);
+  const groupedReports = useMemo(() => groupReports(reports, boardColumns), [reports, boardColumns]);
   const totalErrors = useMemo(
     () => reports.reduce((total, report) => total + (report.runtimeErrorCount ?? 0), 0),
     [reports],
   );
+  const showColumnSkeletons = isLoading || Boolean(areColumnsLoading && columns.length === 0);
 
   if (isError && reports.length === 0) {
     return (
@@ -105,22 +139,33 @@ export function KanbanBoard({
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-11rem)] w-full min-w-0 max-w-[100rem] flex-col overflow-hidden sm:h-[calc(100dvh-3.5rem)]">
-      <BoardHeader totalReports={reports.length} totalErrors={totalErrors} />
+      <BoardHeader
+        totalReports={reports.length}
+        totalErrors={totalErrors}
+        canAddState={Boolean(canManageBoardColumns && onCreateColumn)}
+        onAddState={() => setIsAddStateOpen(true)}
+      />
       <div className="thin-scrollbar flex min-h-0 min-w-0 flex-1 gap-3 overflow-x-auto px-4 pb-4 sm:px-6">
-        {BOARD_COLUMNS.map((column) => (
+        {boardColumns.map((column) => (
           <BoardColumnView
             key={column.id}
             column={column}
-            reports={groupedReports[column.id] ?? []}
-            isLoading={isLoading}
+            reports={groupedReports[column.key] ?? []}
+            isLoading={showColumnSkeletons}
             onOpenReport={onOpenReport}
             canEditAssignees={canEditAssignees}
             onDropReport={(reportId, toIndex) => {
-              void onMoveReport?.(reportId, column.id, toIndex);
+              void onMoveReport?.(reportId, column.key, toIndex);
             }}
           />
         ))}
       </div>
+      <AddStateDialog
+        open={isAddStateOpen}
+        isSubmitting={Boolean(isCreatingColumn)}
+        onOpenChange={setIsAddStateOpen}
+        onCreateColumn={onCreateColumn}
+      />
     </div>
   );
 }
@@ -128,9 +173,13 @@ export function KanbanBoard({
 function BoardHeader({
   totalReports,
   totalErrors,
+  canAddState,
+  onAddState,
 }: {
   totalReports: number;
   totalErrors: number;
+  canAddState?: boolean;
+  onAddState?: () => void;
 }) {
   return (
     <header className="px-4 pb-4 pt-6 sm:px-6 sm:pb-5 sm:pt-8">
@@ -143,7 +192,13 @@ function BoardHeader({
             Triage captures as a workspace. Every new recording starts in Backlog, then moves only when a teammate moves it.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {canAddState ? (
+            <Button type="button" variant="secondary" size="sm" onClick={onAddState}>
+              <Plus className="h-3.5 w-3.5" aria-hidden />
+              Add state
+            </Button>
+          ) : null}
           <BoardSignal label="Captures" value={totalReports} tone="neutral" />
           <BoardSignal
             label="Errors"
@@ -153,6 +208,96 @@ function BoardHeader({
         </div>
       </div>
     </header>
+  );
+}
+
+function AddStateDialog({
+  open,
+  isSubmitting,
+  onOpenChange,
+  onCreateColumn,
+}: {
+  open: boolean;
+  isSubmitting: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreateColumn?: (input: CreateReportBoardColumnInput) => void | Promise<unknown>;
+}) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const titleValue = title.trim();
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!onCreateColumn || !titleValue) return;
+
+    setError(null);
+    try {
+      await onCreateColumn({
+        title: titleValue,
+        description: description.trim() || undefined,
+      });
+      setTitle('');
+      setDescription('');
+      onOpenChange(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create board state.');
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Add board state</DialogTitle>
+            <DialogDescription>
+              Create a workspace lane for captures that need a separate triage step.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 px-4 pb-4">
+            <label className="grid gap-1.5">
+              <span className="text-xs font-medium text-[var(--ink)]">State name</span>
+              <Input
+                value={title}
+                maxLength={80}
+                placeholder="Blocked"
+                onChange={(event) => setTitle(event.target.value)}
+              />
+            </label>
+            <label className="grid gap-1.5">
+              <span className="text-xs font-medium text-[var(--ink)]">Description</span>
+              <Textarea
+                value={description}
+                maxLength={160}
+                placeholder="Captures waiting on another team or dependency."
+                onChange={(event) => setDescription(event.target.value)}
+              />
+            </label>
+            {error ? (
+              <p className="rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3 py-2 text-sm text-[var(--danger)]">
+                {error}
+              </p>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={isSubmitting}
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" disabled={!titleValue || isSubmitting}>
+              <Plus className="h-3.5 w-3.5" aria-hidden />
+              {isSubmitting ? 'Adding...' : 'Add state'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -450,24 +595,55 @@ function DropIndicator() {
   return <div className="my-1 h-0.5 rounded-full bg-[var(--primary)]" aria-hidden />;
 }
 
-function groupReports(reports: ReportSummary[]): Record<ColumnId, ReportSummary[]> {
-  const grouped: Record<ColumnId, ReportSummary[]> = {
-    backlog: [],
-    'in-progress': [],
-    review: [],
-    done: [],
+function toBoardColumns(columns: ReportBoardColumn[]): BoardColumn[] {
+  if (columns.length === 0) return FALLBACK_BOARD_COLUMNS;
+
+  return columns.map((column) => ({
+    id: column.id,
+    key: column.key,
+    title: column.title,
+    description: column.description ?? null,
+    color: column.color,
+    icon: iconForColumn(column.key),
+    accent: accentForColumnColor(column.color),
+  }));
+}
+
+function iconForColumn(key: string): LucideIcon {
+  if (key === 'backlog') return FileText;
+  if (key === 'in-progress') return Clock3;
+  if (key === 'review') return SearchCheck;
+  if (key === 'done') return CheckCircle2;
+  return ListTodo;
+}
+
+function accentForColumnColor(color: string): string {
+  const accents: Record<string, string> = {
+    cool: 'var(--accent-cool)',
+    primary: 'var(--primary)',
+    warning: 'var(--warning)',
+    success: 'var(--success)',
+    danger: 'var(--danger)',
+    neutral: 'var(--ink-muted)',
   };
-  const validColumnIds = new Set(BOARD_COLUMNS.map((column) => column.id));
+  return accents[color] ?? accents.primary;
+}
+
+function groupReports(reports: ReportSummary[], columns: BoardColumn[]): Record<string, ReportSummary[]> {
+  const grouped: Record<string, ReportSummary[]> = {};
+  for (const column of columns) {
+    grouped[column.key] = [];
+  }
+  const validColumnIds = new Set(columns.map((column) => column.key));
+  const defaultColumnId = columns[0]?.key ?? DEFAULT_COLUMN_ID;
 
   for (const report of reports) {
-    const columnId = validColumnIds.has(report.boardColumn as ColumnId)
-      ? (report.boardColumn as ColumnId)
-      : DEFAULT_COLUMN_ID;
+    const columnId = validColumnIds.has(report.boardColumn) ? report.boardColumn : defaultColumnId;
     grouped[columnId].push(report);
   }
 
-  for (const column of BOARD_COLUMNS) {
-    grouped[column.id].sort(compareBoardReports);
+  for (const column of columns) {
+    grouped[column.key].sort(compareBoardReports);
   }
 
   return grouped;

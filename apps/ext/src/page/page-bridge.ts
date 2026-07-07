@@ -208,6 +208,7 @@ function patchFetch() {
             responseHeaders: headersToRecord(response.headers),
             requestBody,
             responseBody,
+            resourceType: 'fetch',
             startedAt,
             endedAt: new Date(endedAtMs).toISOString(),
           });
@@ -225,6 +226,7 @@ function patchFetch() {
             requestHeaders: info.requestHeaders,
             requestBody,
             error: error instanceof Error ? error.message : String(error),
+            resourceType: 'fetch',
             startedAt,
             endedAt: new Date(endedAtMs).toISOString(),
           });
@@ -302,6 +304,7 @@ function patchXhr() {
           requestBody: state.requestBody,
           responseBody,
           error: this.status === 0 ? 'Request failed or was blocked.' : undefined,
+          resourceType: 'xhr',
           startedAt: state.startedAt ?? new Date(endedAtMs).toISOString(),
           endedAt: new Date(endedAtMs).toISOString(),
         });
@@ -352,6 +355,7 @@ function postNetworkTelemetry(payload: {
   requestBody?: string | undefined;
   responseBody?: string | undefined;
   error?: string | undefined;
+  resourceType?: string | undefined;
   startedAt: string;
   endedAt?: string | undefined;
 }) {

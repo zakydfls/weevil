@@ -50,6 +50,7 @@ export type NetworkRequestEntryMinAggregateOutputType = {
   requestBody: string | null
   responseBody: string | null
   error: string | null
+  resourceType: string | null
   offsetMs: number | null
   startedAt: Date | null
   endedAt: Date | null
@@ -68,6 +69,7 @@ export type NetworkRequestEntryMaxAggregateOutputType = {
   requestBody: string | null
   responseBody: string | null
   error: string | null
+  resourceType: string | null
   offsetMs: number | null
   startedAt: Date | null
   endedAt: Date | null
@@ -88,6 +90,7 @@ export type NetworkRequestEntryCountAggregateOutputType = {
   requestBody: number
   responseBody: number
   error: number
+  resourceType: number
   offsetMs: number
   startedAt: number
   endedAt: number
@@ -120,6 +123,7 @@ export type NetworkRequestEntryMinAggregateInputType = {
   requestBody?: true
   responseBody?: true
   error?: true
+  resourceType?: true
   offsetMs?: true
   startedAt?: true
   endedAt?: true
@@ -138,6 +142,7 @@ export type NetworkRequestEntryMaxAggregateInputType = {
   requestBody?: true
   responseBody?: true
   error?: true
+  resourceType?: true
   offsetMs?: true
   startedAt?: true
   endedAt?: true
@@ -158,6 +163,7 @@ export type NetworkRequestEntryCountAggregateInputType = {
   requestBody?: true
   responseBody?: true
   error?: true
+  resourceType?: true
   offsetMs?: true
   startedAt?: true
   endedAt?: true
@@ -265,6 +271,7 @@ export type NetworkRequestEntryGroupByOutputType = {
   requestBody: string | null
   responseBody: string | null
   error: string | null
+  resourceType: string | null
   offsetMs: number | null
   startedAt: Date
   endedAt: Date | null
@@ -308,6 +315,7 @@ export type NetworkRequestEntryWhereInput = {
   requestBody?: Prisma.StringNullableFilter<"NetworkRequestEntry"> | string | null
   responseBody?: Prisma.StringNullableFilter<"NetworkRequestEntry"> | string | null
   error?: Prisma.StringNullableFilter<"NetworkRequestEntry"> | string | null
+  resourceType?: Prisma.StringNullableFilter<"NetworkRequestEntry"> | string | null
   offsetMs?: Prisma.IntNullableFilter<"NetworkRequestEntry"> | number | null
   startedAt?: Prisma.DateTimeFilter<"NetworkRequestEntry"> | Date | string
   endedAt?: Prisma.DateTimeNullableFilter<"NetworkRequestEntry"> | Date | string | null
@@ -330,6 +338,7 @@ export type NetworkRequestEntryOrderByWithRelationInput = {
   requestBody?: Prisma.SortOrderInput | Prisma.SortOrder
   responseBody?: Prisma.SortOrderInput | Prisma.SortOrder
   error?: Prisma.SortOrderInput | Prisma.SortOrder
+  resourceType?: Prisma.SortOrderInput | Prisma.SortOrder
   offsetMs?: Prisma.SortOrderInput | Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   endedAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -355,6 +364,7 @@ export type NetworkRequestEntryWhereUniqueInput = Prisma.AtLeast<{
   requestBody?: Prisma.StringNullableFilter<"NetworkRequestEntry"> | string | null
   responseBody?: Prisma.StringNullableFilter<"NetworkRequestEntry"> | string | null
   error?: Prisma.StringNullableFilter<"NetworkRequestEntry"> | string | null
+  resourceType?: Prisma.StringNullableFilter<"NetworkRequestEntry"> | string | null
   offsetMs?: Prisma.IntNullableFilter<"NetworkRequestEntry"> | number | null
   startedAt?: Prisma.DateTimeFilter<"NetworkRequestEntry"> | Date | string
   endedAt?: Prisma.DateTimeNullableFilter<"NetworkRequestEntry"> | Date | string | null
@@ -377,6 +387,7 @@ export type NetworkRequestEntryOrderByWithAggregationInput = {
   requestBody?: Prisma.SortOrderInput | Prisma.SortOrder
   responseBody?: Prisma.SortOrderInput | Prisma.SortOrder
   error?: Prisma.SortOrderInput | Prisma.SortOrder
+  resourceType?: Prisma.SortOrderInput | Prisma.SortOrder
   offsetMs?: Prisma.SortOrderInput | Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   endedAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -405,6 +416,7 @@ export type NetworkRequestEntryScalarWhereWithAggregatesInput = {
   requestBody?: Prisma.StringNullableWithAggregatesFilter<"NetworkRequestEntry"> | string | null
   responseBody?: Prisma.StringNullableWithAggregatesFilter<"NetworkRequestEntry"> | string | null
   error?: Prisma.StringNullableWithAggregatesFilter<"NetworkRequestEntry"> | string | null
+  resourceType?: Prisma.StringNullableWithAggregatesFilter<"NetworkRequestEntry"> | string | null
   offsetMs?: Prisma.IntNullableWithAggregatesFilter<"NetworkRequestEntry"> | number | null
   startedAt?: Prisma.DateTimeWithAggregatesFilter<"NetworkRequestEntry"> | Date | string
   endedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"NetworkRequestEntry"> | Date | string | null
@@ -423,6 +435,7 @@ export type NetworkRequestEntryCreateInput = {
   requestBody?: string | null
   responseBody?: string | null
   error?: string | null
+  resourceType?: string | null
   offsetMs?: number | null
   startedAt: Date | string
   endedAt?: Date | string | null
@@ -445,6 +458,7 @@ export type NetworkRequestEntryUncheckedCreateInput = {
   requestBody?: string | null
   responseBody?: string | null
   error?: string | null
+  resourceType?: string | null
   offsetMs?: number | null
   startedAt: Date | string
   endedAt?: Date | string | null
@@ -463,6 +477,7 @@ export type NetworkRequestEntryUpdateInput = {
   requestBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   responseBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  resourceType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   offsetMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   endedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -485,6 +500,7 @@ export type NetworkRequestEntryUncheckedUpdateInput = {
   requestBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   responseBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  resourceType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   offsetMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   endedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -505,6 +521,7 @@ export type NetworkRequestEntryCreateManyInput = {
   requestBody?: string | null
   responseBody?: string | null
   error?: string | null
+  resourceType?: string | null
   offsetMs?: number | null
   startedAt: Date | string
   endedAt?: Date | string | null
@@ -523,6 +540,7 @@ export type NetworkRequestEntryUpdateManyMutationInput = {
   requestBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   responseBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  resourceType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   offsetMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   endedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -543,6 +561,7 @@ export type NetworkRequestEntryUncheckedUpdateManyInput = {
   requestBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   responseBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  resourceType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   offsetMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   endedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -573,6 +592,7 @@ export type NetworkRequestEntryCountOrderByAggregateInput = {
   requestBody?: Prisma.SortOrder
   responseBody?: Prisma.SortOrder
   error?: Prisma.SortOrder
+  resourceType?: Prisma.SortOrder
   offsetMs?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   endedAt?: Prisma.SortOrder
@@ -597,6 +617,7 @@ export type NetworkRequestEntryMaxOrderByAggregateInput = {
   requestBody?: Prisma.SortOrder
   responseBody?: Prisma.SortOrder
   error?: Prisma.SortOrder
+  resourceType?: Prisma.SortOrder
   offsetMs?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   endedAt?: Prisma.SortOrder
@@ -615,6 +636,7 @@ export type NetworkRequestEntryMinOrderByAggregateInput = {
   requestBody?: Prisma.SortOrder
   responseBody?: Prisma.SortOrder
   error?: Prisma.SortOrder
+  resourceType?: Prisma.SortOrder
   offsetMs?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   endedAt?: Prisma.SortOrder
@@ -723,6 +745,7 @@ export type NetworkRequestEntryCreateWithoutReportInput = {
   requestBody?: string | null
   responseBody?: string | null
   error?: string | null
+  resourceType?: string | null
   offsetMs?: number | null
   startedAt: Date | string
   endedAt?: Date | string | null
@@ -743,6 +766,7 @@ export type NetworkRequestEntryUncheckedCreateWithoutReportInput = {
   requestBody?: string | null
   responseBody?: string | null
   error?: string | null
+  resourceType?: string | null
   offsetMs?: number | null
   startedAt: Date | string
   endedAt?: Date | string | null
@@ -792,6 +816,7 @@ export type NetworkRequestEntryScalarWhereInput = {
   requestBody?: Prisma.StringNullableFilter<"NetworkRequestEntry"> | string | null
   responseBody?: Prisma.StringNullableFilter<"NetworkRequestEntry"> | string | null
   error?: Prisma.StringNullableFilter<"NetworkRequestEntry"> | string | null
+  resourceType?: Prisma.StringNullableFilter<"NetworkRequestEntry"> | string | null
   offsetMs?: Prisma.IntNullableFilter<"NetworkRequestEntry"> | number | null
   startedAt?: Prisma.DateTimeFilter<"NetworkRequestEntry"> | Date | string
   endedAt?: Prisma.DateTimeNullableFilter<"NetworkRequestEntry"> | Date | string | null
@@ -810,6 +835,7 @@ export type NetworkRequestEntryCreateWithoutSessionInput = {
   requestBody?: string | null
   responseBody?: string | null
   error?: string | null
+  resourceType?: string | null
   offsetMs?: number | null
   startedAt: Date | string
   endedAt?: Date | string | null
@@ -830,6 +856,7 @@ export type NetworkRequestEntryUncheckedCreateWithoutSessionInput = {
   requestBody?: string | null
   responseBody?: string | null
   error?: string | null
+  resourceType?: string | null
   offsetMs?: number | null
   startedAt: Date | string
   endedAt?: Date | string | null
@@ -875,6 +902,7 @@ export type NetworkRequestEntryCreateManyReportInput = {
   requestBody?: string | null
   responseBody?: string | null
   error?: string | null
+  resourceType?: string | null
   offsetMs?: number | null
   startedAt: Date | string
   endedAt?: Date | string | null
@@ -893,6 +921,7 @@ export type NetworkRequestEntryUpdateWithoutReportInput = {
   requestBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   responseBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  resourceType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   offsetMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   endedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -913,6 +942,7 @@ export type NetworkRequestEntryUncheckedUpdateWithoutReportInput = {
   requestBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   responseBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  resourceType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   offsetMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   endedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -932,6 +962,7 @@ export type NetworkRequestEntryUncheckedUpdateManyWithoutReportInput = {
   requestBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   responseBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  resourceType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   offsetMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   endedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -951,6 +982,7 @@ export type NetworkRequestEntryCreateManySessionInput = {
   requestBody?: string | null
   responseBody?: string | null
   error?: string | null
+  resourceType?: string | null
   offsetMs?: number | null
   startedAt: Date | string
   endedAt?: Date | string | null
@@ -969,6 +1001,7 @@ export type NetworkRequestEntryUpdateWithoutSessionInput = {
   requestBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   responseBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  resourceType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   offsetMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   endedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -989,6 +1022,7 @@ export type NetworkRequestEntryUncheckedUpdateWithoutSessionInput = {
   requestBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   responseBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  resourceType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   offsetMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   endedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1008,6 +1042,7 @@ export type NetworkRequestEntryUncheckedUpdateManyWithoutSessionInput = {
   requestBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   responseBody?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  resourceType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   offsetMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   endedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1030,6 +1065,7 @@ export type NetworkRequestEntrySelect<ExtArgs extends runtime.Types.Extensions.I
   requestBody?: boolean
   responseBody?: boolean
   error?: boolean
+  resourceType?: boolean
   offsetMs?: boolean
   startedAt?: boolean
   endedAt?: boolean
@@ -1052,6 +1088,7 @@ export type NetworkRequestEntrySelectCreateManyAndReturn<ExtArgs extends runtime
   requestBody?: boolean
   responseBody?: boolean
   error?: boolean
+  resourceType?: boolean
   offsetMs?: boolean
   startedAt?: boolean
   endedAt?: boolean
@@ -1074,6 +1111,7 @@ export type NetworkRequestEntrySelectUpdateManyAndReturn<ExtArgs extends runtime
   requestBody?: boolean
   responseBody?: boolean
   error?: boolean
+  resourceType?: boolean
   offsetMs?: boolean
   startedAt?: boolean
   endedAt?: boolean
@@ -1096,13 +1134,14 @@ export type NetworkRequestEntrySelectScalar = {
   requestBody?: boolean
   responseBody?: boolean
   error?: boolean
+  resourceType?: boolean
   offsetMs?: boolean
   startedAt?: boolean
   endedAt?: boolean
   createdAt?: boolean
 }
 
-export type NetworkRequestEntryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "reportId" | "sessionId" | "requestId" | "method" | "url" | "statusCode" | "durationMs" | "requestHeaders" | "responseHeaders" | "requestBody" | "responseBody" | "error" | "offsetMs" | "startedAt" | "endedAt" | "createdAt", ExtArgs["result"]["networkRequestEntry"]>
+export type NetworkRequestEntryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "reportId" | "sessionId" | "requestId" | "method" | "url" | "statusCode" | "durationMs" | "requestHeaders" | "responseHeaders" | "requestBody" | "responseBody" | "error" | "resourceType" | "offsetMs" | "startedAt" | "endedAt" | "createdAt", ExtArgs["result"]["networkRequestEntry"]>
 export type NetworkRequestEntryInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   report?: boolean | Prisma.BugReportDefaultArgs<ExtArgs>
   session?: boolean | Prisma.NetworkRequestEntry$sessionArgs<ExtArgs>
@@ -1136,6 +1175,7 @@ export type $NetworkRequestEntryPayload<ExtArgs extends runtime.Types.Extensions
     requestBody: string | null
     responseBody: string | null
     error: string | null
+    resourceType: string | null
     offsetMs: number | null
     startedAt: Date
     endedAt: Date | null
@@ -1578,6 +1618,7 @@ export interface NetworkRequestEntryFieldRefs {
   readonly requestBody: Prisma.FieldRef<"NetworkRequestEntry", 'String'>
   readonly responseBody: Prisma.FieldRef<"NetworkRequestEntry", 'String'>
   readonly error: Prisma.FieldRef<"NetworkRequestEntry", 'String'>
+  readonly resourceType: Prisma.FieldRef<"NetworkRequestEntry", 'String'>
   readonly offsetMs: Prisma.FieldRef<"NetworkRequestEntry", 'Int'>
   readonly startedAt: Prisma.FieldRef<"NetworkRequestEntry", 'DateTime'>
   readonly endedAt: Prisma.FieldRef<"NetworkRequestEntry", 'DateTime'>

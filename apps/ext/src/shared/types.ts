@@ -157,6 +157,10 @@ export interface NetworkTelemetryEntry {
   requestBody?: Optional<string>;
   responseBody?: Optional<string>;
   error?: Optional<string>;
+  // Chrome's webRequest ResourceType ("image", "script", "stylesheet", ...)
+  // for browser-observed loads, or "fetch"/"xhr" for page-bridge-captured
+  // API calls — lets the UI tell real API traffic apart from asset loads.
+  resourceType?: Optional<string>;
   startedAt: string;
   endedAt?: Optional<string>;
   offsetMs?: Optional<number>;

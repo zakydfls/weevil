@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/auth-context';
 import { apiClient } from '@/lib/api/client';
 import type {
+  CreateReportBoardColumnInput,
   CreateReportInput,
   ListReportsParams,
   PaginatedReportsResponse,
@@ -15,6 +16,7 @@ export const reportKeys = {
   lists: () => ['reports', 'list'] as const,
   list: (workspaceSlug: string, params: ListReportsParams) =>
     ['reports', 'list', workspaceSlug, params] as const,
+  boardColumns: (workspaceSlug: string) => ['reports', 'board-columns', workspaceSlug] as const,
   detail: (reportId: string) => ['reports', 'detail', reportId] as const,
   publicDetail: (shareToken: string) => ['reports', 'public-detail', shareToken] as const,
 };
@@ -105,6 +107,29 @@ export function useMoveReportOnBoard() {
     },
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: reportKeys.lists() });
+    },
+  });
+}
+
+export function useReportBoardColumns() {
+  const workspaceKey = useWorkspaceQueryKey();
+
+  return useQuery({
+    queryKey: reportKeys.boardColumns(workspaceKey),
+    queryFn: () => apiClient.listReportBoardColumns(),
+    enabled: workspaceKey !== NO_WORKSPACE_KEY,
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateReportBoardColumn() {
+  const queryClient = useQueryClient();
+  const workspaceKey = useWorkspaceQueryKey();
+
+  return useMutation({
+    mutationFn: (input: CreateReportBoardColumnInput) => apiClient.createReportBoardColumn(input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: reportKeys.boardColumns(workspaceKey) });
     },
   });
 }

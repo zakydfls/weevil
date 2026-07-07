@@ -125,11 +125,15 @@ export class ReportMapper {
       viewportWidth: report.viewportWidth,
       viewportHeight: report.viewportHeight,
       metadata: report.metadata,
-      captureSessions: report.captureSessions.map((session) => this.toCaptureSession(session, shouldRedact)),
+      captureSessions: report.captureSessions.map((session) =>
+        this.toCaptureSession(session, shouldRedact),
+      ),
       uploads: report.uploads.map((upload) => this.toUpload(upload)),
       events: report.events.map((event) => this.toEvent(event)),
       consoleLogs: report.consoleLogs.map((entry) => this.toConsoleLog(entry, shouldRedact)),
-      networkRequests: report.networkRequests.map((entry) => this.toNetworkRequest(entry, shouldRedact)),
+      networkRequests: report.networkRequests.map((entry) =>
+        this.toNetworkRequest(entry, shouldRedact),
+      ),
       pageActions: report.pageActions.map((entry) => this.toPageAction(entry, shouldRedact)),
       runtimeErrors: report.runtimeErrors.map((entry) => this.toRuntimeError(entry, shouldRedact)),
       performanceEntries: report.performanceEntries.map((entry) =>
@@ -241,7 +245,10 @@ export class ReportMapper {
     };
   }
 
-  private toNetworkRequest(entry: NetworkRequestEntry, shouldRedact: boolean): NetworkRequestResponse {
+  private toNetworkRequest(
+    entry: NetworkRequestEntry,
+    shouldRedact: boolean,
+  ): NetworkRequestResponse {
     return {
       id: entry.id,
       sessionId: entry.sessionId,
@@ -255,6 +262,7 @@ export class ReportMapper {
       requestBody: this.redactNullableText(entry.requestBody, shouldRedact),
       responseBody: this.redactNullableText(entry.responseBody, shouldRedact),
       error: this.redactNullableText(entry.error, shouldRedact),
+      resourceType: entry.resourceType,
       offsetMs: entry.offsetMs,
       startedAt: entry.startedAt.toISOString(),
       endedAt: entry.endedAt?.toISOString() ?? null,
@@ -301,7 +309,10 @@ export class ReportMapper {
     };
   }
 
-  private toPerformanceEntry(entry: PerformanceEntry, shouldRedact: boolean): PerformanceEntryResponse {
+  private toPerformanceEntry(
+    entry: PerformanceEntry,
+    shouldRedact: boolean,
+  ): PerformanceEntryResponse {
     return {
       id: entry.id,
       sessionId: entry.sessionId,
@@ -358,7 +369,10 @@ export class ReportMapper {
     };
   }
 
-  private toTimeline(report: ReportDetailModel, shouldRedact: boolean): ReportTimelineEntryResponse[] {
+  private toTimeline(
+    report: ReportDetailModel,
+    shouldRedact: boolean,
+  ): ReportTimelineEntryResponse[] {
     const timeline: ReportTimelineEntryResponse[] = [
       ...report.captureSessions.map((session) => ({
         id: session.id,
@@ -413,6 +427,7 @@ export class ReportMapper {
               : ('neutral' as const),
         timestamp: entry.startedAt.toISOString(),
         offsetMs: entry.offsetMs,
+        resourceType: entry.resourceType,
         payload: this.toNetworkRequest(entry, shouldRedact),
       })),
       ...report.pageActions.map((entry) => ({
@@ -468,8 +483,7 @@ export class ReportMapper {
     ];
 
     return timeline.sort(
-      (left, right) =>
-        new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime(),
+      (left, right) => new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime(),
     );
   }
 
@@ -507,6 +521,6 @@ export class ReportMapper {
     value: string | null | undefined,
     shouldRedact: boolean,
   ): string | null | undefined {
-    return shouldRedact ? this.redaction.redactText(value ?? undefined) ?? value : value;
+    return shouldRedact ? (this.redaction.redactText(value ?? undefined) ?? value) : value;
   }
 }

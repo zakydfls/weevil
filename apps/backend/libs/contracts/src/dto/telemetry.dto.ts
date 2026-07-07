@@ -126,6 +126,11 @@ export class NetworkRequestEntryDto {
   @MaxLength(4000)
   error?: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  resourceType?: string;
+
   @Type(() => Date)
   @IsDate()
   startedAt: Date;

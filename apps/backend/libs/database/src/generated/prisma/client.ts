@@ -106,6 +106,11 @@ export type BugReport = Prisma.BugReportModel
  */
 export type ReportAssignee = Prisma.ReportAssigneeModel
 /**
+ * Model ReportBoardColumn
+ * 
+ */
+export type ReportBoardColumn = Prisma.ReportBoardColumnModel
+/**
  * Model CaptureSession
  * 
  */
