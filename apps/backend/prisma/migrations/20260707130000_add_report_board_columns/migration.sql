@@ -7,7 +7,7 @@ CREATE TABLE "report_board_columns" (
   "color" TEXT NOT NULL DEFAULT 'primary',
   "order" INTEGER NOT NULL,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL,
 
   CONSTRAINT "report_board_columns_pkey" PRIMARY KEY ("id")
 );
