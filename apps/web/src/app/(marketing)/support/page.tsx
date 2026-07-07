@@ -4,8 +4,19 @@ import { WeevilMark } from '@/components/brand/weevil-mark';
 import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = {
-  title: 'Support',
-  description: 'Get help with Weevil — contact support or check the FAQ.',
+  title: 'Support and FAQ',
+  description:
+    'Get help with Weevil, the Chrome bug recorder for screen recordings, console logs, network requests, and shareable debugging sessions.',
+  alternates: {
+    canonical: '/support',
+  },
+  openGraph: {
+    title: 'Weevil Support and FAQ',
+    description:
+      'Get help with Weevil, the Chrome bug recorder for screen recordings, console logs, network requests, and shareable debugging sessions.',
+    url: '/support',
+    type: 'website',
+  },
 };
 
 const SUPPORT_EMAIL = 'centurycode23@gmail.com';
@@ -41,9 +52,26 @@ const FAQS = [
   },
 ];
 
+const FAQ_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: FAQS.map((faq) => ({
+    '@type': 'Question',
+    name: faq.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: faq.answer,
+    },
+  })),
+};
+
 export default function SupportPage() {
   return (
     <div className="mx-auto w-full max-w-[52rem] px-4 py-20 sm:px-6 sm:py-28">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }}
+      />
       <div className="text-center">
         <WeevilMark size={48} tone="primary" className="mx-auto weevil-mascot" />
         <h1 className="mt-6 text-[clamp(1.75rem,4vw,2.75rem)] font-semibold tracking-[-0.02em] text-[var(--ink)]">

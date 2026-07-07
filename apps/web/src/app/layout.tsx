@@ -10,28 +10,67 @@ import './globals.css';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://theweevil.space'),
+  applicationName: 'Weevil',
   title: {
-    default: 'Weevil — bug reports that answer their own questions',
+    default: 'Weevil — bug recorder for debuggable reports',
     template: '%s · Weevil',
   },
   description:
-    'Weevil records the screen, console, network, and every action on one scrubbable timeline — so bug reports come with the evidence, not a follow-up question.',
+    'Weevil is a bug recorder for Chrome and web teams. Capture screen recordings, console logs, network requests, runtime errors, and user actions on one scrubbable timeline.',
+  keywords: [
+    'Weevil',
+    'bug recorder',
+    'bug report recorder',
+    'Chrome bug recorder',
+    'screen recording for bug reports',
+    'console log recorder',
+    'network request recorder',
+    'debugging session',
+    'developer tools',
+    'QA bug reporting',
+  ],
+  authors: [{ name: 'Weevil' }],
+  creator: 'Weevil',
+  publisher: 'Weevil',
+  category: 'developer tools',
   icons: {
     icon: '/icon.svg',
   },
+  manifest: '/manifest.webmanifest',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
   openGraph: {
-    title: 'Weevil — bug reports that answer their own questions',
+    title: 'Weevil — bug recorder for debuggable reports',
     description:
-      'Weevil records the screen, console, network, and every action on one scrubbable timeline — so bug reports come with the evidence, not a follow-up question.',
-    url: 'https://theweevil.space',
+      'Capture screen recordings, console logs, network requests, runtime errors, and user actions on one scrubbable timeline.',
+    url: '/',
     siteName: 'Weevil',
+    locale: 'en_US',
     type: 'website',
+    images: [
+      {
+        url: '/marketing/panel-network.png',
+        width: 1840,
+        height: 1054,
+        alt: 'Weevil capture detail view showing network requests synced to a bug recording timeline',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Weevil — bug reports that answer their own questions',
+    title: 'Weevil — bug recorder for debuggable reports',
     description:
-      'Weevil records the screen, console, network, and every action on one scrubbable timeline.',
+      'Capture screen recordings, console logs, network requests, runtime errors, and user actions on one timeline.',
+    images: ['/marketing/panel-network.png'],
   },
 };
 

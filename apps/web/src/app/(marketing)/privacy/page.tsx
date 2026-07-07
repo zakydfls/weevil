@@ -4,7 +4,18 @@ import { WeevilMark } from '@/components/brand/weevil-mark';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
-  description: 'What the Weevil extension and web app collect, what they redact automatically, and how you stay in control.',
+  description:
+    'What the Weevil Chrome extension and web app collect, what they redact automatically, and how you stay in control of bug recording data.',
+  alternates: {
+    canonical: '/privacy',
+  },
+  openGraph: {
+    title: 'Weevil Privacy Policy',
+    description:
+      'What the Weevil Chrome extension and web app collect, what they redact automatically, and how you stay in control of bug recording data.',
+    url: '/privacy',
+    type: 'website',
+  },
 };
 
 const SUPPORT_EMAIL = 'centurycode23@gmail.com';

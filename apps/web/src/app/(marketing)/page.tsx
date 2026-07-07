@@ -8,10 +8,38 @@ import { WeevilLogo, WeevilMark } from '@/components/brand/weevil-mark';
 import { ParallaxShowcase } from '@/components/marketing/parallax-showcase';
 import { WeevilMascot } from '@/components/marketing/weevil-mascot';
 
+const SITE_URL = 'https://theweevil.space';
+const LANDING_DESCRIPTION =
+  'Weevil is a bug recorder for Chrome and web teams. Capture screen recordings, console logs, network requests, runtime errors, and user actions on one scrubbable timeline.';
+
 export const metadata: Metadata = {
-  title: 'Weevil — bug reports that answer their own questions',
-  description:
-    'Weevil records the screen, console, network, and every action on one scrubbable timeline — so bug reports come with the evidence, not a follow-up question.',
+  title: {
+    absolute: 'Weevil — bug recorder for debuggable reports',
+  },
+  description: LANDING_DESCRIPTION,
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: 'Weevil — bug recorder for debuggable reports',
+    description: LANDING_DESCRIPTION,
+    url: '/',
+    type: 'website',
+    images: [
+      {
+        url: '/marketing/panel-network.png',
+        width: 1840,
+        height: 1054,
+        alt: 'Weevil capture detail view showing network requests synced to a bug recording timeline',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Weevil — bug recorder for debuggable reports',
+    description: LANDING_DESCRIPTION,
+    images: ['/marketing/panel-network.png'],
+  },
 };
 
 const VIEW_REDIRECTS: Record<string, string> = {
@@ -51,6 +79,51 @@ const PRIVACY_POINTS = [
   'You review every capture before it uploads. Discard it and nothing leaves your device.',
 ];
 
+const LANDING_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': `${SITE_URL}/#organization`,
+      name: 'Weevil',
+      url: SITE_URL,
+      logo: `${SITE_URL}/icon.svg`,
+      email: 'centurycode23@gmail.com',
+    },
+    {
+      '@type': 'WebSite',
+      '@id': `${SITE_URL}/#website`,
+      name: 'Weevil',
+      url: SITE_URL,
+      description: LANDING_DESCRIPTION,
+      inLanguage: 'en',
+      publisher: {
+        '@id': `${SITE_URL}/#organization`,
+      },
+    },
+    {
+      '@type': 'SoftwareApplication',
+      '@id': `${SITE_URL}/#software`,
+      name: 'Weevil',
+      url: SITE_URL,
+      description: LANDING_DESCRIPTION,
+      applicationCategory: 'DeveloperApplication',
+      operatingSystem: 'Chrome, Web',
+      screenshot: `${SITE_URL}/marketing/panel-network.png`,
+      publisher: {
+        '@id': `${SITE_URL}/#organization`,
+      },
+      featureList: [
+        'Screen recording for bug reports',
+        'Console log and runtime error capture',
+        'Network request and response capture',
+        'User action timeline',
+        'Shareable debugging session links',
+      ],
+    },
+  ],
+};
+
 export default async function LandingPage({
   searchParams,
 }: {
@@ -68,6 +141,10 @@ export default async function LandingPage({
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(LANDING_JSON_LD) }}
+      />
       {/* ── Hero — Committed terracotta ─────────────────────────────── */}
       <section
         id="hero"
