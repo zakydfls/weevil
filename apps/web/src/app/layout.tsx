@@ -34,7 +34,12 @@ export const metadata: Metadata = {
   publisher: 'Weevil',
   category: 'developer tools',
   icons: {
-    icon: '/icon.svg',
+    icon: [
+      { url: '/icons/weevil-48.png', sizes: '48x48', type: 'image/png' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/icons/weevil-48.png',
+    apple: [{ url: '/icons/weevil-192.png', sizes: '192x192', type: 'image/png' }],
   },
   manifest: '/manifest.webmanifest',
   robots: {
