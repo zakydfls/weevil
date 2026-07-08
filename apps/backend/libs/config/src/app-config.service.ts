@@ -68,23 +68,15 @@ export class AppConfigService {
 
   /** Allowed browser origins for CORS. Empty array = reflect any origin (dev). */
   get webOrigins(): string[] {
-    return this.configService
-      .get('WEB_ORIGIN', { infer: true })
-      .split(',')
-      .map((origin) => origin.trim())
-      .filter(Boolean);
+    return parseOriginList(this.configService.get('WEB_ORIGIN', { infer: true }));
   }
 
   /** Trusted extension origins allowed to use cookie-authenticated capture APIs. */
   get extensionOrigins(): string[] {
-    return [
+    return parseOriginList([
       this.configService.get('EXTENSION_ORIGINS', { infer: true }),
       this.configService.get('EXTENSION_ORIGIN', { infer: true }),
-    ]
-      .join(',')
-      .split(',')
-      .map((origin) => origin.trim())
-      .filter(Boolean);
+    ]);
   }
 
   get browserOrigins(): string[] {
@@ -122,4 +114,30 @@ export class AppConfigService {
   get authOtpSecret(): string | undefined {
     return this.configService.get('AUTH_OTP_SECRET', { infer: true }) || undefined;
   }
+}
+
+function parseOriginList(value: string | string[]): string[] {
+  const raw = Array.isArray(value) ? value.join(',') : value;
+  return raw
+    .split(',')
+    .map((origin) => normalizeOrigin(origin.trim()))
+    .filter((origin): origin is string => Boolean(origin));
+}
+
+function normalizeOrigin(value: string): string | undefined {
+  if (!value) return undefined;
+
+  try {
+    const url = new URL(value);
+    if (url.origin !== 'null') {
+      return url.origin;
+    }
+    if (url.protocol === 'chrome-extension:' || url.protocol === 'moz-extension:') {
+      return `${url.protocol}//${url.hostname}`;
+    }
+  } catch {
+    return value;
+  }
+
+  return value;
 }

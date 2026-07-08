@@ -161,7 +161,6 @@ export class ReportNotificationService {
     const recipients = await this.findAssignedRecipients(report.workspaceId, addedUserIds);
     if (recipients.length === 0) return;
 
-    const detail = this.toDetail(report, this.buildPrivateCaptureUrl(report.id));
     this.emitInAppNotifications(recipients, {
       workspaceId: report.workspaceId,
       type: 'report_assigned',
@@ -173,7 +172,12 @@ export class ReportNotificationService {
         workspace_slug: report.workspace.slug,
       },
     });
-    await this.sendToRecipients(recipients, {
+
+    const emailRecipients = await this.findAssignedEmailRecipients(report.workspaceId, addedUserIds);
+    if (emailRecipients.length === 0) return;
+
+    const detail = this.toDetail(report, this.buildPrivateCaptureUrl(report.id));
+    await this.sendToRecipients(emailRecipients, {
       subject: reportAssignedEmailSubject({ reportTitle: report.title }),
       html: '',
       metadata: {
@@ -255,6 +259,43 @@ export class ReportNotificationService {
       userId: member.user.id,
       email: member.user.email,
       displayName: member.user.displayName,
+    }));
+  }
+
+  private async findAssignedEmailRecipients(
+    workspaceId: string,
+    userIds: string[],
+  ): Promise<ReportNotificationRecipient[]> {
+    const preferences = await this.prisma.userNotificationPreference.findMany({
+      where: {
+        workspaceId,
+        userId: { in: userIds },
+        emailOnAssignment: true,
+        user: {
+          status: UserStatus.ACTIVE,
+          memberships: {
+            some: {
+              workspaceId,
+              status: MembershipStatus.ACTIVE,
+            },
+          },
+        },
+      },
+      select: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            displayName: true,
+          },
+        },
+      },
+    });
+
+    return preferences.map((preference) => ({
+      userId: preference.user.id,
+      email: preference.user.email,
+      displayName: preference.user.displayName,
     }));
   }
 

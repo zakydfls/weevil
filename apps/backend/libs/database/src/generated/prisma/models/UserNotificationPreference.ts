@@ -31,6 +31,7 @@ export type UserNotificationPreferenceMinAggregateOutputType = {
   userId: string | null
   emailOnNewCapture: boolean | null
   emailOnNewComment: boolean | null
+  emailOnAssignment: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -41,6 +42,7 @@ export type UserNotificationPreferenceMaxAggregateOutputType = {
   userId: string | null
   emailOnNewCapture: boolean | null
   emailOnNewComment: boolean | null
+  emailOnAssignment: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -51,6 +53,7 @@ export type UserNotificationPreferenceCountAggregateOutputType = {
   userId: number
   emailOnNewCapture: number
   emailOnNewComment: number
+  emailOnAssignment: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -63,6 +66,7 @@ export type UserNotificationPreferenceMinAggregateInputType = {
   userId?: true
   emailOnNewCapture?: true
   emailOnNewComment?: true
+  emailOnAssignment?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -73,6 +77,7 @@ export type UserNotificationPreferenceMaxAggregateInputType = {
   userId?: true
   emailOnNewCapture?: true
   emailOnNewComment?: true
+  emailOnAssignment?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -83,6 +88,7 @@ export type UserNotificationPreferenceCountAggregateInputType = {
   userId?: true
   emailOnNewCapture?: true
   emailOnNewComment?: true
+  emailOnAssignment?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -166,6 +172,7 @@ export type UserNotificationPreferenceGroupByOutputType = {
   userId: string
   emailOnNewCapture: boolean
   emailOnNewComment: boolean
+  emailOnAssignment: boolean
   createdAt: Date
   updatedAt: Date
   _count: UserNotificationPreferenceCountAggregateOutputType | null
@@ -197,6 +204,7 @@ export type UserNotificationPreferenceWhereInput = {
   userId?: Prisma.StringFilter<"UserNotificationPreference"> | string
   emailOnNewCapture?: Prisma.BoolFilter<"UserNotificationPreference"> | boolean
   emailOnNewComment?: Prisma.BoolFilter<"UserNotificationPreference"> | boolean
+  emailOnAssignment?: Prisma.BoolFilter<"UserNotificationPreference"> | boolean
   createdAt?: Prisma.DateTimeFilter<"UserNotificationPreference"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"UserNotificationPreference"> | Date | string
   workspace?: Prisma.XOR<Prisma.WorkspaceScalarRelationFilter, Prisma.WorkspaceWhereInput>
@@ -209,6 +217,7 @@ export type UserNotificationPreferenceOrderByWithRelationInput = {
   userId?: Prisma.SortOrder
   emailOnNewCapture?: Prisma.SortOrder
   emailOnNewComment?: Prisma.SortOrder
+  emailOnAssignment?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   workspace?: Prisma.WorkspaceOrderByWithRelationInput
@@ -225,6 +234,7 @@ export type UserNotificationPreferenceWhereUniqueInput = Prisma.AtLeast<{
   userId?: Prisma.StringFilter<"UserNotificationPreference"> | string
   emailOnNewCapture?: Prisma.BoolFilter<"UserNotificationPreference"> | boolean
   emailOnNewComment?: Prisma.BoolFilter<"UserNotificationPreference"> | boolean
+  emailOnAssignment?: Prisma.BoolFilter<"UserNotificationPreference"> | boolean
   createdAt?: Prisma.DateTimeFilter<"UserNotificationPreference"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"UserNotificationPreference"> | Date | string
   workspace?: Prisma.XOR<Prisma.WorkspaceScalarRelationFilter, Prisma.WorkspaceWhereInput>
@@ -237,6 +247,7 @@ export type UserNotificationPreferenceOrderByWithAggregationInput = {
   userId?: Prisma.SortOrder
   emailOnNewCapture?: Prisma.SortOrder
   emailOnNewComment?: Prisma.SortOrder
+  emailOnAssignment?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.UserNotificationPreferenceCountOrderByAggregateInput
@@ -253,6 +264,7 @@ export type UserNotificationPreferenceScalarWhereWithAggregatesInput = {
   userId?: Prisma.StringWithAggregatesFilter<"UserNotificationPreference"> | string
   emailOnNewCapture?: Prisma.BoolWithAggregatesFilter<"UserNotificationPreference"> | boolean
   emailOnNewComment?: Prisma.BoolWithAggregatesFilter<"UserNotificationPreference"> | boolean
+  emailOnAssignment?: Prisma.BoolWithAggregatesFilter<"UserNotificationPreference"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"UserNotificationPreference"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"UserNotificationPreference"> | Date | string
 }
@@ -261,6 +273,7 @@ export type UserNotificationPreferenceCreateInput = {
   id?: string
   emailOnNewCapture?: boolean
   emailOnNewComment?: boolean
+  emailOnAssignment?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   workspace: Prisma.WorkspaceCreateNestedOneWithoutNotificationPreferencesInput
@@ -273,6 +286,7 @@ export type UserNotificationPreferenceUncheckedCreateInput = {
   userId: string
   emailOnNewCapture?: boolean
   emailOnNewComment?: boolean
+  emailOnAssignment?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -281,6 +295,7 @@ export type UserNotificationPreferenceUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   emailOnNewCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailOnNewComment?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  emailOnAssignment?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   workspace?: Prisma.WorkspaceUpdateOneRequiredWithoutNotificationPreferencesNestedInput
@@ -293,6 +308,7 @@ export type UserNotificationPreferenceUncheckedUpdateInput = {
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   emailOnNewCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailOnNewComment?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  emailOnAssignment?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -303,6 +319,7 @@ export type UserNotificationPreferenceCreateManyInput = {
   userId: string
   emailOnNewCapture?: boolean
   emailOnNewComment?: boolean
+  emailOnAssignment?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -311,6 +328,7 @@ export type UserNotificationPreferenceUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   emailOnNewCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailOnNewComment?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  emailOnAssignment?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -321,6 +339,7 @@ export type UserNotificationPreferenceUncheckedUpdateManyInput = {
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   emailOnNewCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailOnNewComment?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  emailOnAssignment?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -346,6 +365,7 @@ export type UserNotificationPreferenceCountOrderByAggregateInput = {
   userId?: Prisma.SortOrder
   emailOnNewCapture?: Prisma.SortOrder
   emailOnNewComment?: Prisma.SortOrder
+  emailOnAssignment?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -356,6 +376,7 @@ export type UserNotificationPreferenceMaxOrderByAggregateInput = {
   userId?: Prisma.SortOrder
   emailOnNewCapture?: Prisma.SortOrder
   emailOnNewComment?: Prisma.SortOrder
+  emailOnAssignment?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -366,6 +387,7 @@ export type UserNotificationPreferenceMinOrderByAggregateInput = {
   userId?: Prisma.SortOrder
   emailOnNewCapture?: Prisma.SortOrder
   emailOnNewComment?: Prisma.SortOrder
+  emailOnAssignment?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -462,6 +484,7 @@ export type UserNotificationPreferenceCreateWithoutWorkspaceInput = {
   id?: string
   emailOnNewCapture?: boolean
   emailOnNewComment?: boolean
+  emailOnAssignment?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutNotificationPreferencesInput
@@ -472,6 +495,7 @@ export type UserNotificationPreferenceUncheckedCreateWithoutWorkspaceInput = {
   userId: string
   emailOnNewCapture?: boolean
   emailOnNewComment?: boolean
+  emailOnAssignment?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -511,6 +535,7 @@ export type UserNotificationPreferenceScalarWhereInput = {
   userId?: Prisma.StringFilter<"UserNotificationPreference"> | string
   emailOnNewCapture?: Prisma.BoolFilter<"UserNotificationPreference"> | boolean
   emailOnNewComment?: Prisma.BoolFilter<"UserNotificationPreference"> | boolean
+  emailOnAssignment?: Prisma.BoolFilter<"UserNotificationPreference"> | boolean
   createdAt?: Prisma.DateTimeFilter<"UserNotificationPreference"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"UserNotificationPreference"> | Date | string
 }
@@ -519,6 +544,7 @@ export type UserNotificationPreferenceCreateWithoutUserInput = {
   id?: string
   emailOnNewCapture?: boolean
   emailOnNewComment?: boolean
+  emailOnAssignment?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   workspace: Prisma.WorkspaceCreateNestedOneWithoutNotificationPreferencesInput
@@ -529,6 +555,7 @@ export type UserNotificationPreferenceUncheckedCreateWithoutUserInput = {
   workspaceId: string
   emailOnNewCapture?: boolean
   emailOnNewComment?: boolean
+  emailOnAssignment?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -564,6 +591,7 @@ export type UserNotificationPreferenceCreateManyWorkspaceInput = {
   userId: string
   emailOnNewCapture?: boolean
   emailOnNewComment?: boolean
+  emailOnAssignment?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -572,6 +600,7 @@ export type UserNotificationPreferenceUpdateWithoutWorkspaceInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   emailOnNewCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailOnNewComment?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  emailOnAssignment?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutNotificationPreferencesNestedInput
@@ -582,6 +611,7 @@ export type UserNotificationPreferenceUncheckedUpdateWithoutWorkspaceInput = {
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   emailOnNewCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailOnNewComment?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  emailOnAssignment?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -591,6 +621,7 @@ export type UserNotificationPreferenceUncheckedUpdateManyWithoutWorkspaceInput =
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   emailOnNewCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailOnNewComment?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  emailOnAssignment?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -600,6 +631,7 @@ export type UserNotificationPreferenceCreateManyUserInput = {
   workspaceId: string
   emailOnNewCapture?: boolean
   emailOnNewComment?: boolean
+  emailOnAssignment?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -608,6 +640,7 @@ export type UserNotificationPreferenceUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   emailOnNewCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailOnNewComment?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  emailOnAssignment?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   workspace?: Prisma.WorkspaceUpdateOneRequiredWithoutNotificationPreferencesNestedInput
@@ -618,6 +651,7 @@ export type UserNotificationPreferenceUncheckedUpdateWithoutUserInput = {
   workspaceId?: Prisma.StringFieldUpdateOperationsInput | string
   emailOnNewCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailOnNewComment?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  emailOnAssignment?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -627,6 +661,7 @@ export type UserNotificationPreferenceUncheckedUpdateManyWithoutUserInput = {
   workspaceId?: Prisma.StringFieldUpdateOperationsInput | string
   emailOnNewCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
   emailOnNewComment?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  emailOnAssignment?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -639,6 +674,7 @@ export type UserNotificationPreferenceSelect<ExtArgs extends runtime.Types.Exten
   userId?: boolean
   emailOnNewCapture?: boolean
   emailOnNewComment?: boolean
+  emailOnAssignment?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   workspace?: boolean | Prisma.WorkspaceDefaultArgs<ExtArgs>
@@ -651,6 +687,7 @@ export type UserNotificationPreferenceSelectCreateManyAndReturn<ExtArgs extends 
   userId?: boolean
   emailOnNewCapture?: boolean
   emailOnNewComment?: boolean
+  emailOnAssignment?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   workspace?: boolean | Prisma.WorkspaceDefaultArgs<ExtArgs>
@@ -663,6 +700,7 @@ export type UserNotificationPreferenceSelectUpdateManyAndReturn<ExtArgs extends 
   userId?: boolean
   emailOnNewCapture?: boolean
   emailOnNewComment?: boolean
+  emailOnAssignment?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   workspace?: boolean | Prisma.WorkspaceDefaultArgs<ExtArgs>
@@ -675,11 +713,12 @@ export type UserNotificationPreferenceSelectScalar = {
   userId?: boolean
   emailOnNewCapture?: boolean
   emailOnNewComment?: boolean
+  emailOnAssignment?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type UserNotificationPreferenceOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "workspaceId" | "userId" | "emailOnNewCapture" | "emailOnNewComment" | "createdAt" | "updatedAt", ExtArgs["result"]["userNotificationPreference"]>
+export type UserNotificationPreferenceOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "workspaceId" | "userId" | "emailOnNewCapture" | "emailOnNewComment" | "emailOnAssignment" | "createdAt" | "updatedAt", ExtArgs["result"]["userNotificationPreference"]>
 export type UserNotificationPreferenceInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   workspace?: boolean | Prisma.WorkspaceDefaultArgs<ExtArgs>
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -705,6 +744,7 @@ export type $UserNotificationPreferencePayload<ExtArgs extends runtime.Types.Ext
     userId: string
     emailOnNewCapture: boolean
     emailOnNewComment: boolean
+    emailOnAssignment: boolean
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["userNotificationPreference"]>
@@ -1137,6 +1177,7 @@ export interface UserNotificationPreferenceFieldRefs {
   readonly userId: Prisma.FieldRef<"UserNotificationPreference", 'String'>
   readonly emailOnNewCapture: Prisma.FieldRef<"UserNotificationPreference", 'Boolean'>
   readonly emailOnNewComment: Prisma.FieldRef<"UserNotificationPreference", 'Boolean'>
+  readonly emailOnAssignment: Prisma.FieldRef<"UserNotificationPreference", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"UserNotificationPreference", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"UserNotificationPreference", 'DateTime'>
 }

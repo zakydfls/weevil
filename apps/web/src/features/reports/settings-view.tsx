@@ -9,6 +9,7 @@ import {
   Loader2,
   MessageSquareText,
   ShieldCheck,
+  UserPlus,
   Users,
   Video,
 } from 'lucide-react';
@@ -54,6 +55,7 @@ export function SettingsView() {
     useState<NotificationPreferences>({
       emailOnNewCapture: false,
       emailOnNewComment: false,
+      emailOnAssignment: false,
     });
   const [isSaving, setIsSaving] = useState(false);
   const [isNotificationLoading, setIsNotificationLoading] = useState(true);
@@ -65,11 +67,13 @@ export function SettingsView() {
     useState<Record<keyof NotificationPreferences, 'idle' | 'synced' | 'failed'>>({
       emailOnNewCapture: 'idle',
       emailOnNewComment: 'idle',
+      emailOnAssignment: 'idle',
     });
   const [notificationSyncError, setNotificationSyncError] =
     useState<Record<keyof NotificationPreferences, string | null>>({
       emailOnNewCapture: null,
       emailOnNewComment: null,
+      emailOnAssignment: null,
     });
 
   useEffect(() => {
@@ -102,8 +106,16 @@ export function SettingsView() {
   useEffect(() => {
     let isMounted = true;
     setIsNotificationLoading(true);
-    setNotificationSyncState({ emailOnNewCapture: 'idle', emailOnNewComment: 'idle' });
-    setNotificationSyncError({ emailOnNewCapture: null, emailOnNewComment: null });
+    setNotificationSyncState({
+      emailOnNewCapture: 'idle',
+      emailOnNewComment: 'idle',
+      emailOnAssignment: 'idle',
+    });
+    setNotificationSyncError({
+      emailOnNewCapture: null,
+      emailOnNewComment: null,
+      emailOnAssignment: null,
+    });
 
     void apiClient
       .getNotificationPreferences()
@@ -113,10 +125,15 @@ export function SettingsView() {
       })
       .catch((error) => {
         if (!isMounted) return;
-        setNotificationSyncState({ emailOnNewCapture: 'failed', emailOnNewComment: 'failed' });
+        setNotificationSyncState({
+          emailOnNewCapture: 'failed',
+          emailOnNewComment: 'failed',
+          emailOnAssignment: 'failed',
+        });
         setNotificationSyncError({
           emailOnNewCapture: error instanceof Error ? error.message : String(error),
           emailOnNewComment: error instanceof Error ? error.message : String(error),
+          emailOnAssignment: error instanceof Error ? error.message : String(error),
         });
       })
       .finally(() => {
@@ -264,6 +281,32 @@ export function SettingsView() {
                     isSaving={savingNotificationKey === 'emailOnNewComment'}
                     syncState={notificationSyncState.emailOnNewComment}
                     error={notificationSyncError.emailOnNewComment}
+                  />
+                }
+              />
+              <SettingsCard
+                icon={UserPlus}
+                title="Assignment emails"
+                description="Email me when someone assigns a capture to me in this workspace."
+                trailing={
+                  <Switch
+                    checked={notificationPreferences.emailOnAssignment}
+                    onCheckedChange={(value) =>
+                      void handleNotificationPreferenceChange('emailOnAssignment', value)
+                    }
+                    disabled={isNotificationLoading || savingNotificationKey !== null}
+                    aria-label="Toggle assignment email notifications"
+                    className={
+                      savingNotificationKey === 'emailOnAssignment' ? 'cursor-wait' : undefined
+                    }
+                  />
+                }
+                footer={
+                  <NotificationPreferenceStatus
+                    isLoading={isNotificationLoading}
+                    isSaving={savingNotificationKey === 'emailOnAssignment'}
+                    syncState={notificationSyncState.emailOnAssignment}
+                    error={notificationSyncError.emailOnAssignment}
                   />
                 }
               />

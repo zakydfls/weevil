@@ -77,6 +77,10 @@ class NotificationPreferencesDto {
   @IsBoolean()
   @IsOptional()
   emailOnNewComment?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  emailOnAssignment?: boolean;
 }
 
 @Controller('workspaces')

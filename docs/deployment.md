@@ -110,7 +110,7 @@ MINIO_ENDPOINT=...
 ENABLE_CORS=true
 ENABLE_CSRF=true
 WEB_ORIGIN=https://your-vercel-domain.vercel.app,https://your-custom-domain.com
-EXTENSION_ORIGINS=chrome-extension://your-extension-id
+EXTENSION_ORIGINS=chrome-extension://old-extension-id,chrome-extension://new-extension-id
 WEB_APP_URL=https://your-custom-domain.com
 COOKIE_SAMESITE=none
 COOKIE_SECURE=true
@@ -224,10 +224,14 @@ Vercel can deploy `apps/web` directly as a monorepo project. The important
 manual setting is the root directory.
 
 Remember to mirror the Vercel production/preview domains in backend `WEB_ORIGIN`
-so CORS allows the dashboard to call the VPS API. Set `EXTENSION_ORIGINS` to the
-installed Weevil extension origin (`chrome-extension://<id>`) so cookie-authenticated
-captures can pass the CSRF origin check. Set backend `WEB_APP_URL` to the canonical
-dashboard URL; workspace invitation emails use it to generate accept-invite links.
+so CORS allows the dashboard to call the VPS API. Set `EXTENSION_ORIGINS` to a
+comma-separated allowlist of every trusted Weevil extension origin, for example
+`chrome-extension://old-id,chrome-extension://new-id`, so cookie-authenticated
+captures can pass both CORS and the CSRF origin check while Chrome Web Store IDs
+change across local/review/production builds. `EXTENSION_ORIGIN` is still accepted
+as a backward-compatible single-origin alias, but new deploys should use
+`EXTENSION_ORIGINS`. Set backend `WEB_APP_URL` to the canonical dashboard URL;
+workspace invitation emails use it to generate accept-invite links.
 
 `ENABLE_CORS=false` is a permissive bypass: the API reflects any browser origin
 instead of enforcing `WEB_ORIGIN` / `EXTENSION_ORIGINS`. `ENABLE_CSRF=false`

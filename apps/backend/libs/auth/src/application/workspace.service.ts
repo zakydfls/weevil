@@ -27,6 +27,7 @@ import { WorkspaceInviteNotificationService } from './workspace-invite-notificat
 interface WorkspaceNotificationPreferencesInput {
   emailOnNewCapture?: boolean;
   emailOnNewComment?: boolean;
+  emailOnAssignment?: boolean;
 }
 
 const OWNER_ONLY_PERMISSIONS = new Set<Permission>([
@@ -202,6 +203,7 @@ export class WorkspaceService {
     return {
       emailOnNewCapture: preferences?.emailOnNewCapture ?? false,
       emailOnNewComment: preferences?.emailOnNewComment ?? false,
+      emailOnAssignment: preferences?.emailOnAssignment ?? false,
     };
   }
 
@@ -219,16 +221,19 @@ export class WorkspaceService {
         userId,
         emailOnNewCapture: input.emailOnNewCapture ?? false,
         emailOnNewComment: input.emailOnNewComment ?? false,
+        emailOnAssignment: input.emailOnAssignment ?? false,
       },
       update: compactBooleanUpdate({
         emailOnNewCapture: input.emailOnNewCapture,
         emailOnNewComment: input.emailOnNewComment,
+        emailOnAssignment: input.emailOnAssignment,
       }),
     });
 
     return {
       emailOnNewCapture: preferences.emailOnNewCapture,
       emailOnNewComment: preferences.emailOnNewComment,
+      emailOnAssignment: preferences.emailOnAssignment,
     };
   }
 

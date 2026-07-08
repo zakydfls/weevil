@@ -181,6 +181,7 @@ export const UserNotificationPreferenceScalarFieldEnum = {
   userId: 'userId',
   emailOnNewCapture: 'emailOnNewCapture',
   emailOnNewComment: 'emailOnNewComment',
+  emailOnAssignment: 'emailOnAssignment',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

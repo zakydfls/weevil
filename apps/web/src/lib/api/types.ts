@@ -90,6 +90,7 @@ export interface PaginatedReportsResponse {
 export interface NotificationPreferences {
   emailOnNewCapture: boolean;
   emailOnNewComment: boolean;
+  emailOnAssignment: boolean;
 }
 
 export interface WorkspaceMemberSummary {

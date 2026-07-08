@@ -379,20 +379,29 @@ export function CaptureDetailView({
     );
   }
 
+  const detailContentMaxWidth = isDevToolsOpen ? 'max-w-none' : 'max-w-[96rem]';
+  const mediaMaxWidth = isDevToolsOpen ? 'max-w-[88rem]' : 'max-w-[74rem]';
+  const bodyMaxWidth = isDevToolsOpen ? 'max-w-[82rem]' : 'max-w-[74rem]';
+
   return (
     <section
       data-shell-mode="detail"
-      className={`weevil-fade-in grid min-h-[calc(100dvh-3.5rem)] grid-rows-[auto_auto] bg-[var(--bg)] transition-[grid-template-columns] duration-200 ease-out xl:grid-rows-[auto_minmax(0,1fr)] xl:overflow-hidden ${
-        isPublicShare ? 'xl:h-screen xl:max-h-screen' : 'xl:h-[calc(100vh-3.5rem)] xl:max-h-[calc(100vh-3.5rem)]'
-      } ${
-        isDevToolsOpen ? 'xl:[grid-template-columns:minmax(0,1fr)_var(--devtools-width)]' : ''
-      }`}
+      className={cn(
+        'weevil-fade-in grid min-h-[calc(100dvh-3.5rem)] grid-rows-[auto_auto] bg-[var(--bg)] transition-[grid-template-columns] duration-200 ease-out xl:grid-rows-[auto_minmax(0,1fr)] xl:overflow-hidden',
+        isPublicShare
+          ? 'xl:h-screen xl:max-h-screen'
+          : 'xl:h-[calc(100vh-3.5rem)] xl:max-h-[calc(100vh-3.5rem)]',
+        isDevToolsOpen
+          ? 'xl:[grid-template-columns:minmax(28rem,1fr)_var(--devtools-width)]'
+          : 'xl:[grid-template-columns:minmax(0,1fr)]',
+      )}
       style={{ '--devtools-width': `${devToolsWidth}px` } as CSSProperties}
     >
       <header
-        className={`flex min-h-14 flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--bg)]/95 px-3 py-2 backdrop-blur sm:flex-nowrap sm:gap-3 sm:px-4 sm:py-0 lg:px-6 ${
-          isDevToolsOpen ? 'xl:col-span-2' : ''
-        }`}
+        className={cn(
+          'flex min-h-14 flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--bg)]/95 px-3 py-2 backdrop-blur sm:flex-nowrap sm:gap-3 sm:px-4 sm:py-0 lg:px-6',
+          isDevToolsOpen && 'xl:col-span-2',
+        )}
       >
           <Button
             type="button"
@@ -412,7 +421,7 @@ export function CaptureDetailView({
               <span className="truncate">{report.pageUrl ?? report.id}</span>
             </div>
           </div>
-          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <div className="ml-auto flex min-w-0 shrink items-center justify-end gap-1.5 overflow-x-auto sm:gap-2">
             {!isDevToolsOpen ? (
               <Button
                 type="button"
@@ -464,7 +473,7 @@ export function CaptureDetailView({
               ) : (
                 <FileText className="h-3.5 w-3.5" aria-hidden />
               )}
-              <span className="hidden md:inline">{copyFeedback === 'send' ? 'Copied' : 'Copy as Markdown'}</span>
+              <span className="hidden 2xl:inline">{copyFeedback === 'send' ? 'Copied' : 'Markdown'}</span>
             </Button>
             <Button
               type="button"
@@ -474,23 +483,24 @@ export function CaptureDetailView({
               aria-label="Copy link"
             >
               {copyFeedback === 'link' ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Link2 className="h-3.5 w-3.5" aria-hidden />}
-              <span className="hidden sm:inline">{copyFeedback === 'link' ? 'Link copied' : 'Copy link'}</span>
+              <span className="hidden xl:inline">{copyFeedback === 'link' ? 'Copied' : 'Link'}</span>
             </Button>
           </div>
       </header>
 
-      <div className="grid min-h-0 grid-rows-[auto_auto] bg-[var(--bg)] xl:grid-rows-[1fr_auto] xl:overflow-hidden">
+      <div
+        className={cn(
+          'grid min-h-0 grid-rows-[auto_auto] bg-[var(--bg)] xl:overflow-hidden',
+          isDevToolsOpen ? 'xl:grid-rows-[1fr_auto]' : 'xl:grid-rows-[minmax(0,1fr)]',
+        )}
+      >
         <ScrollArea className="min-h-0 xl:h-full">
-          <div
-            className={`mx-auto transition-[max-width] duration-200 ease-out ${
-              isDevToolsOpen ? 'max-w-none' : 'max-w-[108rem]'
-            }`}
-          >
+          <div className={cn('mx-auto transition-[max-width] duration-200 ease-out', detailContentMaxWidth)}>
             {isPublicShare && commentGateReason === 'auth' ? (
               <GuestShareBanner returnPath={returnPath} />
             ) : null}
             <div className="border-b border-[var(--border)] bg-[var(--bg)] px-3 pb-4 pt-3 sm:px-4 sm:pt-4 lg:px-6">
-              <div className="mx-auto w-full max-w-[88rem]">
+              <div className={cn('mx-auto w-full', mediaMaxWidth)}>
                 <RecordingHero
                   report={report}
                   publicShareToken={publicShareToken}
@@ -510,7 +520,7 @@ export function CaptureDetailView({
               </div>
             </div>
 
-            <div className="mx-auto w-full max-w-[82rem] px-3 py-6 sm:px-4 sm:py-8 lg:px-6">
+            <div className={cn('mx-auto w-full px-3 py-6 sm:px-4 sm:py-8 lg:px-6', bodyMaxWidth)}>
               <CaptureStats report={report} />
               <CaptureContextBar report={report} />
 
@@ -1296,7 +1306,7 @@ function RecordingHero({
 
   return (
     <div
-      className="relative aspect-[16/9] w-full overflow-hidden rounded-[14px] border border-[var(--border-strong)] bg-[var(--ink-strong)] shadow-[0_2px_8px_rgb(26_29_18_/_0.10)]"
+      className="relative mx-auto aspect-[16/9] w-full overflow-hidden rounded-[14px] border border-[var(--border-strong)] bg-[var(--ink-strong)] shadow-[0_2px_8px_rgb(26_29_18_/_0.10)] xl:max-h-[calc(100dvh-16rem)]"
     >
       {sourceUrl ? (
         <>
