@@ -22,6 +22,7 @@ export const ApiRoutes = {
   ReportComments: 'reports/:reportId/comments',
   ReportCommentsRelative: ':reportId/comments',
   ReportBoardColumnsRelative: 'board-columns',
+  ReportBoardColumnRelative: 'board-columns/:boardColumnId',
   ReportBoardRelative: ':reportId/board',
   ReportAssigneesRelative: ':reportId/assignees',
   ReportCaptureSessionsRelative: ':reportId/capture-sessions',
@@ -34,5 +35,6 @@ export const RouteParams = {
   ReportId: 'reportId',
   UploadId: 'uploadId',
   SessionId: 'sessionId',
+  BoardColumnId: 'boardColumnId',
   ShareToken: 'shareToken',
 } as const;

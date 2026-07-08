@@ -20,6 +20,7 @@ import {
   CreateReportCommentDto,
   CreateReportDto,
   UpdateReportAssigneesDto,
+  UpdateReportBoardColumnDto,
   UpdateReportDto,
   UpdateReportBoardDto,
   RouteParams,
@@ -68,6 +69,30 @@ export class ReportsController {
     @Body() dto: CreateReportBoardColumnDto,
   ) {
     return this.reportsService.createBoardColumn(dto, { workspaceId: auth.workspace?.id });
+  }
+
+  @RequirePermissions(Permission.BOARD_MANAGE)
+  @Patch(ApiRoutes.ReportBoardColumnRelative)
+  updateBoardColumn(
+    @CurrentAuth() auth: AuthContext,
+    @Param(RouteParams.BoardColumnId) boardColumnId: string,
+    @Body() dto: UpdateReportBoardColumnDto,
+  ) {
+    return this.reportsService.updateBoardColumn(boardColumnId, dto, {
+      workspaceId: auth.workspace?.id,
+    });
+  }
+
+  @RequirePermissions(Permission.BOARD_MANAGE)
+  @Delete(ApiRoutes.ReportBoardColumnRelative)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteBoardColumn(
+    @CurrentAuth() auth: AuthContext,
+    @Param(RouteParams.BoardColumnId) boardColumnId: string,
+  ) {
+    return this.reportsService.deleteBoardColumn(boardColumnId, {
+      workspaceId: auth.workspace?.id,
+    });
   }
 
   @Public()

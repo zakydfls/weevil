@@ -3,7 +3,14 @@
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/auth-context';
 import type { ReportSummary } from '@/lib/api/types';
-import { useCreateReportBoardColumn, useMoveReportOnBoard, useReportBoardColumns, useReports } from './queries';
+import {
+  useCreateReportBoardColumn,
+  useDeleteReportBoardColumn,
+  useMoveReportOnBoard,
+  useReportBoardColumns,
+  useReports,
+  useUpdateReportBoardColumn,
+} from './queries';
 import { KanbanBoard } from './components/kanban-board';
 
 export function BoardView() {
@@ -11,6 +18,8 @@ export function BoardView() {
   const auth = useAuth();
   const moveReport = useMoveReportOnBoard();
   const createBoardColumn = useCreateReportBoardColumn();
+  const updateBoardColumn = useUpdateReportBoardColumn();
+  const deleteBoardColumn = useDeleteReportBoardColumn();
   const boardColumnsQuery = useReportBoardColumns();
   // The board needs the full set in one go (drag across columns), so we pull a
   // large page rather than paginating.
@@ -47,7 +56,13 @@ export function BoardView() {
       onOpenReport={openCapture}
       canEditAssignees={canEditAssignees}
       onCreateColumn={(input) => createBoardColumn.mutateAsync(input)}
+      onUpdateColumn={(boardColumnId, input) =>
+        updateBoardColumn.mutateAsync({ boardColumnId, input })
+      }
+      onDeleteColumn={(boardColumnId) => deleteBoardColumn.mutateAsync(boardColumnId)}
       isCreatingColumn={createBoardColumn.isPending}
+      isUpdatingColumn={updateBoardColumn.isPending}
+      isDeletingColumn={deleteBoardColumn.isPending}
       onMoveReport={(reportId, toColumnId, toIndex) => {
         moveReport.mutate({ reportId, boardColumn: toColumnId, targetIndex: toIndex });
       }}

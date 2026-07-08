@@ -7,6 +7,7 @@ import type {
   ListReportsParams,
   PaginatedReportsResponse,
   UpdateReportAssigneesInput,
+  UpdateReportBoardColumnInput,
 } from '@/lib/api/types';
 
 const NO_WORKSPACE_KEY = 'no-workspace';
@@ -130,6 +131,39 @@ export function useCreateReportBoardColumn() {
     mutationFn: (input: CreateReportBoardColumnInput) => apiClient.createReportBoardColumn(input),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: reportKeys.boardColumns(workspaceKey) });
+    },
+  });
+}
+
+export function useUpdateReportBoardColumn() {
+  const queryClient = useQueryClient();
+  const workspaceKey = useWorkspaceQueryKey();
+
+  return useMutation({
+    mutationFn: ({
+      boardColumnId,
+      input,
+    }: {
+      boardColumnId: string;
+      input: UpdateReportBoardColumnInput;
+    }) => apiClient.updateReportBoardColumn(boardColumnId, input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: reportKeys.boardColumns(workspaceKey) });
+    },
+  });
+}
+
+export function useDeleteReportBoardColumn() {
+  const queryClient = useQueryClient();
+  const workspaceKey = useWorkspaceQueryKey();
+
+  return useMutation({
+    mutationFn: (boardColumnId: string) => apiClient.deleteReportBoardColumn(boardColumnId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: reportKeys.boardColumns(workspaceKey) }),
+        queryClient.invalidateQueries({ queryKey: reportKeys.lists() }),
+      ]);
     },
   });
 }

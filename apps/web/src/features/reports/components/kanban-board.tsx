@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -8,11 +8,14 @@ import {
   FileText,
   GripVertical,
   ListTodo,
+  Loader2,
   MessageSquare,
   MousePointer2,
   Network,
+  Pencil,
   Plus,
   SearchCheck,
+  Trash2,
   type LucideIcon,
 } from 'lucide-react';
 import { WeevilMark } from '@/components/brand/weevil-mark';
@@ -24,10 +27,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  useDialog,
 } from '@/components/ui/dialog';
 import { ErrorState } from '@/components/ui/error-state';
 import { Input, Textarea } from '@/components/ui/input';
-import type { CreateReportBoardColumnInput, ReportBoardColumn, ReportSummary } from '@/lib/api/types';
+import type {
+  CreateReportBoardColumnInput,
+  ReportBoardColumn,
+  ReportSummary,
+  UpdateReportBoardColumnInput,
+} from '@/lib/api/types';
 import { AssigneeEditorPopover } from './report-assignees';
 import { StatusBadge } from './status-badge';
 
@@ -39,10 +48,17 @@ interface KanbanBoardProps {
   isError?: boolean;
   canManageBoardColumns?: boolean;
   isCreatingColumn?: boolean;
+  isUpdatingColumn?: boolean;
+  isDeletingColumn?: boolean;
   onRetry?: () => void;
   onOpenReport: (report: ReportSummary) => void;
   onMoveReport?: (reportId: string, toColumnId: string, toIndex: number) => void | Promise<void>;
   onCreateColumn?: (input: CreateReportBoardColumnInput) => void | Promise<unknown>;
+  onUpdateColumn?: (
+    boardColumnId: string,
+    input: UpdateReportBoardColumnInput,
+  ) => void | Promise<unknown>;
+  onDeleteColumn?: (boardColumnId: string) => void | Promise<unknown>;
   canEditAssignees?: (report: ReportSummary) => boolean;
 }
 
@@ -54,9 +70,19 @@ interface BoardColumn {
   color: string;
   icon: LucideIcon;
   accent: string;
+  isDefault: boolean;
 }
 
 const DEFAULT_COLUMN_ID = 'backlog';
+const DEFAULT_BOARD_COLUMN_KEYS = new Set(['backlog', 'in-progress', 'review', 'done']);
+const BOARD_STATE_COLORS = [
+  { value: 'primary', label: 'Terracotta', className: 'bg-[var(--primary)]' },
+  { value: 'cool', label: 'Cool', className: 'bg-[var(--accent-cool)]' },
+  { value: 'warning', label: 'Warning', className: 'bg-[var(--warning)]' },
+  { value: 'success', label: 'Success', className: 'bg-[var(--success)]' },
+  { value: 'danger', label: 'Danger', className: 'bg-[var(--danger)]' },
+  { value: 'neutral', label: 'Neutral', className: 'bg-[var(--ink-muted)]' },
+] as const;
 
 const FALLBACK_BOARD_COLUMNS: BoardColumn[] = [
   {
@@ -67,6 +93,7 @@ const FALLBACK_BOARD_COLUMNS: BoardColumn[] = [
     color: 'cool',
     icon: FileText,
     accent: 'var(--accent-cool)',
+    isDefault: true,
   },
   {
     id: 'in-progress',
@@ -76,6 +103,7 @@ const FALLBACK_BOARD_COLUMNS: BoardColumn[] = [
     color: 'primary',
     icon: Clock3,
     accent: 'var(--primary)',
+    isDefault: true,
   },
   {
     id: 'review',
@@ -85,6 +113,7 @@ const FALLBACK_BOARD_COLUMNS: BoardColumn[] = [
     color: 'warning',
     icon: SearchCheck,
     accent: 'var(--warning)',
+    isDefault: true,
   },
   {
     id: 'done',
@@ -94,6 +123,7 @@ const FALLBACK_BOARD_COLUMNS: BoardColumn[] = [
     color: 'success',
     icon: CheckCircle2,
     accent: 'var(--success)',
+    isDefault: true,
   },
 ];
 
@@ -105,13 +135,20 @@ export function KanbanBoard({
   isError,
   canManageBoardColumns,
   isCreatingColumn,
+  isUpdatingColumn,
+  isDeletingColumn,
   onRetry,
   onOpenReport,
   onMoveReport,
   onCreateColumn,
+  onUpdateColumn,
+  onDeleteColumn,
   canEditAssignees,
 }: KanbanBoardProps) {
+  const dialog = useDialog();
   const [isAddStateOpen, setIsAddStateOpen] = useState(false);
+  const [editingColumn, setEditingColumn] = useState<BoardColumn | null>(null);
+  const [deletingColumnId, setDeletingColumnId] = useState<string | null>(null);
   const boardColumns = useMemo(() => toBoardColumns(columns), [columns]);
   const groupedReports = useMemo(() => groupReports(reports, boardColumns), [reports, boardColumns]);
   const totalErrors = useMemo(
@@ -119,6 +156,46 @@ export function KanbanBoard({
     [reports],
   );
   const showColumnSkeletons = isLoading || Boolean(areColumnsLoading && columns.length === 0);
+
+  async function handleDeleteColumn(column: BoardColumn, reportCount: number) {
+    if (!onDeleteColumn) return;
+    if (column.isDefault) {
+      await dialog.alert({
+        title: 'Default states stay on the board',
+        description: `${column.title} is part of the default workflow, so it can be renamed but not deleted.`,
+      });
+      return;
+    }
+    if (reportCount > 0) {
+      await dialog.alert({
+        title: 'Move captures first',
+        description: 'This state still has captures in it. Move them to another state before deleting it.',
+        tone: 'warning',
+      });
+      return;
+    }
+
+    const confirmed = await dialog.confirm({
+      title: `Delete ${column.title}?`,
+      description: 'This removes the board state for everyone in the workspace.',
+      confirmLabel: 'Delete state',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+
+    try {
+      setDeletingColumnId(column.id);
+      await onDeleteColumn(column.id);
+    } catch (error) {
+      await dialog.alert({
+        title: 'Could not delete state',
+        description: error instanceof Error ? error.message : 'Try again in a moment.',
+        tone: 'danger',
+      });
+    } finally {
+      setDeletingColumnId(null);
+    }
+  }
 
   if (isError && reports.length === 0) {
     return (
@@ -157,14 +234,32 @@ export function KanbanBoard({
             onDropReport={(reportId, toIndex) => {
               void onMoveReport?.(reportId, column.key, toIndex);
             }}
+            canManageColumn={Boolean(canManageBoardColumns)}
+            isDeletingColumn={Boolean(isDeletingColumn && deletingColumnId === column.id)}
+            onEditColumn={() => setEditingColumn(column)}
+            onDeleteColumn={() => void handleDeleteColumn(column, groupedReports[column.key]?.length ?? 0)}
           />
         ))}
       </div>
-      <AddStateDialog
+      <BoardStateDialog
+        mode="create"
         open={isAddStateOpen}
         isSubmitting={Boolean(isCreatingColumn)}
         onOpenChange={setIsAddStateOpen}
         onCreateColumn={onCreateColumn}
+      />
+      <BoardStateDialog
+        mode="update"
+        open={Boolean(editingColumn)}
+        column={editingColumn}
+        isSubmitting={Boolean(isUpdatingColumn)}
+        onOpenChange={(open) => {
+          if (!open) setEditingColumn(null);
+        }}
+        onUpdateColumn={async (boardColumnId, input) => {
+          await onUpdateColumn?.(boardColumnId, input);
+          setEditingColumn(null);
+        }}
       />
     </div>
   );
@@ -194,7 +289,13 @@ function BoardHeader({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {canAddState ? (
-            <Button type="button" variant="secondary" size="sm" onClick={onAddState}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="default"
+              onClick={onAddState}
+              className="h-9 bg-[var(--surface-elevated)] px-3.5 text-sm font-medium"
+            >
               <Plus className="h-3.5 w-3.5" aria-hidden />
               Add state
             </Button>
@@ -211,37 +312,68 @@ function BoardHeader({
   );
 }
 
-function AddStateDialog({
+function BoardStateDialog({
+  mode,
   open,
+  column,
   isSubmitting,
   onOpenChange,
   onCreateColumn,
+  onUpdateColumn,
 }: {
+  mode: 'create' | 'update';
   open: boolean;
+  column?: BoardColumn | null;
   isSubmitting: boolean;
   onOpenChange: (open: boolean) => void;
   onCreateColumn?: (input: CreateReportBoardColumnInput) => void | Promise<unknown>;
+  onUpdateColumn?: (
+    boardColumnId: string,
+    input: UpdateReportBoardColumnInput,
+  ) => void | Promise<unknown>;
 }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [color, setColor] = useState<CreateReportBoardColumnInput['color']>('primary');
   const [error, setError] = useState<string | null>(null);
   const titleValue = title.trim();
+  const isUpdate = mode === 'update';
+
+  useEffect(() => {
+    if (!open) return;
+    setTitle(column?.title ?? '');
+    setDescription(column?.description ?? '');
+    setColor(column?.color ?? 'primary');
+    setError(null);
+  }, [column, open]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!onCreateColumn || !titleValue) return;
+    if (!titleValue) return;
+    if (isUpdate ? !column || !onUpdateColumn : !onCreateColumn) return;
 
     setError(null);
     try {
-      await onCreateColumn({
+      const input = {
         title: titleValue,
-        description: description.trim() || undefined,
-      });
-      setTitle('');
-      setDescription('');
+        description: isUpdate ? description.trim() : description.trim() || undefined,
+        color,
+      };
+      if (isUpdate && column) {
+        await onUpdateColumn?.(column.id, input);
+      } else {
+        await onCreateColumn?.(input);
+        setTitle('');
+        setDescription('');
+        setColor('primary');
+      }
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create board state.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : `Could not ${isUpdate ? 'update' : 'create'} board state.`,
+      );
     }
   }
 
@@ -250,9 +382,11 @@ function AddStateDialog({
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Add board state</DialogTitle>
+            <DialogTitle>{isUpdate ? 'Update board state' : 'Add board state'}</DialogTitle>
             <DialogDescription>
-              Create a workspace lane for captures that need a separate triage step.
+              {isUpdate
+                ? 'Adjust how this workspace lane appears on the board.'
+                : 'Create a workspace lane for captures that need a separate triage step.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 px-4 pb-4">
@@ -274,6 +408,29 @@ function AddStateDialog({
                 onChange={(event) => setDescription(event.target.value)}
               />
             </label>
+            <div className="grid gap-1.5">
+              <span className="text-xs font-medium text-[var(--ink)]">Color</span>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                {BOARD_STATE_COLORS.map((option) => {
+                  const isSelected = color === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setColor(option.value)}
+                      className={`flex h-10 items-center justify-center rounded-lg border bg-[var(--surface-elevated)] transition-colors ${
+                        isSelected
+                          ? 'border-[var(--primary)] ring-2 ring-[var(--primary-subtle)]'
+                          : 'border-[var(--border)] hover:border-[var(--border-strong)]'
+                      }`}
+                      aria-label={`Use ${option.label} color`}
+                    >
+                      <span className={`h-4 w-4 rounded-full ${option.className}`} aria-hidden />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             {error ? (
               <p className="rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3 py-2 text-sm text-[var(--danger)]">
                 {error}
@@ -291,8 +448,14 @@ function AddStateDialog({
               Cancel
             </Button>
             <Button type="submit" size="sm" disabled={!titleValue || isSubmitting}>
-              <Plus className="h-3.5 w-3.5" aria-hidden />
-              {isSubmitting ? 'Adding...' : 'Add state'}
+              {isSubmitting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : isUpdate ? (
+                <Pencil className="h-3.5 w-3.5" aria-hidden />
+              ) : (
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+              )}
+              {isSubmitting ? 'Saving...' : isUpdate ? 'Save state' : 'Add state'}
             </Button>
           </DialogFooter>
         </form>
@@ -330,6 +493,10 @@ function BoardColumnView({
   onOpenReport,
   canEditAssignees,
   onDropReport,
+  canManageColumn,
+  isDeletingColumn,
+  onEditColumn,
+  onDeleteColumn,
 }: {
   column: BoardColumn;
   reports: ReportSummary[];
@@ -337,6 +504,10 @@ function BoardColumnView({
   onOpenReport: (report: ReportSummary) => void;
   canEditAssignees?: (report: ReportSummary) => boolean;
   onDropReport: (reportId: string, toIndex: number) => void;
+  canManageColumn?: boolean;
+  isDeletingColumn?: boolean;
+  onEditColumn?: () => void;
+  onDeleteColumn?: () => void;
 }) {
   const Icon = column.icon;
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -392,9 +563,47 @@ function BoardColumnView({
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
               <h2 className="truncate text-sm font-semibold text-[var(--ink)]">{column.title}</h2>
-              <span className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 font-mono text-xs font-semibold text-[var(--ink-muted)]">
-                {reports.length}
-              </span>
+              <div className="flex shrink-0 items-center gap-1">
+                {canManageColumn ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                      onClick={onEditColumn}
+                      aria-label={`Edit ${column.title} state`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" aria-hidden />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-[var(--ink-muted)] hover:bg-[var(--danger-bg)] hover:text-[var(--danger)] disabled:hover:bg-transparent"
+                      onClick={onDeleteColumn}
+                      disabled={isDeletingColumn}
+                      aria-label={`Delete ${column.title} state`}
+                      title={
+                        column.isDefault
+                          ? 'Default states cannot be deleted'
+                          : reports.length > 0
+                            ? 'Move captures out before deleting'
+                            : `Delete ${column.title}`
+                      }
+                    >
+                      {isDeletingColumn ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                      )}
+                    </Button>
+                  </>
+                ) : null}
+                <span className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 font-mono text-xs font-semibold text-[var(--ink-muted)]">
+                  {reports.length}
+                </span>
+              </div>
             </div>
             <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--ink-muted)]">
               {column.description}
@@ -606,6 +815,7 @@ function toBoardColumns(columns: ReportBoardColumn[]): BoardColumn[] {
     color: column.color,
     icon: iconForColumn(column.key),
     accent: accentForColumnColor(column.color),
+    isDefault: DEFAULT_BOARD_COLUMN_KEYS.has(column.key),
   }));
 }
 

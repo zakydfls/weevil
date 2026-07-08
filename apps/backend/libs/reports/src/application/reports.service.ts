@@ -8,6 +8,7 @@ import {
   CreateReportCommentDto,
   ListReportsQueryDto,
   UpdateReportAssigneesDto,
+  UpdateReportBoardColumnDto,
   UpdateReportBoardDto,
   UpdateReportDto,
   type PaginatedReportsResponse,
@@ -96,6 +97,9 @@ const DEFAULT_REPORT_BOARD_COLUMNS = [
 ] as const;
 
 const BOARD_COLUMN_COLORS = new Set(['cool', 'primary', 'warning', 'success', 'danger', 'neutral']);
+const DEFAULT_REPORT_BOARD_COLUMN_KEYS = new Set<string>(
+  DEFAULT_REPORT_BOARD_COLUMNS.map((column) => column.key),
+);
 
 @Injectable()
 export class ReportsService {
@@ -410,6 +414,67 @@ export class ReportsService {
     });
 
     return toBoardColumnResponse(column);
+  }
+
+  async updateBoardColumn(
+    boardColumnId: string,
+    dto: UpdateReportBoardColumnDto,
+    options: { workspaceId?: string } = {},
+  ): Promise<ReportBoardColumnResponse> {
+    const workspaceId = requireWorkspaceId(options.workspaceId);
+    await this.ensureDefaultBoardColumns(workspaceId);
+
+    const existing = await this.prisma.reportBoardColumn.findFirst({
+      where: { id: boardColumnId, workspaceId },
+    });
+    if (!existing) {
+      throw new NotFoundException('Board column not found.');
+    }
+
+    const hasTitle = dto.title !== undefined;
+    const hasDescription = dto.description !== undefined;
+    const hasColor = dto.color !== undefined;
+    const column = await this.prisma.reportBoardColumn.update({
+      where: { id: existing.id },
+      data: {
+        title: hasTitle ? normalizeBoardColumnTitle(dto.title) : undefined,
+        description: hasDescription ? normalizeOptionalBoardColumnText(dto.description) : undefined,
+        color: hasColor && BOARD_COLUMN_COLORS.has(dto.color ?? '') ? dto.color : undefined,
+      },
+    });
+
+    return toBoardColumnResponse(column);
+  }
+
+  async deleteBoardColumn(
+    boardColumnId: string,
+    options: { workspaceId?: string } = {},
+  ): Promise<void> {
+    const workspaceId = requireWorkspaceId(options.workspaceId);
+    await this.ensureDefaultBoardColumns(workspaceId);
+
+    const existing = await this.prisma.reportBoardColumn.findFirst({
+      where: { id: boardColumnId, workspaceId },
+    });
+    if (!existing) {
+      throw new NotFoundException('Board column not found.');
+    }
+    if (DEFAULT_REPORT_BOARD_COLUMN_KEYS.has(existing.key)) {
+      throw new BadRequestException('Default board states cannot be deleted.');
+    }
+
+    const reportCount = await this.prisma.bugReport.count({
+      where: {
+        workspaceId,
+        boardColumn: existing.key,
+        deletedAt: null,
+      },
+    });
+    if (reportCount > 0) {
+      throw new BadRequestException('Move captures out of this state before deleting it.');
+    }
+
+    await this.prisma.reportBoardColumn.delete({ where: { id: existing.id } });
   }
 
   async setAssignees(

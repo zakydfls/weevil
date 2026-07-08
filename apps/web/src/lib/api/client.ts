@@ -24,6 +24,7 @@ import type {
   RuntimeErrorEntry,
   TimelineEntry,
   UpdateReportAssigneesInput,
+  UpdateReportBoardColumnInput,
   UpdateReportBoardInput,
   UpdateReportInput,
   WorkspaceMemberSummary,
@@ -161,6 +162,17 @@ export const apiClient = {
     request<ReportBoardColumn>('/reports/board-columns', {
       method: 'POST',
       body: JSON.stringify(input),
+    }),
+
+  updateReportBoardColumn: (boardColumnId: string, input: UpdateReportBoardColumnInput) =>
+    request<ReportBoardColumn>(`/reports/board-columns/${boardColumnId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+
+  deleteReportBoardColumn: (boardColumnId: string) =>
+    request<void>(`/reports/board-columns/${boardColumnId}`, {
+      method: 'DELETE',
     }),
 
   updateReportAssignees: (reportId: string, input: UpdateReportAssigneesInput) =>

@@ -131,6 +131,23 @@ export class CreateReportBoardColumnDto {
   color?: string;
 }
 
+export class UpdateReportBoardColumnDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['cool', 'primary', 'warning', 'success', 'danger', 'neutral'])
+  color?: string;
+}
+
 export class UpdateReportAssigneesDto {
   @IsArray()
   @ArrayUnique()

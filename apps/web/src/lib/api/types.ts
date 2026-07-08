@@ -75,6 +75,12 @@ export interface CreateReportBoardColumnInput {
   color?: string;
 }
 
+export interface UpdateReportBoardColumnInput {
+  title?: string;
+  description?: string;
+  color?: string;
+}
+
 export interface UpdateReportAssigneesInput {
   assigneeUserIds: string[];
 }
