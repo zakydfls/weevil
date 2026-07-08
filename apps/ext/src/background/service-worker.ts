@@ -53,11 +53,13 @@ const redactedHeaderValue = '[REDACTED]';
 const unavailableHeaderValue = '[unavailable]';
 const emptyHeaderValue = '[empty]';
 const sensitiveHeaderPattern = /^(authorization|cookie|set-cookie|proxy-authorization|x-api-key|api-key|x-auth-token|x-csrf-token|x-xsrf-token)$|token|secret|session/i;
+const sensitiveBodyKeyPattern = /pass(word)?|pwd|secret|token|session|authorization|auth|api[-_]?key|csrf|xsrf|cookie|set-cookie|ssn|cvv|cvc|card.?number/i;
 const webStartCaptureUnsupportedMessage =
   'Chrome only allows tab recording after you click the Weevil extension button on the page you want to capture. Open the target page, click the Weevil icon in the browser toolbar, then start capture there.';
 let attachedConsoleDebuggee: chrome.debugger.Debuggee | null = null;
 let pendingReview: PendingCaptureReview | null = null;
 let activeRecorderSnapshot: ActiveRecorderSnapshot | null | undefined;
+const debuggerApi = (chrome as typeof chrome & { debugger?: typeof chrome.debugger }).debugger;
 
 interface ActiveRecorderSnapshot {
   tabId: number;
@@ -111,11 +113,11 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   }
 });
 
-chrome.debugger.onEvent.addListener((source, method, params) => {
+debuggerApi?.onEvent.addListener((source, method, params) => {
   void handleDebuggerEvent(source, method, params);
 });
 
-chrome.debugger.onDetach.addListener((source) => {
+debuggerApi?.onDetach.addListener((source) => {
   if (attachedConsoleDebuggee?.tabId === source.tabId) {
     attachedConsoleDebuggee = null;
     void notifyConsoleCaptureMode(source.tabId, 'off');
@@ -632,7 +634,7 @@ async function appendPageTelemetry(message: { type: string; payload: unknown }, 
 
   if (message.type.endsWith('NETWORK')) {
     const settings = await getSettings();
-    const shouldRedactHeaders = settings.redactSensitiveData;
+    const shouldRedactSensitiveData = settings.redactSensitiveData;
     const networkStartedAt = optionalString(payload.startedAt) ?? new Date().toISOString();
     const url = optionalNetworkUrl(payload.url ?? state.pageUrl);
     if (!url) {
@@ -649,15 +651,15 @@ async function appendPageTelemetry(message: { type: string; payload: unknown }, 
       url,
       statusCode: optionalHttpStatus(payload.statusCode),
       durationMs: optionalBoundedInt(payload.durationMs, 0, maxTelemetryDurationMs),
-      requestHeaders: redactHeaderRecord(normalizeRecord(payload.requestHeaders), shouldRedactHeaders),
-      responseHeaders: redactHeaderRecord(normalizeRecord(payload.responseHeaders), shouldRedactHeaders),
-      requestBody: optionalString(payload.requestBody, maxTelemetryBodyChars),
-      responseBody: optionalString(payload.responseBody, maxTelemetryBodyChars),
+      requestHeaders: redactHeaderRecord(normalizeRecord(payload.requestHeaders), shouldRedactSensitiveData),
+      responseHeaders: redactHeaderRecord(normalizeRecord(payload.responseHeaders), shouldRedactSensitiveData),
+      requestBody: redactBodyText(optionalString(payload.requestBody, maxTelemetryBodyChars), shouldRedactSensitiveData),
+      responseBody: redactBodyText(optionalString(payload.responseBody, maxTelemetryBodyChars), shouldRedactSensitiveData),
       error: optionalString(payload.error, 4_000),
       resourceType: optionalString(payload.resourceType, 32),
       startedAt: networkStartedAt,
       endedAt: optionalString(payload.endedAt),
-    }, tabId, shouldRedactHeaders));
+    }, tabId, shouldRedactSensitiveData));
   }
 
   if (message.type.endsWith('RUNTIME_ERROR')) {
@@ -728,7 +730,7 @@ async function detachConsoleDebugger(tabId: number | null | undefined) {
   const debuggee = attachedConsoleDebuggee;
   attachedConsoleDebuggee = null;
   try {
-    await chrome.debugger.detach(debuggee);
+    await debuggerApi?.detach(debuggee);
   } catch {
     // The debugger can already be detached by Chrome or another extension.
   }
@@ -1491,6 +1493,86 @@ function redactHeaderRecord(headers: Record<string, unknown> | undefined, should
 
 function redactHeaderValue(name: string, value: string, shouldRedactHeaders: boolean) {
   return shouldRedactHeaders && sensitiveHeaderPattern.test(name) ? redactedHeaderValue : value;
+}
+
+function redactBodyText(value: string | undefined, shouldRedactSensitiveData: boolean): string | undefined {
+  if (!value || !shouldRedactSensitiveData) {
+    return value;
+  }
+
+  const jsonRedacted = redactJsonBody(value);
+  if (jsonRedacted !== null) {
+    return limitText(jsonRedacted, maxTelemetryBodyChars);
+  }
+
+  const formRedacted = redactFormBody(value);
+  if (formRedacted !== null) {
+    return limitText(formRedacted, maxTelemetryBodyChars);
+  }
+
+  return value
+    .replace(
+      /(["']?)([A-Za-z0-9_.-]*(?:pass(?:word)?|pwd|secret|token|session|authorization|auth|api[-_]?key|csrf|xsrf|cookie|ssn|cvv|cvc|card.?number)[A-Za-z0-9_.-]*)(\1\s*[:=]\s*)(["']?)[^"',&\s}]+(\4)/gi,
+      (_match, quote, key, separator, valueQuote, closingQuote) =>
+        `${quote}${key}${separator}${valueQuote}${redactedHeaderValue}${closingQuote}`,
+    );
+}
+
+function redactJsonBody(value: string): string | null {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return JSON.stringify(redactSensitiveObject(parsed));
+  } catch {
+    return null;
+  }
+}
+
+function redactFormBody(value: string): string | null {
+  if (!/[=&]/.test(value)) {
+    return null;
+  }
+
+  try {
+    const params = new URLSearchParams(value);
+    if (Array.from(params.keys()).length === 0) {
+      return null;
+    }
+
+    let changed = false;
+    params.forEach((_entryValue, key) => {
+      if (sensitiveBodyKeyPattern.test(key)) {
+        params.set(key, redactedHeaderValue);
+        changed = true;
+      }
+    });
+
+    return changed ? params.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function redactSensitiveObject(value: unknown, depth = 0): unknown {
+  if (depth > 8) {
+    return '[truncated]';
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => redactSensitiveObject(entry, depth + 1));
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entryValue]) => [
+      key,
+      sensitiveBodyKeyPattern.test(key)
+        ? redactedHeaderValue
+        : redactSensitiveObject(entryValue, depth + 1),
+    ]),
+  );
 }
 
 function normalizeCapturedHeaderValue(value: string | null | undefined) {

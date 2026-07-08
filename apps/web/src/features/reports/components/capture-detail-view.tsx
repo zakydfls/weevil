@@ -481,7 +481,11 @@ export function CaptureDetailView({
 
       <div className="grid min-h-0 grid-rows-[auto_auto] bg-[var(--bg)] xl:grid-rows-[1fr_auto] xl:overflow-hidden">
         <ScrollArea className="min-h-0 xl:h-full">
-          <div className={isDevToolsOpen ? '' : 'mx-auto max-w-[108rem]'}>
+          <div
+            className={`mx-auto transition-[max-width] duration-200 ease-out ${
+              isDevToolsOpen ? 'max-w-none' : 'max-w-[108rem]'
+            }`}
+          >
             {isPublicShare && commentGateReason === 'auth' ? (
               <GuestShareBanner returnPath={returnPath} />
             ) : null}

@@ -1,6 +1,9 @@
 import {
+  DEFAULT_WEB_BASE_URL,
   DEFAULT_MAX_BATCH_SIZE,
   DomEventKind,
+  EXTENSION_BUILD_MODE,
+  LOCAL_WEB_BASE_URL,
   PageActionKind,
   PageMessageTypes,
   RuntimeMessageTypes,
@@ -32,6 +35,12 @@ import type {
 const contentInstalledFlag = '__WEevil_CONTENT_SCRIPT_INSTALLED_20260604_CONSOLE_RECAPTURE__';
 const pageConsoleControlMessageType = 'WEevil_PAGE_CONSOLE_CONTROL';
 const pageTelemetryControlMessageType = 'WEevil_PAGE_TELEMETRY_CONTROL';
+const allowedWebBridgeOrigins = new Set(
+  [
+    safeOrigin(DEFAULT_WEB_BASE_URL),
+    EXTENSION_BUILD_MODE === 'production' ? null : safeOrigin(LOCAL_WEB_BASE_URL),
+  ].filter((origin): origin is string => Boolean(origin)),
+);
 
 declare global {
   interface Window {
@@ -151,6 +160,9 @@ function connectRuntime() {
 
     const data = event.data as { type?: string; payload?: unknown };
     if (data.type === WebBridgeMessageTypes.Command) {
+      if (!isAllowedWebBridgeOrigin()) {
+        return;
+      }
       void handleWebBridgeCommand(data.payload);
       return;
     }
@@ -253,6 +265,18 @@ function runtimeMessageTypeForWebCommand(command: (typeof WebBridgeCommands)[key
   }
 
   return RuntimeMessageTypes.GetStatus;
+}
+
+function isAllowedWebBridgeOrigin() {
+  return allowedWebBridgeOrigins.has(location.origin);
+}
+
+function safeOrigin(value: string) {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
 }
 
 async function syncRecorderState() {
