@@ -298,7 +298,7 @@ export default async function LandingPage({
             <HeroCompactEvidenceCard />
           </div>
 
-          <div className="relative z-10 mt-12 flex max-w-3xl flex-wrap gap-2">
+          <div className="relative z-10 mt-14 flex max-w-3xl flex-wrap gap-2 pb-8 sm:pb-10 lg:mt-32 lg:pb-12">
             {HERO_PROOFS.map((proof, index) => (
               <span
                 key={proof}
@@ -536,7 +536,7 @@ function HeroEvidenceScene() {
       className="pointer-events-none absolute inset-0 -z-10 hidden overflow-hidden lg:block"
       aria-hidden
     >
-      <div className="weevil-timeline-rail absolute bottom-7 left-4 right-4 z-0 h-16 rounded-xl border border-white/15 bg-white/[0.06] sm:left-6 sm:right-6 lg:left-[max(1.5rem,calc((100vw-86rem)/2))] lg:right-[max(1.5rem,calc((100vw-86rem)/2))]">
+      <div className="weevil-timeline-rail absolute bottom-5 left-4 right-4 z-0 h-16 rounded-xl border border-white/15 bg-white/[0.06] sm:left-6 sm:right-6 lg:bottom-6 lg:left-[max(1.5rem,calc((100vw-86rem)/2))] lg:right-[max(1.5rem,calc((100vw-86rem)/2))]">
         <div className="absolute left-[18%] top-0 h-full w-px bg-white/25" />
         <div className="absolute left-[44%] top-0 h-full w-px bg-white/25" />
         <div className="absolute left-[72%] top-0 h-full w-px bg-white/25" />
