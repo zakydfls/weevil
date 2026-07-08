@@ -285,6 +285,377 @@ button[aria-label='Open Next.js Dev Tools'] {
   transform-origin: center bottom;
 }
 
+.weevil-hero-slab {
+  animation: weevil-slab-in 860ms var(--ease-out-expo) both;
+  transform-origin: right center;
+}
+
+.weevil-hero-enter {
+  animation: weevil-hero-enter 720ms var(--ease-out-expo) both;
+  animation-delay: calc(var(--i, 0) * 80ms);
+}
+
+.weevil-proof-chip {
+  animation: weevil-chip-in 480ms var(--ease-out-quart) both;
+  animation-delay: calc(320ms + (var(--i, 0) * 36ms));
+  transition:
+    border-color 180ms var(--ease-out-quart),
+    background-color 180ms var(--ease-out-quart),
+    color 180ms var(--ease-out-quart),
+    transform 180ms var(--ease-out-quart);
+}
+
+.weevil-proof-chip:hover {
+  border-color: rgb(255 255 255 / 0.38);
+  background-color: rgb(255 255 255 / 0.15);
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.weevil-button-pop {
+  transition:
+    background-color 160ms var(--ease-out-quart),
+    border-color 160ms var(--ease-out-quart),
+    color 160ms var(--ease-out-quart),
+    transform 160ms var(--ease-out-quart),
+    box-shadow 160ms var(--ease-out-quart);
+}
+
+.weevil-button-pop:hover {
+  transform: translateY(-2px);
+}
+
+.weevil-button-pop:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.weevil-nav-link {
+  position: relative;
+}
+
+.weevil-nav-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -0.45rem;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--primary);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 180ms var(--ease-out-quart);
+}
+
+.weevil-nav-link:hover::after,
+.weevil-nav-link:focus-visible::after {
+  transform: scaleX(1);
+}
+
+.weevil-mobile-menu {
+  animation: weevil-mobile-menu-in 220ms var(--ease-out-expo) both;
+  transform-origin: top;
+}
+
+.weevil-timeline-rail {
+  animation: weevil-panel-rise 720ms var(--ease-out-expo) 260ms both;
+}
+
+.weevil-hero-scrubber {
+  left: 14%;
+  animation: weevil-hero-scrub 5.2s var(--ease-in-out-quart) infinite;
+  box-shadow: 0 0 0 6px rgb(255 255 255 / 0.10);
+}
+
+.weevil-evidence-card {
+  animation: weevil-evidence-in 760ms var(--ease-out-expo) 260ms both;
+  transform-origin: 72% 72%;
+}
+
+.weevil-timeline-card {
+  animation: weevil-timeline-card-in 760ms var(--ease-out-expo) 380ms both;
+}
+
+.weevil-replay-window {
+  position: relative;
+  overflow: hidden;
+}
+
+.weevil-replay-window::before {
+  content: '';
+  position: absolute;
+  left: 22%;
+  top: 32%;
+  z-index: 2;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 6px rgb(255 255 255 / 0.14),
+    0 0 0 12px rgb(255 255 255 / 0.06);
+  animation: weevil-replay-pointer 4.4s var(--ease-in-out-quart) infinite;
+}
+
+.weevil-replay-window::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-130%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.13), transparent);
+  animation: weevil-scan-glint 3.8s var(--ease-in-out-quart) infinite;
+}
+
+.weevil-request-row {
+  animation: weevil-row-pop 520ms var(--ease-out-expo) both;
+  animation-delay: calc(660ms + (var(--i, 0) * 90ms));
+  transition:
+    background-color 180ms var(--ease-out-quart),
+    border-color 180ms var(--ease-out-quart),
+    transform 180ms var(--ease-out-quart);
+}
+
+.weevil-request-row:hover {
+  border-color: var(--border-strong);
+  background-color: var(--surface-elevated);
+  transform: translateX(3px);
+}
+
+.weevil-event-row {
+  animation: weevil-event-pulse 4.8s var(--ease-in-out-quart) infinite;
+  animation-delay: calc(var(--i, 0) * 420ms);
+}
+
+.weevil-section-reveal {
+  position: relative;
+}
+
+.weevil-workflow-track {
+  position: relative;
+}
+
+.weevil-workflow-track::before {
+  content: '';
+  position: absolute;
+  left: 1.25rem;
+  right: 1.25rem;
+  top: 1.25rem;
+  height: 2px;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, transparent, var(--primary), transparent) 0 0 / 35% 100% no-repeat,
+    var(--border);
+  opacity: 0.75;
+  animation: weevil-track-signal 4.4s var(--ease-in-out-quart) infinite;
+}
+
+.weevil-feature-card,
+.weevil-mini-card,
+.weevil-board-column,
+.weevil-board-card,
+.weevil-extension-shell,
+.weevil-board-panel,
+.weevil-extension-card,
+.weevil-privacy-row {
+  transition:
+    background-color 180ms var(--ease-out-quart),
+    border-color 180ms var(--ease-out-quart),
+    box-shadow 180ms var(--ease-out-quart),
+    transform 180ms var(--ease-out-quart);
+}
+
+.weevil-feature-card {
+  position: relative;
+  overflow: hidden;
+  animation: weevil-panel-rise 520ms var(--ease-out-expo) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+.weevil-feature-card::after {
+  content: '';
+  position: absolute;
+  inset: auto 1rem 0;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--primary);
+  opacity: 0;
+  transform: scaleX(0.4);
+  transform-origin: left;
+  transition:
+    opacity 180ms var(--ease-out-quart),
+    transform 180ms var(--ease-out-quart);
+}
+
+.weevil-feature-card:hover,
+.weevil-mini-card:hover,
+.weevil-extension-shell:hover,
+.weevil-board-panel:hover,
+.weevil-extension-card:hover,
+.weevil-privacy-row:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-3px);
+}
+
+.weevil-feature-card:hover::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.weevil-feature-card:hover .weevil-icon-chip {
+  transform: translateY(-2px) rotate(-3deg);
+}
+
+.weevil-icon-chip {
+  transition:
+    background-color 180ms var(--ease-out-quart),
+    transform 180ms var(--ease-out-quart);
+}
+
+.weevil-mini-card:hover svg {
+  transform: translateX(2px);
+}
+
+.weevil-mini-card svg {
+  transition: transform 180ms var(--ease-out-quart);
+}
+
+.weevil-debug-frame {
+  position: relative;
+  transition:
+    border-color 180ms var(--ease-out-quart),
+    filter 180ms var(--ease-out-quart),
+    transform 180ms var(--ease-out-quart);
+}
+
+.weevil-debug-frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  transform: translateY(-100%);
+  background: linear-gradient(180deg, transparent, rgb(255 255 255 / 0.18), transparent);
+  animation: weevil-debug-scan 5.6s var(--ease-in-out-quart) infinite;
+}
+
+.weevil-debug-frame::after {
+  content: 'synced timeline';
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 2;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 0.5rem;
+  background: rgb(255 255 255 / 0.10);
+  color: rgb(255 255 255 / 0.78);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.625rem;
+  padding: 0.35rem 0.55rem;
+  animation: weevil-debug-badge 4.2s var(--ease-in-out-quart) infinite;
+}
+
+.weevil-debug-frame:hover {
+  border-color: var(--primary);
+  transform: translateY(-3px);
+}
+
+.weevil-board-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.weevil-board-panel::after {
+  content: '';
+  position: absolute;
+  left: 8%;
+  top: 50%;
+  z-index: 2;
+  width: 2.35rem;
+  height: 1.45rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.45rem;
+  background: var(--surface-elevated);
+  transform: translate3d(0, -50%, 0);
+  animation: weevil-board-transfer 6.2s var(--ease-in-out-quart) infinite;
+}
+
+.weevil-board-column {
+  animation: weevil-board-column-in 620ms var(--ease-out-expo) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+.weevil-board-column:hover {
+  background-color: var(--surface-elevated);
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+}
+
+.weevil-board-card {
+  animation: weevil-board-card-breathe 5s var(--ease-in-out-quart) infinite;
+  animation-delay: calc(var(--i, 0) * 460ms);
+}
+
+.weevil-board-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px) rotate(-0.35deg);
+}
+
+.weevil-extension-shell {
+  position: relative;
+  overflow: hidden;
+}
+
+.weevil-extension-shell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform: translateX(-120%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.72), transparent);
+  opacity: 0.55;
+  animation: weevil-extension-glint 6s var(--ease-in-out-quart) infinite;
+}
+
+.weevil-extension-card:hover {
+  background-color: var(--primary-subtle);
+}
+
+.weevil-extension-live::after {
+  content: '';
+  position: absolute;
+  right: -0.15rem;
+  top: -0.15rem;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--danger);
+  box-shadow: 0 0 0 0 rgb(190 52 28 / 0.32);
+  animation: weevil-recording-pulse 1.8s var(--ease-out-quart) infinite;
+}
+
+.weevil-privacy-row {
+  border-radius: 0.65rem;
+  padding: 0.35rem 0.4rem;
+  animation: weevil-row-pop 420ms var(--ease-out-expo) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+.weevil-privacy-row:hover {
+  background-color: var(--success-bg);
+}
+
+.weevil-cta-orbit {
+  animation: weevil-cta-orbit 12s linear infinite;
+}
+
+@supports (animation-timeline: view()) {
+  .weevil-section-reveal {
+    animation: weevil-section-view both;
+    animation-timeline: view();
+    animation-range: entry 8% cover 32%;
+  }
+}
+
 @keyframes weevil-fade-in {
   from {
     opacity: 0;
@@ -372,6 +743,269 @@ button[aria-label='Open Next.js Dev Tools'] {
   }
   50% {
     transform: translateY(-3px);
+  }
+}
+
+@keyframes weevil-slab-in {
+  from {
+    opacity: 0;
+    transform: translateX(9%) skewX(-9deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) skewX(-9deg);
+  }
+}
+
+@keyframes weevil-hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes weevil-chip-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes weevil-panel-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes weevil-mobile-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scaleY(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+@keyframes weevil-track-signal {
+  0%, 100% {
+    background-position: -40% 0, 0 0;
+  }
+  55% {
+    background-position: 145% 0, 0 0;
+  }
+}
+
+@keyframes weevil-hero-scrub {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  36% {
+    transform: translateX(30vw);
+  }
+  68% {
+    transform: translateX(54vw);
+  }
+}
+
+@keyframes weevil-debug-scan {
+  0%, 45% {
+    transform: translateY(-100%);
+  }
+  72%, 100% {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes weevil-debug-badge {
+  0%, 100% {
+    opacity: 0.58;
+    transform: translateY(0);
+  }
+  48%, 56% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes weevil-board-transfer {
+  0%, 18%, 100% {
+    opacity: 0;
+    transform: translate3d(0, -50%, 0) scale(0.92);
+  }
+  28% {
+    opacity: 1;
+    transform: translate3d(0, -50%, 0) scale(1);
+  }
+  70% {
+    opacity: 1;
+    transform: translate3d(44vw, -50%, 0) scale(1);
+  }
+  82% {
+    opacity: 0;
+    transform: translate3d(44vw, -50%, 0) scale(0.94);
+  }
+}
+
+@keyframes weevil-extension-glint {
+  0%, 52% {
+    transform: translateX(-120%);
+  }
+  76%, 100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes weevil-recording-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgb(190 52 28 / 0.32);
+  }
+  70%, 100% {
+    box-shadow: 0 0 0 8px rgb(190 52 28 / 0);
+  }
+}
+
+@keyframes weevil-section-view {
+  from {
+    opacity: 0.82;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes weevil-evidence-in {
+  from {
+    opacity: 0;
+    transform: translateY(22px) rotate(1.2deg) scale(0.965);
+    filter: blur(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes weevil-timeline-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) translateX(12px) rotate(-1deg);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateX(0) rotate(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes weevil-replay-pointer {
+  0%, 100% {
+    left: 22%;
+    top: 32%;
+    transform: scale(1);
+  }
+  28% {
+    left: 42%;
+    top: 34%;
+    transform: scale(0.92);
+  }
+  52% {
+    left: 67%;
+    top: 62%;
+    transform: scale(1);
+  }
+  74% {
+    left: 36%;
+    top: 64%;
+    transform: scale(0.95);
+  }
+}
+
+@keyframes weevil-scan-glint {
+  0%, 42% {
+    transform: translateX(-130%);
+  }
+  72%, 100% {
+    transform: translateX(130%);
+  }
+}
+
+@keyframes weevil-row-pop {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes weevil-event-pulse {
+  0%, 100% {
+    opacity: 0.62;
+    transform: translateX(0);
+  }
+  12%, 20% {
+    opacity: 1;
+    transform: translateX(3px);
+  }
+}
+
+@keyframes weevil-board-column-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes weevil-board-card-breathe {
+  0%, 100% {
+    transform: translateY(0);
+    border-color: var(--border);
+  }
+  45%, 55% {
+    transform: translateY(-2px);
+    border-color: var(--border-strong);
+  }
+}
+
+@keyframes weevil-cta-orbit {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
+    opacity: 0.34;
+  }
+  50% {
+    transform: translate(-50%, -50%) rotate(180deg) scale(1.28);
+    opacity: 0.12;
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg) scale(1);
+    opacity: 0.34;
   }
 }
 

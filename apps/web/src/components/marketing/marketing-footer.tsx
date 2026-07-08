@@ -8,12 +8,18 @@ export function MarketingFooter() {
         <div className="flex items-center gap-2.5">
           <WeevilMark size={22} tone="ink" />
           <span className="text-sm font-semibold text-[var(--ink)]">Weevil</span>
-          <span className="text-sm text-[var(--ink-faint)]">— debugging sessions, not log files.</span>
+          <span className="text-sm text-[var(--ink-faint)]">— bug evidence, board ownership, fewer rituals.</span>
         </div>
 
         <nav className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
-          <Link href="/#how-it-works" className="text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]">
-            How it works
+          <Link href="/#why" className="text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]">
+            Why Weevil
+          </Link>
+          <Link href="/#workflow" className="text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]">
+            Workflow
+          </Link>
+          <Link href="/#board" className="text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]">
+            Board
           </Link>
           <Link href="/#extension" className="text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]">
             Extension
@@ -31,27 +37,6 @@ export function MarketingFooter() {
       </div>
       <div className="mx-auto flex w-full max-w-[82rem] flex-col gap-1 border-t border-[var(--divider)] px-4 py-6 sm:px-6">
         <p className="text-xs text-[var(--ink-faint)]">© 2026 Weevil. Squash bugs, not each other.</p>
-        <p className="text-xs text-[var(--ink-faint)]">
-          3D &ldquo;Beetle&rdquo; model by{' '}
-          <a
-            href="https://poly.pizza/m/4yufxgZ1QQ2"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-[var(--ink-muted)]"
-          >
-            Poly by Google
-          </a>
-          , licensed{' '}
-          <a
-            href="https://creativecommons.org/licenses/by/3.0/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-[var(--ink-muted)]"
-          >
-            CC BY 3.0
-          </a>
-          .
-        </p>
       </div>
     </footer>
   );

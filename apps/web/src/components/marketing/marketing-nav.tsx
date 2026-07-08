@@ -12,7 +12,9 @@ import { useAuth } from '@/features/auth/auth-context';
 // and then scrolls to the section, instead of silently no-op'ing when the
 // current page has no element with that id.
 const NAV_LINKS = [
-  { href: '/#how-it-works', label: 'How it works' },
+  { href: '/#why', label: 'Why Weevil' },
+  { href: '/#workflow', label: 'Workflow' },
+  { href: '/#board', label: 'Board' },
   { href: '/#extension', label: 'Extension' },
   { href: '/support', label: 'Support' },
 ];
@@ -59,7 +61,7 @@ export function MarketingNav() {
             <Link
               key={link.href}
               href={link.href}
-              className="text-sm font-medium text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
+              className="weevil-nav-link text-sm font-medium text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
             >
               {link.label}
             </Link>
@@ -68,15 +70,15 @@ export function MarketingNav() {
 
         <div className="flex items-center gap-2">
           {isAuthed ? (
-            <Button asChild size="sm" className="hidden sm:inline-flex">
+            <Button asChild size="sm" className="weevil-button-pop hidden sm:inline-flex">
               <Link href="/captures">Open dashboard</Link>
             </Button>
           ) : (
             <>
-              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+              <Button asChild variant="ghost" size="sm" className="weevil-button-pop hidden sm:inline-flex">
                 <Link href="/login">Sign in</Link>
               </Button>
-              <Button asChild size="sm" className="hidden sm:inline-flex">
+              <Button asChild size="sm" className="weevil-button-pop hidden sm:inline-flex">
                 <Link href="/signup">Get started</Link>
               </Button>
             </>
@@ -94,7 +96,7 @@ export function MarketingNav() {
       </div>
 
       {menuOpen ? (
-        <nav className="border-t border-[var(--border)] bg-[var(--bg)] px-4 py-4 md:hidden">
+        <nav className="weevil-mobile-menu border-t border-[var(--border)] bg-[var(--bg)] px-4 py-4 md:hidden">
           <ul className="flex flex-col gap-1">
             {NAV_LINKS.map((link) => (
               <li key={link.href}>
