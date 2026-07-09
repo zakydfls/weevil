@@ -252,7 +252,7 @@ export default async function LandingPage({
         />
         <HeroEvidenceScene />
 
-        <div className="mx-auto flex min-h-[calc(100svh-8rem)] w-full max-w-[86rem] flex-col justify-center px-4 py-16 sm:px-6 lg:py-24">
+        <div className="mx-auto flex min-h-[calc(100svh-8rem)] w-full max-w-[86rem] flex-col justify-center px-4 py-16 sm:px-6 lg:min-h-[calc(100svh-4rem)] lg:-translate-y-10 lg:py-20">
           <div className="relative z-10 max-w-3xl">
             <p
               className="weevil-hero-enter inline-flex rounded-md border border-white/20 bg-white/[0.08] px-3 py-1 font-mono text-xs uppercase tracking-[0.12em] text-white/78"
@@ -298,10 +298,10 @@ export default async function LandingPage({
             <HeroCompactEvidenceCard />
           </div>
 
-          <div className="relative z-10 mt-14 flex max-w-3xl flex-wrap gap-2 pb-8 sm:pb-10 lg:mt-32 lg:pb-12">
+          <div className="relative z-10 mt-8 flex flex-wrap gap-2 pb-8 lg:hidden">
             {HERO_PROOFS.map((proof, index) => (
               <span
-                key={proof}
+                key={`mobile-${proof}`}
                 className="weevil-proof-chip rounded-md border border-white/[0.16] bg-white/[0.08] px-2.5 py-1 font-mono text-[11px] text-white/80"
                 style={{ '--i': index } as CSSProperties}
               >
@@ -309,6 +309,18 @@ export default async function LandingPage({
               </span>
             ))}
           </div>
+        </div>
+
+        <div className="absolute left-4 right-4 top-[calc(100svh-12rem)] z-20 mx-auto hidden max-w-[86rem] flex-wrap gap-2 sm:left-6 sm:right-6 lg:flex">
+          {HERO_PROOFS.map((proof, index) => (
+            <span
+              key={proof}
+              className="weevil-proof-chip rounded-md border border-white/[0.16] bg-white/[0.08] px-2.5 py-1 font-mono text-[11px] text-white/80"
+              style={{ '--i': index } as CSSProperties}
+            >
+              {proof}
+            </span>
+          ))}
         </div>
       </section>
 
@@ -375,7 +387,7 @@ export default async function LandingPage({
           </div>
           <div>
             <h2 className="max-w-xl text-[clamp(2rem,4vw,3.25rem)] font-semibold tracking-[-0.03em] text-[var(--ink)]">
-              A replayable crime scene for frontend bugs.
+              A replayable crime scene for bugs.
             </h2>
             <p className="mt-5 max-w-lg text-base leading-7 text-[var(--ink-muted)]">
               Screen recording alone is theater. Logs alone are archaeology. Weevil puts
