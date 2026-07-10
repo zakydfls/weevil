@@ -1,4 +1,4 @@
-import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { AppConfigService } from '@weevil/config';
 import { cert, getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
@@ -14,6 +14,7 @@ export interface VerifiedFirebaseGoogleUser {
 
 @Injectable()
 export class FirebaseAuthService {
+  private readonly logger = new Logger(FirebaseAuthService.name);
   private app: App | null = null;
 
   constructor(private readonly config: AppConfigService) {}
@@ -29,13 +30,19 @@ export class FirebaseAuthService {
     let decoded: DecodedIdToken;
     try {
       decoded = await getAuth(this.getApp()).verifyIdToken(idToken, true);
-    } catch {
+    } catch (error) {
+      this.logger.error(
+        `Firebase ID token verification failed: ${firebaseErrorCode(error)} (${firebaseErrorMessage(error)}). ${safeTokenDiagnostics(idToken, this.readServiceAccount().projectId)}`,
+      );
       throw new UnauthorizedException('Google sign-in token is invalid.');
     }
 
     const provider = decoded.firebase?.sign_in_provider;
     const email = decoded.email?.trim().toLowerCase();
     if (provider !== 'google.com' || !email || decoded.email_verified !== true) {
+      this.logger.error(
+        `Firebase ID token was verified but is not an acceptable Google login. provider=${provider ?? 'none'} emailPresent=${Boolean(email)} emailVerified=${decoded.email_verified === true}`,
+      );
       throw new UnauthorizedException('Google account must have a verified email.');
     }
 
@@ -131,4 +138,53 @@ function parseServiceAccountJson(value: string | undefined):
     clientEmail,
     privateKey: privateKey.replace(/\\n/g, '\n'),
   };
+}
+
+function firebaseErrorCode(error: unknown): string {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === 'string') return code;
+  }
+  return 'unknown';
+}
+
+function firebaseErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+function safeTokenDiagnostics(idToken: string, expectedProjectId: string): string {
+  const payload = decodeJwtPayload(idToken);
+  if (!payload) {
+    return `Token diagnostics: malformed JWT, tokenLength=${idToken.length}, expectedProject=${expectedProjectId}`;
+  }
+  const firebase = payload.firebase;
+  const provider =
+    firebase && typeof firebase === 'object' && !Array.isArray(firebase)
+      ? (firebase as Record<string, unknown>).sign_in_provider
+      : undefined;
+  return [
+    'Token diagnostics:',
+    `aud=${stringOrNone(payload.aud)}`,
+    `iss=${stringOrNone(payload.iss)}`,
+    `provider=${stringOrNone(provider)}`,
+    `emailPresent=${typeof payload.email === 'string'}`,
+    `emailVerified=${payload.email_verified === true}`,
+    `tokenLength=${idToken.length}`,
+    `expectedProject=${expectedProjectId}`,
+  ].join(' ');
+}
+
+function decodeJwtPayload(idToken: string): Record<string, unknown> | null {
+  const [, payload] = idToken.split('.');
+  if (!payload) return null;
+  try {
+    return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function stringOrNone(value: unknown): string {
+  return typeof value === 'string' && value ? value : 'none';
 }
