@@ -57,9 +57,37 @@ const baseEnvSchema = z.object({
   NOTIFICATION_GATEWAY_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
   // HMAC secret for signup OTP hashes. Required in production.
   AUTH_OTP_SECRET: z.string().optional().default(''),
+
+  // ── Firebase Auth / Google OAuth ─────────────────────────────────────────
+  AUTH_GOOGLE_ENABLED: booleanFromString.default(false),
+  FIREBASE_PROJECT_ID: z.string().optional().default(''),
+  FIREBASE_CLIENT_EMAIL: z.string().optional().default(''),
+  FIREBASE_PRIVATE_KEY: z.string().optional().default(''),
+  // Alternative to the three fields above. Store as raw JSON or base64 JSON.
+  FIREBASE_SERVICE_ACCOUNT_JSON: z.string().optional().default(''),
+  // Preferred for VPS/Docker secrets: path to the service account JSON file.
+  FIREBASE_SERVICE_ACCOUNT_PATH: z.string().optional().default(''),
 });
 
 export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
+  if (env.AUTH_GOOGLE_ENABLED) {
+    const hasServiceAccountJson = Boolean(env.FIREBASE_SERVICE_ACCOUNT_JSON.trim());
+    const hasServiceAccountPath = Boolean(env.FIREBASE_SERVICE_ACCOUNT_PATH.trim());
+    const hasSplitServiceAccount = Boolean(
+      env.FIREBASE_PROJECT_ID.trim() &&
+        env.FIREBASE_CLIENT_EMAIL.trim() &&
+        env.FIREBASE_PRIVATE_KEY.trim(),
+    );
+    if (!hasServiceAccountJson && !hasServiceAccountPath && !hasSplitServiceAccount) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['AUTH_GOOGLE_ENABLED'],
+        message:
+          'Firebase service account config is required when AUTH_GOOGLE_ENABLED=true.',
+      });
+    }
+  }
+
   if (env.NODE_ENV !== 'production') return;
   if (env.ENABLE_CORS && !env.WEB_ORIGIN.trim()) {
     ctx.addIssue({

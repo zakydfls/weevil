@@ -11,6 +11,7 @@
 export type * from './models/Workspace'
 export type * from './models/Project'
 export type * from './models/User'
+export type * from './models/UserIdentity'
 export type * from './models/OtpChallenge'
 export type * from './models/WorkspaceMember'
 export type * from './models/UserNotificationPreference'

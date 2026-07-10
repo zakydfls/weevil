@@ -54,6 +54,7 @@ export const ModelName = {
   Workspace: 'Workspace',
   Project: 'Project',
   User: 'User',
+  UserIdentity: 'UserIdentity',
   OtpChallenge: 'OtpChallenge',
   WorkspaceMember: 'WorkspaceMember',
   UserNotificationPreference: 'UserNotificationPreference',
@@ -133,6 +134,19 @@ export const UserScalarFieldEnum = {
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
+
+
+export const UserIdentityScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  provider: 'provider',
+  providerUserId: 'providerUserId',
+  emailAtLink: 'emailAtLink',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type UserIdentityScalarFieldEnum = (typeof UserIdentityScalarFieldEnum)[keyof typeof UserIdentityScalarFieldEnum]
 
 
 export const OtpChallengeScalarFieldEnum = {

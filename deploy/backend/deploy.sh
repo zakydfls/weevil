@@ -73,6 +73,8 @@ fi
 
 mkdir -p "$APP_DIR"
 cd "$APP_DIR"
+mkdir -p secrets
+chmod 700 secrets
 
 if [[ ! -f ".env" ]]; then
   echo "Missing $APP_DIR/.env. Create it from deploy/backend/.env.production.example before deploying." >&2

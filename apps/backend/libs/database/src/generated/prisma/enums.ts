@@ -249,3 +249,10 @@ export const OtpPurpose = {
 } as const
 
 export type OtpPurpose = (typeof OtpPurpose)[keyof typeof OtpPurpose]
+
+
+export const UserIdentityProvider = {
+  FIREBASE_GOOGLE: 'FIREBASE_GOOGLE'
+} as const
+
+export type UserIdentityProvider = (typeof UserIdentityProvider)[keyof typeof UserIdentityProvider]

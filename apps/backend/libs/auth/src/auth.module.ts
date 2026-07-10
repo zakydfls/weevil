@@ -4,6 +4,7 @@ import { AppConfigModule } from '@weevil/config';
 import { DatabaseModule } from '@weevil/database';
 import { NotificationsModule } from '@weevil/notifications';
 import { AuthService } from './application/auth.service';
+import { FirebaseAuthService } from './application/firebase-auth.service';
 import { OtpService } from './application/otp.service';
 import { PasswordService } from './application/password.service';
 import { PermissionService } from './application/permission.service';
@@ -25,6 +26,7 @@ import { WorkspacesController } from './presentation/workspaces.controller';
   controllers: [AuthController, WorkspacesController, PlatformAdminController],
   providers: [
     AuthService,
+    FirebaseAuthService,
     OtpService,
     PasswordService,
     PermissionService,
@@ -40,6 +42,7 @@ import { WorkspacesController } from './presentation/workspaces.controller';
   ],
   exports: [
     AuthService,
+    FirebaseAuthService,
     OtpService,
     PasswordService,
     PermissionService,

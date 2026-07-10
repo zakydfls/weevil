@@ -55,6 +55,12 @@ export type Project = Prisma.ProjectModel
  */
 export type User = Prisma.UserModel
 /**
+ * Model UserIdentity
+ * External login identity attached to a Weevil user. We keep this separate
+ * from users so adding more providers later does not disturb core auth.
+ */
+export type UserIdentity = Prisma.UserIdentityModel
+/**
  * Model OtpChallenge
  * Generic OTP challenge. Purpose + recipient make this reusable for signup,
  * password reset, email change, and future auth challenges. Raw OTP codes are

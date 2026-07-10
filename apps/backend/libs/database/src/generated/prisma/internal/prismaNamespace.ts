@@ -387,6 +387,7 @@ export const ModelName = {
   Workspace: 'Workspace',
   Project: 'Project',
   User: 'User',
+  UserIdentity: 'UserIdentity',
   OtpChallenge: 'OtpChallenge',
   WorkspaceMember: 'WorkspaceMember',
   UserNotificationPreference: 'UserNotificationPreference',
@@ -423,7 +424,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "workspace" | "project" | "user" | "otpChallenge" | "workspaceMember" | "userNotificationPreference" | "inAppNotification" | "workspaceInvite" | "authSession" | "apiToken" | "bugReport" | "reportAssignee" | "reportBoardColumn" | "captureSession" | "reportComment" | "reportUpload" | "pageActionEntry" | "runtimeErrorEntry" | "performanceEntry" | "domEventEntry" | "backendTraceEntry" | "reportEvent" | "consoleLogEntry" | "networkRequestEntry"
+    modelProps: "workspace" | "project" | "user" | "userIdentity" | "otpChallenge" | "workspaceMember" | "userNotificationPreference" | "inAppNotification" | "workspaceInvite" | "authSession" | "apiToken" | "bugReport" | "reportAssignee" | "reportBoardColumn" | "captureSession" | "reportComment" | "reportUpload" | "pageActionEntry" | "runtimeErrorEntry" | "performanceEntry" | "domEventEntry" | "backendTraceEntry" | "reportEvent" | "consoleLogEntry" | "networkRequestEntry"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -646,6 +647,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.UserCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.UserCountAggregateOutputType> | number
+        }
+      }
+    }
+    UserIdentity: {
+      payload: Prisma.$UserIdentityPayload<ExtArgs>
+      fields: Prisma.UserIdentityFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.UserIdentityFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserIdentityPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.UserIdentityFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserIdentityPayload>
+        }
+        findFirst: {
+          args: Prisma.UserIdentityFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserIdentityPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.UserIdentityFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserIdentityPayload>
+        }
+        findMany: {
+          args: Prisma.UserIdentityFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserIdentityPayload>[]
+        }
+        create: {
+          args: Prisma.UserIdentityCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserIdentityPayload>
+        }
+        createMany: {
+          args: Prisma.UserIdentityCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.UserIdentityCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserIdentityPayload>[]
+        }
+        delete: {
+          args: Prisma.UserIdentityDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserIdentityPayload>
+        }
+        update: {
+          args: Prisma.UserIdentityUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserIdentityPayload>
+        }
+        deleteMany: {
+          args: Prisma.UserIdentityDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.UserIdentityUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.UserIdentityUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserIdentityPayload>[]
+        }
+        upsert: {
+          args: Prisma.UserIdentityUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserIdentityPayload>
+        }
+        aggregate: {
+          args: Prisma.UserIdentityAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateUserIdentity>
+        }
+        groupBy: {
+          args: Prisma.UserIdentityGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UserIdentityGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.UserIdentityCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UserIdentityCountAggregateOutputType> | number
         }
       }
     }
@@ -2284,6 +2359,19 @@ export const UserScalarFieldEnum = {
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
 
 
+export const UserIdentityScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  provider: 'provider',
+  providerUserId: 'providerUserId',
+  emailAtLink: 'emailAtLink',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type UserIdentityScalarFieldEnum = (typeof UserIdentityScalarFieldEnum)[keyof typeof UserIdentityScalarFieldEnum]
+
+
 export const OtpChallengeScalarFieldEnum = {
   id: 'id',
   purpose: 'purpose',
@@ -2826,6 +2914,20 @@ export type ListEnumUserStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$P
 
 
 /**
+ * Reference to a field of type 'UserIdentityProvider'
+ */
+export type EnumUserIdentityProviderFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'UserIdentityProvider'>
+    
+
+
+/**
+ * Reference to a field of type 'UserIdentityProvider[]'
+ */
+export type ListEnumUserIdentityProviderFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'UserIdentityProvider[]'>
+    
+
+
+/**
  * Reference to a field of type 'OtpPurpose'
  */
 export type EnumOtpPurposeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'OtpPurpose'>
@@ -3224,6 +3326,7 @@ export type GlobalOmitConfig = {
   workspace?: Prisma.WorkspaceOmit
   project?: Prisma.ProjectOmit
   user?: Prisma.UserOmit
+  userIdentity?: Prisma.UserIdentityOmit
   otpChallenge?: Prisma.OtpChallengeOmit
   workspaceMember?: Prisma.WorkspaceMemberOmit
   userNotificationPreference?: Prisma.UserNotificationPreferenceOmit

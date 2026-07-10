@@ -203,6 +203,23 @@ export type EnumUserStatusWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedEnumUserStatusFilter<$PrismaModel>
 }
 
+export type EnumUserIdentityProviderFilter<$PrismaModel = never> = {
+  equals?: $Enums.UserIdentityProvider | Prisma.EnumUserIdentityProviderFieldRefInput<$PrismaModel>
+  in?: $Enums.UserIdentityProvider[] | Prisma.ListEnumUserIdentityProviderFieldRefInput<$PrismaModel>
+  notIn?: $Enums.UserIdentityProvider[] | Prisma.ListEnumUserIdentityProviderFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumUserIdentityProviderFilter<$PrismaModel> | $Enums.UserIdentityProvider
+}
+
+export type EnumUserIdentityProviderWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.UserIdentityProvider | Prisma.EnumUserIdentityProviderFieldRefInput<$PrismaModel>
+  in?: $Enums.UserIdentityProvider[] | Prisma.ListEnumUserIdentityProviderFieldRefInput<$PrismaModel>
+  notIn?: $Enums.UserIdentityProvider[] | Prisma.ListEnumUserIdentityProviderFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumUserIdentityProviderWithAggregatesFilter<$PrismaModel> | $Enums.UserIdentityProvider
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumUserIdentityProviderFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumUserIdentityProviderFilter<$PrismaModel>
+}
+
 export type EnumOtpPurposeFilter<$PrismaModel = never> = {
   equals?: $Enums.OtpPurpose | Prisma.EnumOtpPurposeFieldRefInput<$PrismaModel>
   in?: $Enums.OtpPurpose[] | Prisma.ListEnumOtpPurposeFieldRefInput<$PrismaModel>
@@ -830,6 +847,23 @@ export type NestedEnumUserStatusWithAggregatesFilter<$PrismaModel = never> = {
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumUserStatusFilter<$PrismaModel>
   _max?: Prisma.NestedEnumUserStatusFilter<$PrismaModel>
+}
+
+export type NestedEnumUserIdentityProviderFilter<$PrismaModel = never> = {
+  equals?: $Enums.UserIdentityProvider | Prisma.EnumUserIdentityProviderFieldRefInput<$PrismaModel>
+  in?: $Enums.UserIdentityProvider[] | Prisma.ListEnumUserIdentityProviderFieldRefInput<$PrismaModel>
+  notIn?: $Enums.UserIdentityProvider[] | Prisma.ListEnumUserIdentityProviderFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumUserIdentityProviderFilter<$PrismaModel> | $Enums.UserIdentityProvider
+}
+
+export type NestedEnumUserIdentityProviderWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.UserIdentityProvider | Prisma.EnumUserIdentityProviderFieldRefInput<$PrismaModel>
+  in?: $Enums.UserIdentityProvider[] | Prisma.ListEnumUserIdentityProviderFieldRefInput<$PrismaModel>
+  notIn?: $Enums.UserIdentityProvider[] | Prisma.ListEnumUserIdentityProviderFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumUserIdentityProviderWithAggregatesFilter<$PrismaModel> | $Enums.UserIdentityProvider
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumUserIdentityProviderFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumUserIdentityProviderFilter<$PrismaModel>
 }
 
 export type NestedEnumOtpPurposeFilter<$PrismaModel = never> = {

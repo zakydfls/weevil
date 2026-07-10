@@ -345,6 +345,34 @@ export const apiClient = {
       expiresAt: string;
     }>('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
 
+  firebaseGoogleOAuth: (body: {
+    idToken: string;
+    intent?: 'LOGIN' | 'SIGNUP';
+    displayName?: string;
+    workspaceName?: string;
+    workspaceSlug?: string;
+    joinWorkspaceSlug?: string;
+    inviteToken?: string;
+  }) =>
+    request<
+      | {
+          status: 'ACTIVE';
+          token: string;
+          sessionId: string;
+          userId: string;
+          workspaceId: string | null;
+          defaultWorkspaceId: string | null;
+          expiresAt: string;
+        }
+      | {
+          status: 'PENDING_APPROVAL';
+          userId: string;
+          workspaceId: string;
+          email: string;
+          workspace: { slug: string; name: string };
+        }
+    >('/auth/oauth/firebase-google', { method: 'POST', body: JSON.stringify(body) }),
+
   getInvitePreview: (inviteToken: string) =>
     request<{
       email: string;

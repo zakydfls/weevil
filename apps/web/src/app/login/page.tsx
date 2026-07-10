@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AuthShell } from '@/features/auth/auth-shell';
 import { useAuth } from '@/features/auth/auth-context';
+import { signInWithGoogle } from '@/features/auth/firebase-google';
 import { ApiError, apiClient } from '@/lib/api/client';
 import { appEnv, readPublicEnv } from '@/lib/env';
 
@@ -37,8 +38,9 @@ export default function LoginPage() {
   const [isInviteLoading, setIsInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState('');
   const [submitPhase, setSubmitPhase] = useState<'idle' | 'checking' | 'redirecting'>('idle');
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isSubmitting = submitPhase !== 'idle';
+  const isSubmitting = submitPhase !== 'idle' || isGoogleSubmitting;
   const signupHref = buildAuthHref('/signup', { inviteToken, next: nextPath });
 
   useEffect(() => {
@@ -96,6 +98,30 @@ export default function LoginPage() {
     }
   }
 
+  async function handleGoogleLogin() {
+    setIsGoogleSubmitting(true);
+    setError(null);
+    try {
+      const google = await signInWithGoogle();
+      const result = await auth.continueWithGoogle(
+        {
+          idToken: google.idToken,
+          intent: 'LOGIN',
+          displayName: google.displayName ?? undefined,
+          ...(inviteToken ? { inviteToken } : {}),
+        },
+        nextPath ? { redirectTo: nextPath } : undefined,
+      );
+      if (result.status === 'PENDING_APPROVAL') {
+        setError(`${result.workspace.name} still needs to approve your access request.`);
+        setIsGoogleSubmitting(false);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google sign-in failed.');
+      setIsGoogleSubmitting(false);
+    }
+  }
+
   return (
     <AuthShell
       title={invitePreview ? `Join ${invitePreview.workspace.name}` : 'Welcome back'}
@@ -116,6 +142,27 @@ export default function LoginPage() {
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        <Button
+          type="button"
+          variant="secondary"
+          className="h-10 w-full"
+          disabled={isSubmitting || Boolean(inviteError)}
+          onClick={() => void handleGoogleLogin()}
+        >
+          {isGoogleSubmitting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <KeyRound className="h-4 w-4" aria-hidden />
+          )}
+          {inviteToken ? 'Continue with Google and join' : 'Continue with Google'}
+        </Button>
+        <div className="flex items-center gap-3">
+          <span className="h-px flex-1 bg-[var(--divider)]" />
+          <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+            or
+          </span>
+          <span className="h-px flex-1 bg-[var(--divider)]" />
+        </div>
         <div className="space-y-1.5">
           <label
             htmlFor="email"

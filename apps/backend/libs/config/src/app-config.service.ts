@@ -114,6 +114,35 @@ export class AppConfigService {
   get authOtpSecret(): string | undefined {
     return this.configService.get('AUTH_OTP_SECRET', { infer: true }) || undefined;
   }
+
+  get authGoogleEnabled(): boolean {
+    return this.configService.get('AUTH_GOOGLE_ENABLED', { infer: true });
+  }
+
+  get firebaseProjectId(): string | undefined {
+    return this.configService.get('FIREBASE_PROJECT_ID', { infer: true }) || undefined;
+  }
+
+  get firebaseClientEmail(): string | undefined {
+    return this.configService.get('FIREBASE_CLIENT_EMAIL', { infer: true }) || undefined;
+  }
+
+  get firebasePrivateKey(): string | undefined {
+    return normalizePrivateKey(this.configService.get('FIREBASE_PRIVATE_KEY', { infer: true }));
+  }
+
+  get firebaseServiceAccountJson(): string | undefined {
+    return this.configService.get('FIREBASE_SERVICE_ACCOUNT_JSON', { infer: true }) || undefined;
+  }
+
+  get firebaseServiceAccountPath(): string | undefined {
+    return this.configService.get('FIREBASE_SERVICE_ACCOUNT_PATH', { infer: true }) || undefined;
+  }
+}
+
+function normalizePrivateKey(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  return value.replace(/\\n/g, '\n');
 }
 
 function parseOriginList(value: string | string[]): string[] {

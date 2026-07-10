@@ -7,6 +7,7 @@ import { Public } from '../decorators/public.decorator';
 import type { AuthContext } from '../domain/auth-context';
 import {
   AcceptInviteDto,
+  FirebaseGoogleOAuthDto,
   LoginDto,
   RequestSignupOtpDto,
   SignupDto,
@@ -115,6 +116,34 @@ export class AuthController {
       token: result.session.token,
       sessionId: result.session.sessionId,
       userId: result.userId,
+      defaultWorkspaceId: result.defaultWorkspaceId,
+      expiresAt: result.session.expiresAt.toISOString(),
+    };
+  }
+
+  @Public()
+  @Post('oauth/firebase-google')
+  @HttpCode(HttpStatus.OK)
+  async firebaseGoogleOAuth(
+    @Body() body: FirebaseGoogleOAuthDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.authenticateWithFirebaseGoogle({
+      ...body,
+      userAgent: req.headers['user-agent'],
+      ipAddress: clientIp(req),
+    });
+    if (result.status === 'PENDING_APPROVAL') {
+      return result;
+    }
+    this.setSessionCookie(res, result.session.token, result.session.expiresAt);
+    return {
+      status: result.status,
+      token: result.session.token,
+      sessionId: result.session.sessionId,
+      userId: result.userId,
+      workspaceId: result.workspaceId,
       defaultWorkspaceId: result.defaultWorkspaceId,
       expiresAt: result.session.expiresAt.toISOString(),
     };

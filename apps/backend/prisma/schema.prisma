@@ -205,6 +205,10 @@ enum OtpPurpose {
   SIGNUP
 }
 
+enum UserIdentityProvider {
+  FIREBASE_GOOGLE
+}
+
 model Workspace {
   id        String          @id @default(cuid())
   slug      String          @unique
@@ -270,11 +274,30 @@ model User {
   apiTokens        ApiToken[]
   assignedReports  ReportAssignee[]
   reportAssignmentsCreated ReportAssignee[] @relation("ReportAssigner")
+  identities       UserIdentity[]
   notificationPreferences UserNotificationPreference[]
   inAppNotifications InAppNotification[]
 
   @@index([status])
   @@map("users")
+}
+
+/// External login identity attached to a Weevil user. We keep this separate
+/// from users so adding more providers later does not disturb core auth.
+model UserIdentity {
+  id             String               @id @default(cuid())
+  userId         String
+  provider       UserIdentityProvider
+  providerUserId String
+  emailAtLink    String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("user_identities")
 }
 
 /// Generic OTP challenge. Purpose + recipient make this reusable for signup,

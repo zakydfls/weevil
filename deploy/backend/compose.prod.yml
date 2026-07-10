@@ -12,6 +12,8 @@ services:
       API_PORT: 4000
     ports:
       - "${API_BIND:-127.0.0.1}:${API_PORT:-4000}:4000"
+    volumes:
+      - ./secrets:/run/secrets/weevil:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -39,6 +41,8 @@ services:
     environment:
       NODE_ENV: production
     command: ["node", "dist/apps/worker/apps/worker/src/main.js"]
+    volumes:
+      - ./secrets:/run/secrets/weevil:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -57,6 +61,8 @@ services:
     environment:
       NODE_ENV: production
     command: ["pnpm", "prisma:migrate:deploy"]
+    volumes:
+      - ./secrets:/run/secrets/weevil:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     profiles:
@@ -69,6 +75,8 @@ services:
     environment:
       NODE_ENV: production
     command: ["pnpm", "prisma:seed:prod"]
+    volumes:
+      - ./secrets:/run/secrets/weevil:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     profiles:

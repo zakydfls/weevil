@@ -39,6 +39,49 @@ export class LoginDto {
   password: string;
 }
 
+export class FirebaseGoogleOAuthDto {
+  @IsString()
+  @MinLength(1)
+  idToken: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^(LOGIN|SIGNUP)$/)
+  intent?: 'LOGIN' | 'SIGNUP';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  displayName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(2, { message: 'Workspace name must be at least 2 characters.' })
+  @MaxLength(120)
+  workspaceName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  @Matches(/^[a-z0-9-]{2,40}$/, {
+    message: 'Slug must be 2-40 lowercase letters, numbers, or hyphens.',
+  })
+  workspaceSlug?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  @Matches(/^[a-z0-9-]{2,40}$/, {
+    message: 'Workspace slug must be 2-40 lowercase letters, numbers, or hyphens.',
+  })
+  joinWorkspaceSlug?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  inviteToken?: string;
+}
+
 export class AcceptInviteDto {
   @IsString()
   @MinLength(1)

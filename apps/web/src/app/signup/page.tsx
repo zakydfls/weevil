@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AuthShell } from '@/features/auth/auth-shell';
 import { useAuth } from '@/features/auth/auth-context';
+import { signInWithGoogle } from '@/features/auth/firebase-google';
 import { ApiError, apiClient } from '@/lib/api/client';
 
 interface InvitePreview {
@@ -77,6 +78,7 @@ export default function SignupPage() {
   const [pendingApproval, setPendingApproval] = useState<PendingApprovalState | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState<SignupErrorState | null>(null);
 
@@ -98,6 +100,11 @@ export default function SignupPage() {
       (isJoinRequestMode
         ? isValidWorkspaceSlug(joinWorkspaceSlug.trim())
         : workspaceName.trim().length >= 2 && isValidWorkspaceSlug(workspaceSlug.trim())));
+  const canSubmitGoogle =
+    isInviteMode ||
+    (isJoinRequestMode
+      ? isValidWorkspaceSlug(joinWorkspaceSlug.trim())
+      : workspaceName.trim().length >= 2 && isValidWorkspaceSlug(workspaceSlug.trim()));
   const canVerifyOtp = otpCode.length === 6 && Boolean(otpState) && otpExpiresInMs > 0;
 
   useEffect(() => {
@@ -279,6 +286,44 @@ export default function SignupPage() {
     }
   }
 
+  async function submitGoogleSignup() {
+    setIsGoogleSubmitting(true);
+    setError(null);
+    try {
+      const google = await signInWithGoogle();
+      const result = await auth.continueWithGoogle(
+        {
+          idToken: google.idToken,
+          intent: 'SIGNUP',
+          displayName: displayName.trim() || google.displayName || undefined,
+          ...(isInviteMode
+            ? { inviteToken }
+            : isJoinRequestMode
+              ? { joinWorkspaceSlug: joinWorkspaceSlug.trim().toLowerCase() }
+              : {
+                  workspaceName: workspaceName.trim(),
+                  workspaceSlug: workspaceSlug.trim(),
+                }),
+        },
+        nextPath ? { redirectTo: nextPath } : undefined,
+      );
+      if (result.status === 'PENDING_APPROVAL') {
+        setPendingApproval({
+          email: result.email,
+          workspace: result.workspace,
+        });
+      }
+    } catch (err) {
+      setError(formatSignupError(err, {
+        email: email.trim(),
+        isInviteMode,
+        loginHref,
+      }));
+    } finally {
+      setIsGoogleSubmitting(false);
+    }
+  }
+
   function editDetails() {
     setStep('details');
     setOtpCode('');
@@ -383,6 +428,37 @@ export default function SignupPage() {
           </div>
         ) : (
           <div className="weevil-step-enter space-y-4">
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-10 w-full"
+              disabled={
+                isSubmitting ||
+                isGoogleSubmitting ||
+                isInviteLoading ||
+                Boolean(inviteError) ||
+                !canSubmitGoogle
+              }
+              onClick={() => void submitGoogleSignup()}
+            >
+              {isGoogleSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <KeyRound className="h-4 w-4" aria-hidden />
+              )}
+              {isInviteMode
+                ? 'Continue with Google and join'
+                : isJoinRequestMode
+                  ? 'Request access with Google'
+                  : 'Start with Google'}
+            </Button>
+            <div className="flex items-center gap-3">
+              <span className="h-px flex-1 bg-[var(--divider)]" />
+              <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">
+                or use email
+              </span>
+              <span className="h-px flex-1 bg-[var(--divider)]" />
+            </div>
             <div className="space-y-1.5">
               <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
                 Your email

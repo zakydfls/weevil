@@ -48,6 +48,14 @@ type SignupOtpVerificationResult =
       workspace: { slug: string; name: string };
     };
 
+type GoogleAuthResult =
+  | {
+      status: 'ACTIVE';
+      userId: string;
+      workspaceId: string | null;
+    }
+  | Extract<SignupOtpVerificationResult, { status: 'PENDING_APPROVAL' }>;
+
 interface AuthContextValue {
   status: 'loading' | 'authenticated' | 'unauthenticated';
   user: AuthUser | null;
@@ -59,6 +67,15 @@ interface AuthContextValue {
     password: string,
     options?: { inviteToken?: string; redirectTo?: string },
   ) => Promise<void>;
+  continueWithGoogle: (input: {
+    idToken: string;
+    intent?: 'LOGIN' | 'SIGNUP';
+    displayName?: string;
+    workspaceName?: string;
+    workspaceSlug?: string;
+    joinWorkspaceSlug?: string;
+    inviteToken?: string;
+  }, options?: { redirectTo?: string }) => Promise<GoogleAuthResult>;
   signup: (input: {
     email: string;
     password: string;
@@ -301,6 +318,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refresh, router],
   );
 
+  const continueWithGoogle = useCallback<AuthContextValue['continueWithGoogle']>(
+    async (input, options) => {
+      const result = await apiClient.firebaseGoogleOAuth(input);
+      if (result.status === 'PENDING_APPROVAL') {
+        return result;
+      }
+      saveToken(result.token);
+      setAuthToken(result.token);
+      await refresh();
+      router.push(resolveRedirectTo(options?.redirectTo));
+      return {
+        status: 'ACTIVE',
+        userId: result.userId,
+        workspaceId: result.workspaceId,
+      };
+    },
+    [refresh, router],
+  );
+
   const verifySignupOtp = useCallback<AuthContextValue['verifySignupOtp']>(
     async (email, code, options) => {
       const result = await apiClient.verifySignupOtp({ email, code });
@@ -376,6 +412,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       workspaces,
       can,
       login,
+      continueWithGoogle,
       signup,
       verifySignupOtp,
       logout,
@@ -391,6 +428,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       workspaces,
       can,
       login,
+      continueWithGoogle,
       signup,
       verifySignupOtp,
       logout,
