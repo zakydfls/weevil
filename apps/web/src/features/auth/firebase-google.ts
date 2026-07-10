@@ -31,8 +31,17 @@ function readFirebaseConfig() {
     appId: readPublicEnv(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
   };
 
-  if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) {
-    throw new Error('Google sign-in is not configured yet.');
+  const missing = [
+    ['NEXT_PUBLIC_FIREBASE_API_KEY', config.apiKey],
+    ['NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN', config.authDomain],
+    ['NEXT_PUBLIC_FIREBASE_PROJECT_ID', config.projectId],
+    ['NEXT_PUBLIC_FIREBASE_APP_ID', config.appId],
+  ]
+    .filter(([, value]) => !value)
+    .map(([key]) => key);
+
+  if (missing.length > 0) {
+    throw new Error(`Google sign-in is not configured yet. Missing: ${missing.join(', ')}`);
   }
 
   return config;
