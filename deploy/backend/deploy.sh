@@ -72,14 +72,48 @@ if [[ -z "${GHCR_USERNAME:-}" || -z "${GH_TOKEN:-}" ]]; then
 fi
 
 mkdir -p "$APP_DIR"
+APP_DIR="$(cd "$APP_DIR" && pwd -P)"
 cd "$APP_DIR"
 mkdir -p secrets
-chmod 700 secrets
+SECRETS_GID="$(id -g)"
+SECRETS_GROUP="$(id -gn)"
+chgrp "$SECRETS_GROUP" secrets
+chmod 750 secrets
 
 if [[ ! -f ".env" ]]; then
   echo "Missing $APP_DIR/.env. Create it from deploy/backend/.env.production.example before deploying." >&2
   exit 1
 fi
+
+AUTH_GOOGLE_ENABLED="$(read_dotenv_value AUTH_GOOGLE_ENABLED || true)"
+FIREBASE_SERVICE_ACCOUNT_PATH="$(read_dotenv_value FIREBASE_SERVICE_ACCOUNT_PATH || true)"
+
+case "${AUTH_GOOGLE_ENABLED,,}" in
+  true|1|yes|on)
+    if [[ -n "$FIREBASE_SERVICE_ACCOUNT_PATH" ]]; then
+      secret_prefix="/run/secrets/weevil/"
+      if [[ "$FIREBASE_SERVICE_ACCOUNT_PATH" != "$secret_prefix"* ]]; then
+        echo "FIREBASE_SERVICE_ACCOUNT_PATH must point inside $secret_prefix because that is the mounted secrets directory." >&2
+        exit 1
+      fi
+
+      secret_relative_path="${FIREBASE_SERVICE_ACCOUNT_PATH#"$secret_prefix"}"
+      if [[ -z "$secret_relative_path" || "$secret_relative_path" == *".."* ]]; then
+        echo "FIREBASE_SERVICE_ACCOUNT_PATH contains an invalid secret filename." >&2
+        exit 1
+      fi
+
+      host_secret_path="$APP_DIR/secrets/$secret_relative_path"
+      if [[ ! -f "$host_secret_path" ]]; then
+        echo "Missing Firebase service account on the VPS: $host_secret_path" >&2
+        exit 1
+      fi
+
+      chgrp "$SECRETS_GROUP" "$host_secret_path"
+      chmod 640 "$host_secret_path"
+    fi
+    ;;
+esac
 
 if [[ -z "$RUN_PROD_SEED" ]]; then
   RUN_PROD_SEED="$(read_dotenv_value RUN_PROD_SEED || true)"
@@ -89,16 +123,27 @@ RUN_PROD_SEED="${RUN_PROD_SEED:-false}"
 write_dotenv_value WEEVIL_BACKEND_IMAGE "$WEEVIL_BACKEND_IMAGE" .env
 write_dotenv_value API_BIND "$API_BIND" .env
 write_dotenv_value API_PORT "$API_PORT" .env
+write_dotenv_value SECRETS_GID "$SECRETS_GID" .env
 
 cat > "$DEPLOY_ENV_FILE" <<EOF
 WEEVIL_BACKEND_IMAGE=$WEEVIL_BACKEND_IMAGE
 API_BIND=$API_BIND
 API_PORT=$API_PORT
+SECRETS_GID=$SECRETS_GID
 EOF
 
 printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
 
 docker compose --env-file "$DEPLOY_ENV_FILE" -f "$COMPOSE_FILE" pull
+
+case "${AUTH_GOOGLE_ENABLED,,}" in
+  true|1|yes|on)
+    if [[ -n "$FIREBASE_SERVICE_ACCOUNT_PATH" ]]; then
+      docker compose --env-file "$DEPLOY_ENV_FILE" -f "$COMPOSE_FILE" run --rm --no-deps api \
+        node -e 'const fs=require("node:fs"); const p=process.env.FIREBASE_SERVICE_ACCOUNT_PATH; const value=fs.readFileSync(p,"utf8").replace(/^\uFEFF/, ""); const json=JSON.parse(value); for (const key of ["project_id", "client_email", "private_key"]) { if (typeof json[key] !== "string" || !json[key]) throw new Error(`Firebase service account is missing ${key}`); } console.log(`Firebase service account ready for project ${json.project_id}`);'
+    fi
+    ;;
+esac
 
 # One-time recovery for a bad migration that was shipped with a reference to a
 # later table. The migration SQL is now idempotent, but Prisma refuses to apply

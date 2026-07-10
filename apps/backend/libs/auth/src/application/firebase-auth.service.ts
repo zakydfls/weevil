@@ -79,7 +79,7 @@ export class FirebaseAuthService {
   } {
     const fromJson =
       parseServiceAccountJson(this.config.firebaseServiceAccountJson) ??
-      parseServiceAccountFile(this.config.firebaseServiceAccountPath);
+      parseServiceAccountFile(this.config.firebaseServiceAccountPath, this.logger);
     const projectId = fromJson?.projectId ?? this.config.firebaseProjectId;
     const clientEmail = fromJson?.clientEmail ?? this.config.firebaseClientEmail;
     const privateKey = fromJson?.privateKey ?? this.config.firebasePrivateKey;
@@ -92,7 +92,7 @@ export class FirebaseAuthService {
   }
 }
 
-function parseServiceAccountFile(path: string | undefined):
+function parseServiceAccountFile(path: string | undefined, logger: Logger):
   | {
       projectId: string;
       clientEmail: string;
@@ -100,14 +100,20 @@ function parseServiceAccountFile(path: string | undefined):
     }
   | undefined {
   if (!path?.trim()) return undefined;
+  const normalizedPath = path.trim();
+  let contents: string;
   try {
-    return parseServiceAccountJson(readFileSync(path.trim(), 'utf8'));
-  } catch {
+    contents = readFileSync(normalizedPath, 'utf8');
+  } catch (error) {
+    logger.error(
+      `Firebase service account file cannot be read. path=${normalizedPath} code=${nodeErrorCode(error)}`,
+    );
     throw new ServiceUnavailableException('Google sign-in service account file is not readable.');
   }
+  return parseServiceAccountJson(contents, 'file');
 }
 
-function parseServiceAccountJson(value: string | undefined):
+function parseServiceAccountJson(value: string | undefined, source: 'env' | 'file' = 'env'):
   | {
       projectId: string;
       clientEmail: string;
@@ -115,13 +121,13 @@ function parseServiceAccountJson(value: string | undefined):
     }
   | undefined {
   if (!value?.trim()) return undefined;
-  const raw = value.trim();
+  const raw = value.trim().replace(/^\uFEFF/, '');
   let parsed: Record<string, unknown>;
   try {
     const json = raw.startsWith('{') ? raw : Buffer.from(raw, 'base64').toString('utf8');
     parsed = JSON.parse(json) as Record<string, unknown>;
   } catch {
-    throw new ServiceUnavailableException('Google sign-in is not configured.');
+    throw invalidServiceAccount(source);
   }
   const projectId = parsed.project_id ?? parsed.projectId;
   const clientEmail = parsed.client_email ?? parsed.clientEmail;
@@ -131,13 +137,29 @@ function parseServiceAccountJson(value: string | undefined):
     typeof clientEmail !== 'string' ||
     typeof privateKey !== 'string'
   ) {
-    throw new ServiceUnavailableException('Google sign-in is not configured.');
+    throw invalidServiceAccount(source);
   }
   return {
     projectId,
     clientEmail,
     privateKey: privateKey.replace(/\\n/g, '\n'),
   };
+}
+
+function invalidServiceAccount(source: 'env' | 'file'): ServiceUnavailableException {
+  return new ServiceUnavailableException(
+    source === 'file'
+      ? 'Google sign-in service account file is invalid.'
+      : 'Google sign-in is not configured.',
+  );
+}
+
+function nodeErrorCode(error: unknown): string {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === 'string') return code;
+  }
+  return 'unknown';
 }
 
 function firebaseErrorCode(error: unknown): string {

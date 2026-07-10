@@ -114,12 +114,26 @@ EXTENSION_ORIGINS=chrome-extension://old-extension-id,chrome-extension://new-ext
 WEB_APP_URL=https://your-custom-domain.com
 COOKIE_SAMESITE=none
 COOKIE_SECURE=true
+AUTH_GOOGLE_ENABLED=true
+FIREBASE_SERVICE_ACCOUNT_PATH=/run/secrets/weevil/firebase-service-account.json
 NOTIFICATION_GATEWAY_URL=https://your-notification-gateway-domain.com
 NOTIFICATION_GATEWAY_API_KEY=...
 RUN_PROD_SEED=true
 SEED_ADMIN_EMAIL=...
 SEED_ADMIN_PASSWORD=...
 ```
+
+For Google sign-in, upload the Firebase Admin JSON to the deploy directory on
+the VPS. With the default `BACKEND_DEPLOY_PATH=weevil`, the exact host path is:
+
+```text
+~/weevil/secrets/firebase-service-account.json
+```
+
+Keep `FIREBASE_SERVICE_ACCOUNT_PATH` set to the container path shown above.
+`deploy.sh` gives the non-root backend container read-only group access and
+validates the mounted JSON before migrations or API restart. A file placed at
+`~/weevil/` without the `secrets/` directory is not mounted into the container.
 
 If Postgres, Redis, RabbitMQ, or MinIO run on the host instead of in a Docker
 network, point the backend containers to `host.docker.internal`.
