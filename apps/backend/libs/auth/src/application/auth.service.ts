@@ -10,10 +10,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CacheService } from '@weevil/cache';
 import { PrismaService } from '@weevil/database';
-import {
-  otpEmailSubject,
-  renderOtpEmail,
-} from '@weevil/notifications';
+import { otpEmailSubject, renderOtpEmail } from '@weevil/notifications';
 import {
   MembershipStatus,
   OtpPurpose,
@@ -28,10 +25,7 @@ import { OtpService, type OtpChallengeState } from './otp.service';
 import { PasswordService } from './password.service';
 import { normalizeWorkspaceSlug } from './permission.service';
 import { TokenService } from './token.service';
-import {
-  WorkspaceEvents,
-  type WorkspaceJoinRequestedEvent,
-} from '../domain/workspace-events';
+import { WorkspaceEvents, type WorkspaceJoinRequestedEvent } from '../domain/workspace-events';
 
 type TxClient = Prisma.TransactionClient;
 
@@ -131,6 +125,12 @@ export type FirebaseGoogleOAuthResult =
         slug: string;
         name: string;
       };
+    }
+  | {
+      status: 'REGISTRATION_REQUIRED';
+      email: string;
+      displayName: string | null;
+      avatarUrl: string | null;
     };
 
 @Injectable()
@@ -229,12 +229,19 @@ export class AuthService {
 
   async requestSignupOtp(input: RequestSignupOtpInput): Promise<OtpChallengeState> {
     const normalizedEmail = input.email.trim().toLowerCase();
-    await this.assertRateLimit('signup-otp', `${normalizedEmail}:${input.ipAddress ?? 'unknown'}`, 8, 60 * 60);
+    await this.assertRateLimit(
+      'signup-otp',
+      `${normalizedEmail}:${input.ipAddress ?? 'unknown'}`,
+      8,
+      60 * 60,
+    );
 
     const existingUser = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (existingUser) {
       if (existingUser.status === UserStatus.INVITED) {
-        throw new ConflictException('Your workspace access request is already waiting for approval.');
+        throw new ConflictException(
+          'Your workspace access request is already waiting for approval.',
+        );
       }
       throw new ConflictException('An account with that email already exists.');
     }
@@ -243,7 +250,9 @@ export class AuthService {
     if (input.joinWorkspaceSlug) {
       const cleanJoinSlug = normalizeWorkspaceSlug(input.joinWorkspaceSlug);
       if (!isValidWorkspaceSlug(cleanJoinSlug)) {
-        throw new BadRequestException('Workspace slug must be 2-40 lowercase letters, numbers, or hyphens.');
+        throw new BadRequestException(
+          'Workspace slug must be 2-40 lowercase letters, numbers, or hyphens.',
+        );
       }
       const workspace = await this.findWorkspaceBySlug(cleanJoinSlug);
       if (!workspace || workspace.status !== WorkspaceStatus.ACTIVE) {
@@ -283,7 +292,9 @@ export class AuthService {
     }
 
     const cleanWorkspaceName = input.workspaceName?.trim() ?? '';
-    const cleanWorkspaceSlug = normalizeWorkspaceSlug(input.workspaceSlug ?? slugify(cleanWorkspaceName));
+    const cleanWorkspaceSlug = normalizeWorkspaceSlug(
+      input.workspaceSlug ?? slugify(cleanWorkspaceName),
+    );
 
     if (cleanWorkspaceName.length < 2) {
       throw new BadRequestException('Workspace name must be at least 2 characters.');
@@ -327,9 +338,7 @@ export class AuthService {
     });
   }
 
-  async verifySignupOtp(
-    input: VerifySignupOtpInput,
-  ): Promise<VerifySignupOtpResult> {
+  async verifySignupOtp(input: VerifySignupOtpInput): Promise<VerifySignupOtpResult> {
     const normalizedEmail = input.email.trim().toLowerCase();
     const challenge = await this.otpService.verify({
       purpose: OtpPurpose.SIGNUP,
@@ -407,7 +416,9 @@ export class AuthService {
     ]);
     if (existingUser) {
       if (existingUser.status === UserStatus.INVITED) {
-        throw new ConflictException('Your workspace access request is already waiting for approval.');
+        throw new ConflictException(
+          'Your workspace access request is already waiting for approval.',
+        );
       }
       throw new ConflictException('An account with that email already exists.');
     }
@@ -545,7 +556,12 @@ export class AuthService {
     input: LoginInput,
   ): Promise<{ session: IssuedSession; userId: string; defaultWorkspaceId: string | null }> {
     const normalizedEmail = input.email.trim().toLowerCase();
-    await this.assertRateLimit('login', `${normalizedEmail}:${input.ipAddress ?? 'unknown'}`, 10, 10 * 60);
+    await this.assertRateLimit(
+      'login',
+      `${normalizedEmail}:${input.ipAddress ?? 'unknown'}`,
+      10,
+      10 * 60,
+    );
 
     const user = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (!user || !user.passwordHash || user.status !== UserStatus.ACTIVE) {
@@ -568,12 +584,7 @@ export class AuthService {
   async authenticateWithFirebaseGoogle(
     input: FirebaseGoogleOAuthInput,
   ): Promise<FirebaseGoogleOAuthResult> {
-    await this.assertRateLimit(
-      'oauth-google-ip',
-      input.ipAddress ?? 'unknown',
-      30,
-      10 * 60,
-    );
+    await this.assertRateLimit('oauth-google-ip', input.ipAddress ?? 'unknown', 30, 10 * 60);
 
     const profile = await this.firebaseAuthService.verifyGoogleIdToken(input.idToken);
     const normalizedEmail = profile.email.trim().toLowerCase();
@@ -618,10 +629,18 @@ export class AuthService {
 
       const existingUser = await tx.user.findUnique({ where: { email: normalizedEmail } });
       if (existingUser) {
-        if (existingUser.status !== UserStatus.ACTIVE && existingUser.status !== UserStatus.INVITED) {
+        if (
+          existingUser.status !== UserStatus.ACTIVE &&
+          existingUser.status !== UserStatus.INVITED
+        ) {
           throw new UnauthorizedException('Google sign-in is not allowed for this account.');
         }
-        await this.linkFirebaseGoogleIdentityInTx(tx, existingUser.id, profile.uid, normalizedEmail);
+        await this.linkFirebaseGoogleIdentityInTx(
+          tx,
+          existingUser.id,
+          profile.uid,
+          normalizedEmail,
+        );
         await this.updateOAuthProfileInTx(tx, existingUser.id, profile, input.displayName);
         if (existingUser.status === UserStatus.INVITED) {
           return {
@@ -643,7 +662,14 @@ export class AuthService {
       }
 
       if (input.intent === 'LOGIN' && !input.inviteToken) {
-        throw new UnauthorizedException('Google account is not registered yet.');
+        return {
+          result: {
+            status: 'REGISTRATION_REQUIRED' as const,
+            email: profile.email,
+            displayName: profile.displayName,
+            avatarUrl: profile.avatarUrl,
+          },
+        };
       }
 
       if (input.inviteToken) {
@@ -881,7 +907,9 @@ export class AuthService {
   }> {
     const cleanJoinSlug = normalizeWorkspaceSlug(input.joinWorkspaceSlug ?? '');
     if (!isValidWorkspaceSlug(cleanJoinSlug)) {
-      throw new BadRequestException('Workspace slug must be 2-40 lowercase letters, numbers, or hyphens.');
+      throw new BadRequestException(
+        'Workspace slug must be 2-40 lowercase letters, numbers, or hyphens.',
+      );
     }
     const workspace = await this.findWorkspaceBySlugInTx(tx, cleanJoinSlug);
     if (!workspace || workspace.status !== WorkspaceStatus.ACTIVE) {

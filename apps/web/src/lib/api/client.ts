@@ -28,10 +28,10 @@ import type {
   UpdateReportBoardInput,
   UpdateReportInput,
   WorkspaceMemberSummary,
-} from './types';
-import { appEnv, readPublicEnv } from '@/lib/env';
+} from "./types";
+import { appEnv, readPublicEnv } from "@/lib/env";
 
-const DEFAULT_API_BASE_URL = 'http://localhost:4000/v1';
+const DEFAULT_API_BASE_URL = "http://localhost:4000/v1";
 
 export class ApiError extends Error {
   constructor(
@@ -47,13 +47,15 @@ export function getApiBaseUrl() {
   const configured = readPublicEnv(process.env.NEXT_PUBLIC_API_BASE_URL);
   if (!configured) {
     if (appEnv.isProduction) {
-      throw new Error('NEXT_PUBLIC_API_BASE_URL is required in production.');
+      throw new Error("NEXT_PUBLIC_API_BASE_URL is required in production.");
     }
     return DEFAULT_API_BASE_URL;
   }
 
-  const withProtocol = /^https?:\/\//i.test(configured) ? configured : `https://${configured}`;
-  return withProtocol.replace(/\/+$/, '');
+  const withProtocol = /^https?:\/\//i.test(configured)
+    ? configured
+    : `https://${configured}`;
+  return withProtocol.replace(/\/+$/, "");
 }
 
 /**
@@ -85,25 +87,25 @@ export function getAuthToken(): string | null {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
-    'content-type': 'application/json',
+    "content-type": "application/json",
     ...(init?.headers as Record<string, string> | undefined),
   };
   if (authState.token) {
     headers.authorization = `Bearer ${authState.token}`;
   }
   if (authState.workspaceSlug) {
-    headers['x-weevil-workspace'] = authState.workspaceSlug;
+    headers["x-weevil-workspace"] = authState.workspaceSlug;
   }
   let response: Response;
   try {
     response = await fetch(`${getApiBaseUrl()}${path}`, {
       ...init,
-      credentials: 'include',
+      credentials: "include",
       headers,
     });
   } catch {
     throw new ApiError(
-      'We couldn’t reach the Weevil API. Check your connection and try again.',
+      "We couldn’t reach the Weevil API. Check your connection and try again.",
       0,
       null,
     );
@@ -130,7 +132,8 @@ export const apiClient = {
   listReports: (params: ListReportsParams = {}) =>
     request<PaginatedReportsResponse>(`/reports${toQueryString(params)}`),
 
-  getReportDetail: (reportId: string) => request<ReportDetail>(`/reports/${reportId}/detail`),
+  getReportDetail: (reportId: string) =>
+    request<ReportDetail>(`/reports/${reportId}/detail`),
 
   getPublicReportDetail: (shareToken: string) =>
     request<ReportDetail>(`/reports/share/${encodeURIComponent(shareToken)}`),
@@ -139,67 +142,76 @@ export const apiClient = {
     request<TimelineEntry[]>(`/reports/${reportId}/timeline`),
 
   createReport: (input: CreateReportInput) =>
-    request<ReportSummary>('/reports', {
-      method: 'POST',
+    request<ReportSummary>("/reports", {
+      method: "POST",
       body: JSON.stringify(input),
     }),
 
   updateReport: (reportId: string, input: UpdateReportInput) =>
     request<ReportSummary>(`/reports/${reportId}`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(input),
     }),
 
   moveReportOnBoard: (reportId: string, input: UpdateReportBoardInput) =>
     request<ReportSummary>(`/reports/${reportId}/board`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(input),
     }),
 
-  listReportBoardColumns: () => request<ReportBoardColumn[]>('/reports/board-columns'),
+  listReportBoardColumns: () =>
+    request<ReportBoardColumn[]>("/reports/board-columns"),
 
   createReportBoardColumn: (input: CreateReportBoardColumnInput) =>
-    request<ReportBoardColumn>('/reports/board-columns', {
-      method: 'POST',
+    request<ReportBoardColumn>("/reports/board-columns", {
+      method: "POST",
       body: JSON.stringify(input),
     }),
 
-  updateReportBoardColumn: (boardColumnId: string, input: UpdateReportBoardColumnInput) =>
+  updateReportBoardColumn: (
+    boardColumnId: string,
+    input: UpdateReportBoardColumnInput,
+  ) =>
     request<ReportBoardColumn>(`/reports/board-columns/${boardColumnId}`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(input),
     }),
 
   deleteReportBoardColumn: (boardColumnId: string) =>
     request<void>(`/reports/board-columns/${boardColumnId}`, {
-      method: 'DELETE',
+      method: "DELETE",
     }),
 
-  updateReportAssignees: (reportId: string, input: UpdateReportAssigneesInput) =>
+  updateReportAssignees: (
+    reportId: string,
+    input: UpdateReportAssigneesInput,
+  ) =>
     request<ReportSummary>(`/reports/${reportId}/assignees`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(input),
     }),
 
   deleteReport: (reportId: string) =>
     request<void>(`/reports/${reportId}`, {
-      method: 'DELETE',
+      method: "DELETE",
     }),
 
   createUpload: (reportId: string, input: CreateUploadInput) =>
     request<CreateUploadResponse>(`/reports/${reportId}/uploads`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(input),
     }),
 
   completeUpload: (reportId: string, uploadId: string, byteSize: number) =>
     request<string>(`/reports/${reportId}/uploads/${uploadId}/complete`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({ byteSize }),
     }),
 
   getDownloadUrl: (reportId: string, uploadId: string) =>
-    request<DownloadUrlResponse>(`/reports/${reportId}/uploads/${uploadId}/download-url`),
+    request<DownloadUrlResponse>(
+      `/reports/${reportId}/uploads/${uploadId}/download-url`,
+    ),
 
   getPublicDownloadUrl: (shareToken: string, uploadId: string) =>
     request<DownloadUrlResponse>(
@@ -208,7 +220,7 @@ export const apiClient = {
 
   createCaptureSession: (reportId: string, input: CreateCaptureSessionInput) =>
     request<CaptureSession>(`/reports/${reportId}/capture-sessions`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(input),
     }),
 
@@ -217,14 +229,20 @@ export const apiClient = {
     sessionId: string,
     input: CompleteCaptureSessionInput,
   ) =>
-    request<CaptureSession>(`/reports/${reportId}/capture-sessions/${sessionId}/complete`, {
-      method: 'POST',
-      body: JSON.stringify(input),
-    }),
+    request<CaptureSession>(
+      `/reports/${reportId}/capture-sessions/${sessionId}/complete`,
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+    ),
 
-  attachConsoleLogs: (reportId: string, input: AttachTelemetryInput<Partial<ConsoleLogEntry>>) =>
+  attachConsoleLogs: (
+    reportId: string,
+    input: AttachTelemetryInput<Partial<ConsoleLogEntry>>,
+  ) =>
     request<number>(`/reports/${reportId}/telemetry/console`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(input),
     }),
 
@@ -233,13 +251,16 @@ export const apiClient = {
     input: AttachTelemetryInput<Partial<NetworkRequestEntry>>,
   ) =>
     request<number>(`/reports/${reportId}/telemetry/network`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(input),
     }),
 
-  attachPageActions: (reportId: string, input: AttachTelemetryInput<Partial<PageActionEntry>>) =>
+  attachPageActions: (
+    reportId: string,
+    input: AttachTelemetryInput<Partial<PageActionEntry>>,
+  ) =>
     request<number>(`/reports/${reportId}/telemetry/actions`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(input),
     }),
 
@@ -248,7 +269,7 @@ export const apiClient = {
     input: AttachTelemetryInput<Partial<RuntimeErrorEntry>>,
   ) =>
     request<number>(`/reports/${reportId}/telemetry/errors`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(input),
     }),
 
@@ -257,13 +278,16 @@ export const apiClient = {
     input: AttachTelemetryInput<Partial<PerformanceEntry>>,
   ) =>
     request<number>(`/reports/${reportId}/telemetry/performance`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(input),
     }),
 
-  attachDomEvents: (reportId: string, input: AttachTelemetryInput<Partial<DomEventEntry>>) =>
+  attachDomEvents: (
+    reportId: string,
+    input: AttachTelemetryInput<Partial<DomEventEntry>>,
+  ) =>
     request<number>(`/reports/${reportId}/telemetry/dom-events`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(input),
     }),
 
@@ -272,13 +296,13 @@ export const apiClient = {
     input: AttachTelemetryInput<Partial<BackendTraceEntry>>,
   ) =>
     request<number>(`/reports/${reportId}/telemetry/backend-traces`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(input),
     }),
 
   createComment: (reportId: string, body: string) =>
     request(`/reports/${reportId}/comments`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({ body }),
     }),
 
@@ -297,7 +321,7 @@ export const apiClient = {
       userId: string;
       workspaceId: string | null;
       expiresAt: string;
-    }>('/auth/signup', { method: 'POST', body: JSON.stringify(body) }),
+    }>("/auth/signup", { method: "POST", body: JSON.stringify(body) }),
 
   requestSignupOtp: (body: {
     email: string;
@@ -315,12 +339,15 @@ export const apiClient = {
       resendCount: number;
       maxResends: number;
       maxAttempts: number;
-    }>('/auth/signup/request-otp', { method: 'POST', body: JSON.stringify(body) }),
+    }>("/auth/signup/request-otp", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 
   verifySignupOtp: (body: { email: string; code: string }) =>
     request<
       | {
-          status: 'ACTIVE';
+          status: "ACTIVE";
           token: string;
           sessionId: string;
           userId: string;
@@ -328,13 +355,16 @@ export const apiClient = {
           expiresAt: string;
         }
       | {
-          status: 'PENDING_APPROVAL';
+          status: "PENDING_APPROVAL";
           userId: string;
           workspaceId: string;
           email: string;
           workspace: { slug: string; name: string };
         }
-    >('/auth/signup/verify-otp', { method: 'POST', body: JSON.stringify(body) }),
+    >("/auth/signup/verify-otp", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 
   login: (body: { email: string; password: string }) =>
     request<{
@@ -343,11 +373,11 @@ export const apiClient = {
       userId: string;
       defaultWorkspaceId: string | null;
       expiresAt: string;
-    }>('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+    }>("/auth/login", { method: "POST", body: JSON.stringify(body) }),
 
   firebaseGoogleOAuth: (body: {
     idToken: string;
-    intent?: 'LOGIN' | 'SIGNUP';
+    intent?: "LOGIN" | "SIGNUP";
     displayName?: string;
     workspaceName?: string;
     workspaceSlug?: string;
@@ -356,7 +386,7 @@ export const apiClient = {
   }) =>
     request<
       | {
-          status: 'ACTIVE';
+          status: "ACTIVE";
           token: string;
           sessionId: string;
           userId: string;
@@ -365,13 +395,22 @@ export const apiClient = {
           expiresAt: string;
         }
       | {
-          status: 'PENDING_APPROVAL';
+          status: "PENDING_APPROVAL";
           userId: string;
           workspaceId: string;
           email: string;
           workspace: { slug: string; name: string };
         }
-    >('/auth/oauth/firebase-google', { method: 'POST', body: JSON.stringify(body) }),
+      | {
+          status: "REGISTRATION_REQUIRED";
+          email: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        }
+    >("/auth/oauth/firebase-google", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 
   getInvitePreview: (inviteToken: string) =>
     request<{
@@ -386,9 +425,9 @@ export const apiClient = {
     request<{
       workspace: { id: string; slug: string; name: string };
       role: string;
-    }>('/auth/invites/accept', { method: 'POST', body: JSON.stringify(body) }),
+    }>("/auth/invites/accept", { method: "POST", body: JSON.stringify(body) }),
 
-  logout: () => request<void>('/auth/logout', { method: 'POST' }),
+  logout: () => request<void>("/auth/logout", { method: "POST" }),
 
   me: () =>
     request<{
@@ -404,7 +443,7 @@ export const apiClient = {
         role: string;
         permissions: string[];
       } | null;
-    }>('/auth/me', { method: 'POST' }),
+    }>("/auth/me", { method: "POST" }),
 
   // ── Workspaces ─────────────────────────────────────────────────────────────
   listMyWorkspaces: () =>
@@ -417,11 +456,11 @@ export const apiClient = {
         status: string;
         joinedAt: string | null;
       }>
-    >('/workspaces/mine'),
+    >("/workspaces/mine"),
 
   createWorkspace: (body: { name: string; slug: string }) =>
-    request<{ id: string; slug: string; name: string }>('/workspaces', {
-      method: 'POST',
+    request<{ id: string; slug: string; name: string }>("/workspaces", {
+      method: "POST",
       body: JSON.stringify(body),
     }),
 
@@ -431,12 +470,13 @@ export const apiClient = {
       slug: string;
       role: string;
       permissions: string[];
-    }>('/workspaces/current/switch', {
-      method: 'POST',
+    }>("/workspaces/current/switch", {
+      method: "POST",
       body: JSON.stringify(body),
     }),
 
-  listMembers: () => request<WorkspaceMemberSummary[]>('/workspaces/current/members'),
+  listMembers: () =>
+    request<WorkspaceMemberSummary[]>("/workspaces/current/members"),
 
   inviteMember: (body: { email: string; role: string }) =>
     request<{
@@ -448,40 +488,45 @@ export const apiClient = {
       inviteUrl: string;
       emailSent: boolean;
       notificationId: string | null;
-    }>('/workspaces/current/members/invite', {
-      method: 'POST',
+    }>("/workspaces/current/members/invite", {
+      method: "POST",
       body: JSON.stringify(body),
     }),
 
   changeMemberRole: (memberId: string, role: string) =>
     request<unknown>(`/workspaces/current/members/${memberId}/role`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify({ role }),
     }),
 
   removeMember: (memberId: string) =>
     request<void>(`/workspaces/current/members/${memberId}`, {
-      method: 'DELETE',
+      method: "DELETE",
     }),
 
   approveJoinRequest: (memberId: string) =>
     request(`/workspaces/current/join-requests/${memberId}/approve`, {
-      method: 'POST',
+      method: "POST",
     }),
 
   rejectJoinRequest: (memberId: string) =>
     request<void>(`/workspaces/current/join-requests/${memberId}`, {
-      method: 'DELETE',
+      method: "DELETE",
     }),
 
   getNotificationPreferences: () =>
-    request<NotificationPreferences>('/workspaces/current/notification-preferences'),
+    request<NotificationPreferences>(
+      "/workspaces/current/notification-preferences",
+    ),
 
   updateNotificationPreferences: (body: Partial<NotificationPreferences>) =>
-    request<NotificationPreferences>('/workspaces/current/notification-preferences', {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    }),
+    request<NotificationPreferences>(
+      "/workspaces/current/notification-preferences",
+      {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      },
+    ),
 
   listInAppNotifications: (limit = 30) =>
     request<InAppNotification[]>(
@@ -489,16 +534,19 @@ export const apiClient = {
     ),
 
   getInAppNotificationUnreadCount: () =>
-    request<{ unreadCount: number }>('/in-app-notifications/unread-count'),
+    request<{ unreadCount: number }>("/in-app-notifications/unread-count"),
 
   markInAppNotificationRead: (notificationId: string) =>
-    request<void>(`/in-app-notifications/${encodeURIComponent(notificationId)}/read`, {
-      method: 'PATCH',
-    }),
+    request<void>(
+      `/in-app-notifications/${encodeURIComponent(notificationId)}/read`,
+      {
+        method: "PATCH",
+      },
+    ),
 
   markAllInAppNotificationsRead: () =>
-    request<void>('/in-app-notifications/read-all', {
-      method: 'POST',
+    request<void>("/in-app-notifications/read-all", {
+      method: "POST",
     }),
 
   // ── Platform admin (PLATFORM_ADMIN role only) ──────────────────────────────
@@ -517,12 +565,12 @@ export const apiClient = {
         reportGrowthPct: number | null;
       };
       timeline: { capturesByDay: Array<{ day: string; count: number }> };
-    }>('/platform/overview'),
+    }>("/platform/overview"),
 
   platformRecentActivity: () =>
     request<
       Array<{
-        type: 'capture';
+        type: "capture";
         id: string;
         title: string;
         status: string;
@@ -530,7 +578,7 @@ export const apiClient = {
         workspace: { id: string; slug: string; name: string };
         createdBy: { email: string; displayName: string | null } | null;
       }>
-    >('/platform/recent-activity'),
+    >("/platform/recent-activity"),
 
   platformWorkspaces: () =>
     request<
@@ -545,11 +593,11 @@ export const apiClient = {
         reportCount: number;
         projectCount: number;
       }>
-    >('/platform/workspaces'),
+    >("/platform/workspaces"),
 
   platformSetWorkspaceStatus: (id: string, status: string) =>
     request<unknown>(`/platform/workspaces/${id}/status`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify({ status }),
     }),
 
@@ -570,30 +618,32 @@ export const apiClient = {
           role: string;
         }>;
       }>
-    >(`/platform/users${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+    >(
+      `/platform/users${search ? `?search=${encodeURIComponent(search)}` : ""}`,
+    ),
 
   platformSetUserStatus: (id: string, status: string) =>
     request<unknown>(`/platform/users/${id}/status`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify({ status }),
     }),
 
   platformSetUserRole: (id: string, platformRole: string) =>
     request<unknown>(`/platform/users/${id}/platform-role`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify({ platformRole }),
     }),
 };
 
 export async function uploadBlobToPresignedUrl(putUrl: string, blob: Blob) {
   const response = await fetch(putUrl, {
-    method: 'PUT',
+    method: "PUT",
     body: blob,
   });
 
   if (!response.ok) {
     throw new ApiError(
-      'Failed to upload artifact to object storage',
+      "Failed to upload artifact to object storage",
       response.status,
       await response.text(),
     );
@@ -614,36 +664,39 @@ function apiErrorMessage(payload: unknown, status: number) {
     return message;
   }
 
-  if (status === 401) return 'Please sign in to continue.';
-  if (status === 403) return 'You don’t have permission to do that.';
-  if (status === 404) return 'We couldn’t find that resource.';
-  if (status === 409) return 'That action conflicts with existing data.';
-  if (status >= 500) return 'Something went wrong on our end. Try again in a moment.';
+  if (status === 401) return "Please sign in to continue.";
+  if (status === 403) return "You don’t have permission to do that.";
+  if (status === 404) return "We couldn’t find that resource.";
+  if (status === 409) return "That action conflicts with existing data.";
+  if (status >= 500)
+    return "Something went wrong on our end. Try again in a moment.";
   return `Request failed with status ${status}.`;
 }
 
 function payloadMessage(payload: unknown) {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    return '';
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return "";
   }
 
   const message = (payload as { message?: unknown }).message;
   if (Array.isArray(message)) {
-    return message.filter((item): item is string => typeof item === 'string').join(' ');
+    return message
+      .filter((item): item is string => typeof item === "string")
+      .join(" ");
   }
 
-  return typeof message === 'string' ? message : '';
+  return typeof message === "string" ? message : "";
 }
 
 function toQueryString(params: ListReportsParams) {
   const searchParams = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === '') {
+    if (value === undefined || value === null || value === "") {
       return;
     }
     searchParams.set(key, String(value));
   });
 
   const query = searchParams.toString();
-  return query ? `?${query}` : '';
+  return query ? `?${query}` : "";
 }

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   createContext,
@@ -8,9 +8,14 @@ import {
   useMemo,
   useState,
   type ReactNode,
-} from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { apiClient, onAuthError, setActiveWorkspaceSlug, setAuthToken } from '@/lib/api/client';
+} from "react";
+import { useRouter, usePathname } from "next/navigation";
+import {
+  apiClient,
+  onAuthError,
+  setActiveWorkspaceSlug,
+  setAuthToken,
+} from "@/lib/api/client";
 
 interface AuthUser {
   id: string;
@@ -36,12 +41,12 @@ interface WorkspaceSummary {
 
 type SignupOtpVerificationResult =
   | {
-      status: 'ACTIVE';
+      status: "ACTIVE";
       userId: string;
       workspaceId: string;
     }
   | {
-      status: 'PENDING_APPROVAL';
+      status: "PENDING_APPROVAL";
       userId: string;
       workspaceId: string;
       email: string;
@@ -50,14 +55,20 @@ type SignupOtpVerificationResult =
 
 type GoogleAuthResult =
   | {
-      status: 'ACTIVE';
+      status: "ACTIVE";
       userId: string;
       workspaceId: string | null;
     }
-  | Extract<SignupOtpVerificationResult, { status: 'PENDING_APPROVAL' }>;
+  | Extract<SignupOtpVerificationResult, { status: "PENDING_APPROVAL" }>
+  | {
+      status: "REGISTRATION_REQUIRED";
+      email: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    };
 
 interface AuthContextValue {
-  status: 'loading' | 'authenticated' | 'unauthenticated';
+  status: "loading" | "authenticated" | "unauthenticated";
   user: AuthUser | null;
   workspace: ActiveWorkspace | null;
   workspaces: WorkspaceSummary[];
@@ -67,23 +78,29 @@ interface AuthContextValue {
     password: string,
     options?: { inviteToken?: string; redirectTo?: string },
   ) => Promise<void>;
-  continueWithGoogle: (input: {
-    idToken: string;
-    intent?: 'LOGIN' | 'SIGNUP';
-    displayName?: string;
-    workspaceName?: string;
-    workspaceSlug?: string;
-    joinWorkspaceSlug?: string;
-    inviteToken?: string;
-  }, options?: { redirectTo?: string }) => Promise<GoogleAuthResult>;
-  signup: (input: {
-    email: string;
-    password: string;
-    displayName?: string;
-    workspaceName?: string;
-    workspaceSlug?: string;
-    inviteToken?: string;
-  }, options?: { redirectTo?: string }) => Promise<void>;
+  continueWithGoogle: (
+    input: {
+      idToken: string;
+      intent?: "LOGIN" | "SIGNUP";
+      displayName?: string;
+      workspaceName?: string;
+      workspaceSlug?: string;
+      joinWorkspaceSlug?: string;
+      inviteToken?: string;
+    },
+    options?: { redirectTo?: string },
+  ) => Promise<GoogleAuthResult>;
+  signup: (
+    input: {
+      email: string;
+      password: string;
+      displayName?: string;
+      workspaceName?: string;
+      workspaceSlug?: string;
+      inviteToken?: string;
+    },
+    options?: { redirectTo?: string },
+  ) => Promise<void>;
   verifySignupOtp: (
     email: string,
     code: string,
@@ -96,14 +113,21 @@ interface AuthContextValue {
   refresh: () => Promise<void>;
 }
 
-const WORKSPACE_STORAGE_KEY = 'weevil.auth.workspace';
-const LEGACY_TOKEN_STORAGE_KEY = 'weevil.auth.token';
-const SESSION_TOKEN_STORAGE_KEY = 'weevil.auth.session_token';
+const WORKSPACE_STORAGE_KEY = "weevil.auth.workspace";
+const LEGACY_TOKEN_STORAGE_KEY = "weevil.auth.token";
+const SESSION_TOKEN_STORAGE_KEY = "weevil.auth.session_token";
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const AUTH_PATHS = new Set(['/login', '/signup']);
-const PUBLIC_PATHS = new Set([...AUTH_PATHS, '/accept-invite', '/c/share', '/', '/support', '/privacy']);
+const AUTH_PATHS = new Set(["/login", "/signup"]);
+const PUBLIC_PATHS = new Set([
+  ...AUTH_PATHS,
+  "/accept-invite",
+  "/c/share",
+  "/",
+  "/support",
+  "/privacy",
+]);
 
 function isPublicPath(pathname: string | null): boolean {
   if (!pathname) return false;
@@ -118,7 +142,7 @@ function isAuthPath(pathname: string | null): boolean {
 }
 
 function loadToken(): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
   try {
     return window.sessionStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
   } catch {
@@ -128,7 +152,7 @@ function loadToken(): string | null {
 
 function saveToken(token: string | null) {
   setAuthToken(token);
-  if (typeof window !== 'undefined') {
+  if (typeof window !== "undefined") {
     try {
       window.localStorage.removeItem(LEGACY_TOKEN_STORAGE_KEY);
     } catch {
@@ -148,12 +172,12 @@ function saveToken(token: string | null) {
 }
 
 function loadWorkspaceSlug(): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
   return window.localStorage.getItem(WORKSPACE_STORAGE_KEY);
 }
 
 function saveWorkspaceSlug(slug: string | null) {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
   if (slug) {
     window.localStorage.setItem(WORKSPACE_STORAGE_KEY, slug);
   } else {
@@ -164,7 +188,7 @@ function saveWorkspaceSlug(slug: string | null) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [status, setStatus] = useState<AuthContextValue['status']>('loading');
+  const [status, setStatus] = useState<AuthContextValue["status"]>("loading");
   const [user, setUser] = useState<AuthUser | null>(null);
   const [workspace, setWorkspace] = useState<ActiveWorkspace | null>(null);
   const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
@@ -200,12 +224,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         saveWorkspaceSlug(meResponse.workspace.slug);
         setActiveWorkspaceSlug(meResponse.workspace.slug);
       }
-      setStatus('authenticated');
+      setStatus("authenticated");
     } catch {
       // Token invalid → clear and bounce.
       saveToken(null);
       setAuthToken(null);
-      setStatus('unauthenticated');
+      setStatus("unauthenticated");
       setUser(null);
       setWorkspace(null);
       setWorkspaces([]);
@@ -214,7 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Bootstrap from storage
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       try {
         window.localStorage.removeItem(LEGACY_TOKEN_STORAGE_KEY);
       } catch {
@@ -234,25 +258,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Bounce unauthenticated users from protected routes
   useEffect(() => {
-    if (status !== 'unauthenticated') return;
+    if (status !== "unauthenticated") return;
     if (!pathname || isPublicPath(pathname)) return;
-    router.replace('/login');
+    router.replace("/login");
   }, [status, pathname, router]);
 
   // Auth pages are guest-only. If the browser already has a valid session,
   // send users back to the app instead of showing login/signup again.
   useEffect(() => {
-    if (status !== 'authenticated') return;
+    if (status !== "authenticated") return;
     if (!isAuthPath(pathname)) return;
 
     const params = new URLSearchParams(window.location.search);
-    const inviteToken = params.get('inviteToken') ?? params.get('invite');
-    const nextPath = resolveRedirectTo(params.get('next') ?? undefined);
+    const inviteToken = params.get("inviteToken") ?? params.get("invite");
+    const nextPath = resolveRedirectTo(params.get("next") ?? undefined);
 
     if (inviteToken) {
       const inviteParams = new URLSearchParams({ inviteToken });
-      if (nextPath !== '/') {
-        inviteParams.set('next', nextPath);
+      if (nextPath !== "/") {
+        inviteParams.set("next", nextPath);
       }
       router.replace(`/accept-invite?${inviteParams.toString()}`);
       return;
@@ -266,14 +290,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onAuthError(() => {
       saveToken(null);
       setAuthToken(null);
-      setStatus('unauthenticated');
+      setStatus("unauthenticated");
       setUser(null);
       setWorkspace(null);
     });
     return () => onAuthError(null);
   }, []);
 
-  const acceptInvite = useCallback<AuthContextValue['acceptInvite']>(
+  const acceptInvite = useCallback<AuthContextValue["acceptInvite"]>(
     async (inviteToken) => {
       const result = await apiClient.acceptInvite({ inviteToken });
       saveWorkspaceSlug(result.workspace.slug);
@@ -307,7 +331,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [acceptInvite, refresh, router],
   );
 
-  const signup = useCallback<AuthContextValue['signup']>(
+  const signup = useCallback<AuthContextValue["signup"]>(
     async (input, options) => {
       const result = await apiClient.signup(input);
       saveToken(result.token);
@@ -318,10 +342,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refresh, router],
   );
 
-  const continueWithGoogle = useCallback<AuthContextValue['continueWithGoogle']>(
+  const continueWithGoogle = useCallback<
+    AuthContextValue["continueWithGoogle"]
+  >(
     async (input, options) => {
       const result = await apiClient.firebaseGoogleOAuth(input);
-      if (result.status === 'PENDING_APPROVAL') {
+      if (result.status !== "ACTIVE") {
         return result;
       }
       saveToken(result.token);
@@ -329,7 +355,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await refresh();
       router.push(resolveRedirectTo(options?.redirectTo));
       return {
-        status: 'ACTIVE',
+        status: "ACTIVE",
         userId: result.userId,
         workspaceId: result.workspaceId,
       };
@@ -337,10 +363,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refresh, router],
   );
 
-  const verifySignupOtp = useCallback<AuthContextValue['verifySignupOtp']>(
+  const verifySignupOtp = useCallback<AuthContextValue["verifySignupOtp"]>(
     async (email, code, options) => {
       const result = await apiClient.verifySignupOtp({ email, code });
-      if (result.status === 'PENDING_APPROVAL') {
+      if (result.status === "PENDING_APPROVAL") {
         return result;
       }
       saveToken(result.token);
@@ -348,7 +374,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await refresh();
       router.push(resolveRedirectTo(options?.redirectTo));
       return {
-        status: 'ACTIVE',
+        status: "ACTIVE",
         userId: result.userId,
         workspaceId: result.workspaceId,
       };
@@ -356,20 +382,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refresh, router],
   );
 
-  const logout = useCallback<AuthContextValue['logout']>(async (options) => {
-    await apiClient.logout().catch(() => undefined);
-    saveToken(null);
-    saveWorkspaceSlug(null);
-    setAuthToken(null);
-    setActiveWorkspaceSlug(null);
-    setStatus('unauthenticated');
-    setUser(null);
-    setWorkspace(null);
-    setWorkspaces([]);
-    router.replace(options?.redirectTo ?? '/login');
-  }, [router]);
+  const logout = useCallback<AuthContextValue["logout"]>(
+    async (options) => {
+      await apiClient.logout().catch(() => undefined);
+      saveToken(null);
+      saveWorkspaceSlug(null);
+      setAuthToken(null);
+      setActiveWorkspaceSlug(null);
+      setStatus("unauthenticated");
+      setUser(null);
+      setWorkspace(null);
+      setWorkspaces([]);
+      router.replace(options?.redirectTo ?? "/login");
+    },
+    [router],
+  );
 
-  const createWorkspace = useCallback<AuthContextValue['createWorkspace']>(
+  const createWorkspace = useCallback<AuthContextValue["createWorkspace"]>(
     async (input) => {
       const workspace = await apiClient.createWorkspace(input);
       saveWorkspaceSlug(workspace.slug);
@@ -444,13 +473,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth() must be called inside <AuthProvider>');
+  if (!ctx) throw new Error("useAuth() must be called inside <AuthProvider>");
   return ctx;
 }
 
 function resolveRedirectTo(redirectTo: string | undefined): string {
-  if (!redirectTo || !redirectTo.startsWith('/') || redirectTo.startsWith('//')) {
-    return '/';
+  if (
+    !redirectTo ||
+    !redirectTo.startsWith("/") ||
+    redirectTo.startsWith("//")
+  ) {
+    return "/";
   }
   return redirectTo;
 }

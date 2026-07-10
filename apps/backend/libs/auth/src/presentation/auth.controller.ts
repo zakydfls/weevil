@@ -134,7 +134,7 @@ export class AuthController {
       userAgent: req.headers['user-agent'],
       ipAddress: clientIp(req),
     });
-    if (result.status === 'PENDING_APPROVAL') {
+    if (result.status !== 'ACTIVE') {
       return result;
     }
     this.setSessionCookie(res, result.session.token, result.session.expiresAt);
