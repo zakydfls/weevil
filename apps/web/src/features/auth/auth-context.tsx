@@ -73,9 +73,13 @@ interface AuthContextValue {
   workspace: ActiveWorkspace | null;
   workspaces: WorkspaceSummary[];
   can: (permission: string) => boolean;
-  login: (
-    email: string,
-    password: string,
+  verifyLoginOtp: (
+    input: {
+      identifier: string;
+      channel: "email" | "whatsapp";
+      code: string;
+      rememberMe: boolean;
+    },
     options?: { inviteToken?: string; redirectTo?: string },
   ) => Promise<void>;
   continueWithGoogle: (
@@ -102,8 +106,12 @@ interface AuthContextValue {
     options?: { redirectTo?: string },
   ) => Promise<void>;
   verifySignupOtp: (
-    email: string,
-    code: string,
+    input: {
+      email: string;
+      channel: "email" | "whatsapp";
+      phoneNumber?: string;
+      code: string;
+    },
     options?: { redirectTo?: string },
   ) => Promise<SignupOtpVerificationResult>;
   logout: (options?: { redirectTo?: string }) => Promise<void>;
@@ -307,13 +315,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refresh],
   );
 
-  const login = useCallback(
+  const verifyLoginOtp = useCallback(
     async (
-      email: string,
-      password: string,
+      input: {
+        identifier: string;
+        channel: "email" | "whatsapp";
+        code: string;
+        rememberMe: boolean;
+      },
       options?: { inviteToken?: string; redirectTo?: string },
     ) => {
-      const result = await apiClient.login({ email, password });
+      const result = await apiClient.verifyLoginOtp(input);
       saveToken(result.token);
       setAuthToken(result.token);
       if (options?.inviteToken) {
@@ -364,8 +376,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const verifySignupOtp = useCallback<AuthContextValue["verifySignupOtp"]>(
-    async (email, code, options) => {
-      const result = await apiClient.verifySignupOtp({ email, code });
+    async (input, options) => {
+      const result = await apiClient.verifySignupOtp(input);
       if (result.status === "PENDING_APPROVAL") {
         return result;
       }
@@ -440,7 +452,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       workspace,
       workspaces,
       can,
-      login,
+      verifyLoginOtp,
       continueWithGoogle,
       signup,
       verifySignupOtp,
@@ -456,7 +468,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       workspace,
       workspaces,
       can,
-      login,
+      verifyLoginOtp,
       continueWithGoogle,
       signup,
       verifySignupOtp,

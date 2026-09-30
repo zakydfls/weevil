@@ -47,11 +47,22 @@ export interface SignupInput {
 }
 
 export interface LoginInput {
-  email: string;
+  identifier: string;
   password: string;
+  channel: OtpChannel;
   userAgent?: string;
   ipAddress?: string;
 }
+
+export interface VerifyLoginOtpInput {
+  identifier: string;
+  channel: OtpChannel;
+  code: string;
+  userAgent?: string;
+  ipAddress?: string;
+}
+
+type OtpChannel = 'email' | 'whatsapp';
 
 export interface FirebaseGoogleOAuthInput {
   idToken: string;
@@ -67,6 +78,8 @@ export interface FirebaseGoogleOAuthInput {
 
 export interface RequestSignupOtpInput {
   email: string;
+  channel: OtpChannel;
+  phoneNumber?: string;
   password: string;
   displayName?: string;
   workspaceName?: string;
@@ -78,6 +91,8 @@ export interface RequestSignupOtpInput {
 
 export interface VerifySignupOtpInput {
   email: string;
+  channel: OtpChannel;
+  phoneNumber?: string;
   code: string;
   userAgent?: string;
   ipAddress?: string;
@@ -229,6 +244,8 @@ export class AuthService {
 
   async requestSignupOtp(input: RequestSignupOtpInput): Promise<OtpChallengeState> {
     const normalizedEmail = input.email.trim().toLowerCase();
+    const phoneNumber = input.channel === 'whatsapp' ? normalizePhone(input.phoneNumber) : null;
+    const recipient = input.channel === 'email' ? normalizedEmail : phoneNumber!;
     await this.assertRateLimit(
       'signup-otp',
       `${normalizedEmail}:${input.ipAddress ?? 'unknown'}`,
@@ -244,6 +261,9 @@ export class AuthService {
         );
       }
       throw new ConflictException('An account with that email already exists.');
+    }
+    if (phoneNumber && (await this.prisma.user.findUnique({ where: { phoneNumber } }))) {
+      throw new ConflictException('An account with that WhatsApp number already exists.');
     }
 
     const passwordHash = await this.passwordService.hash(input.password);
@@ -261,7 +281,8 @@ export class AuthService {
 
       return this.otpService.issue({
         purpose: OtpPurpose.SIGNUP,
-        recipient: normalizedEmail,
+        recipient,
+        channel: input.channel,
         payload: {
           kind: 'JOIN_WORKSPACE',
           passwordHash,
@@ -269,25 +290,26 @@ export class AuthService {
           workspaceId: workspace.id,
           workspaceName: workspace.name,
           workspaceSlug: workspace.slug,
+          channel: input.channel,
+          phoneNumber,
         },
         ipAddress: input.ipAddress,
         userAgent: input.userAgent,
-        buildEmail: ({ code, expiresAt }) => ({
-          to: normalizedEmail,
-          subject: otpEmailSubject({ purposeLabel: 'workspace access' }),
-          html: renderOtpEmail({
+        buildNotification: ({ code, expiresAt }) =>
+          buildOtpNotification({
+            channel: input.channel,
+            recipient,
             code,
-            title: 'Verify your email',
+            expiresAt,
+            title: `Verify your ${input.channel === 'email' ? 'email' : 'WhatsApp number'}`,
             purposeLabel: 'workspace access',
             description: `Use this code to request access to ${workspace.name}.`,
-            expiresAt,
+            metadata: {
+              purpose: 'workspace_join_request',
+              workspace_id: workspace.id,
+              from_name: 'Weevil',
+            },
           }),
-          metadata: {
-            purpose: 'workspace_join_request',
-            workspace_id: workspace.id,
-            from_name: 'Weevil',
-          },
-        }),
       });
     }
 
@@ -310,53 +332,64 @@ export class AuthService {
 
     return this.otpService.issue({
       purpose: OtpPurpose.SIGNUP,
-      recipient: normalizedEmail,
+      recipient,
+      channel: input.channel,
       payload: {
         kind: 'CREATE_WORKSPACE',
         passwordHash,
         displayName: input.displayName?.trim() || null,
         workspaceName: cleanWorkspaceName,
         workspaceSlug: cleanWorkspaceSlug,
+        channel: input.channel,
+        phoneNumber,
       },
       ipAddress: input.ipAddress,
       userAgent: input.userAgent,
-      buildEmail: ({ code, expiresAt }) => ({
-        to: normalizedEmail,
-        subject: otpEmailSubject({ purposeLabel: 'signup' }),
-        html: renderOtpEmail({
+      buildNotification: ({ code, expiresAt }) =>
+        buildOtpNotification({
+          channel: input.channel,
+          recipient,
           code,
-          title: 'Verify your email',
+          expiresAt,
+          title: `Verify your ${input.channel === 'email' ? 'email' : 'WhatsApp number'}`,
           purposeLabel: 'signup',
           description: 'Use this code to finish creating your Weevil workspace.',
-          expiresAt,
+          metadata: {
+            purpose: 'signup',
+            from_name: 'Weevil',
+          },
         }),
-        metadata: {
-          purpose: 'signup',
-          from_name: 'Weevil',
-        },
-      }),
     });
   }
 
   async verifySignupOtp(input: VerifySignupOtpInput): Promise<VerifySignupOtpResult> {
     const normalizedEmail = input.email.trim().toLowerCase();
+    const phoneNumber = input.channel === 'whatsapp' ? normalizePhone(input.phoneNumber) : null;
+    const recipient = input.channel === 'email' ? normalizedEmail : phoneNumber!;
     const challenge = await this.otpService.verify({
       purpose: OtpPurpose.SIGNUP,
-      recipient: normalizedEmail,
+      recipient,
       code: input.code,
     });
     const payload = parseSignupOtpPayload(challenge.payload);
+    if (payload.channel !== input.channel || payload.phoneNumber !== phoneNumber) {
+      throw new UnauthorizedException('Verification code is invalid or expired.');
+    }
 
     if (payload.kind === 'JOIN_WORKSPACE') {
       return this.verifyJoinWorkspaceOtp(normalizedEmail, challenge.id, payload);
     }
 
-    const [existingUser, existingWorkspace] = await Promise.all([
+    const [existingUser, existingPhoneUser, existingWorkspace] = await Promise.all([
       this.prisma.user.findUnique({ where: { email: normalizedEmail } }),
+      phoneNumber ? this.prisma.user.findUnique({ where: { phoneNumber } }) : null,
       this.findWorkspaceBySlug(payload.workspaceSlug),
     ]);
     if (existingUser) {
       throw new ConflictException('An account with that email already exists.');
+    }
+    if (existingPhoneUser) {
+      throw new ConflictException('An account with that WhatsApp number already exists.');
     }
     if (existingWorkspace) {
       throw new ConflictException('That workspace slug is already taken.');
@@ -367,7 +400,9 @@ export class AuthService {
         data: {
           email: normalizedEmail,
           displayName: payload.displayName,
-          emailVerified: new Date(),
+          emailVerified: input.channel === 'email' ? new Date() : null,
+          phoneNumber,
+          phoneVerifiedAt: input.channel === 'whatsapp' ? new Date() : null,
           passwordHash: payload.passwordHash,
           status: UserStatus.ACTIVE,
         },
@@ -410,8 +445,11 @@ export class AuthService {
     challengeId: string,
     payload: JoinWorkspaceSignupOtpPayload,
   ): Promise<VerifySignupOtpResult> {
-    const [existingUser, workspace] = await Promise.all([
+    const [existingUser, existingPhoneUser, workspace] = await Promise.all([
       this.prisma.user.findUnique({ where: { email: normalizedEmail } }),
+      payload.phoneNumber
+        ? this.prisma.user.findUnique({ where: { phoneNumber: payload.phoneNumber } })
+        : null,
       this.prisma.workspace.findUnique({ where: { id: payload.workspaceId } }),
     ]);
     if (existingUser) {
@@ -422,6 +460,9 @@ export class AuthService {
       }
       throw new ConflictException('An account with that email already exists.');
     }
+    if (existingPhoneUser) {
+      throw new ConflictException('An account with that WhatsApp number already exists.');
+    }
     if (!workspace || workspace.status !== WorkspaceStatus.ACTIVE) {
       throw new NotFoundException('No active workspace found for this request.');
     }
@@ -431,7 +472,9 @@ export class AuthService {
         data: {
           email: normalizedEmail,
           displayName: payload.displayName,
-          emailVerified: new Date(),
+          emailVerified: payload.channel === 'email' ? new Date() : null,
+          phoneNumber: payload.phoneNumber,
+          phoneVerifiedAt: payload.channel === 'whatsapp' ? new Date() : null,
           passwordHash: payload.passwordHash,
           status: UserStatus.INVITED,
         },
@@ -552,33 +595,83 @@ export class AuthService {
     });
   }
 
-  async login(
-    input: LoginInput,
-  ): Promise<{ session: IssuedSession; userId: string; defaultWorkspaceId: string | null }> {
-    const normalizedEmail = input.email.trim().toLowerCase();
+  async requestLoginOtp(input: LoginInput): Promise<OtpChallengeState> {
+    const identifier = normalizeLoginIdentifier(input.identifier, input.channel);
     await this.assertRateLimit(
       'login',
-      `${normalizedEmail}:${input.ipAddress ?? 'unknown'}`,
+      `${identifier}:${input.ipAddress ?? 'unknown'}`,
       10,
       10 * 60,
     );
 
-    const user = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
+    const user = await this.findVerifiedLoginUser(identifier, input.channel);
     if (!user || !user.passwordHash || user.status !== UserStatus.ACTIVE) {
-      // Generic error — don't leak existence.
-      throw new UnauthorizedException('Invalid email or password.');
+      throw new UnauthorizedException('Invalid credentials or unverified identity.');
     }
     const ok = await this.passwordService.verify(user.passwordHash, input.password);
     if (!ok) {
-      throw new UnauthorizedException('Invalid email or password.');
+      throw new UnauthorizedException('Invalid credentials or unverified identity.');
     }
-    const session = await this.issueSession(
-      user.id,
-      user.defaultWorkspaceId,
-      input.userAgent,
-      input.ipAddress,
-    );
+
+    return this.otpService.issue({
+      purpose: OtpPurpose.LOGIN,
+      recipient: identifier,
+      channel: input.channel,
+      payload: { userId: user.id },
+      ipAddress: input.ipAddress,
+      userAgent: input.userAgent,
+      buildNotification: ({ code, expiresAt }) =>
+        buildOtpNotification({
+          channel: input.channel,
+          recipient: identifier,
+          code,
+          expiresAt,
+          title: 'Confirm your Weevil login',
+          purposeLabel: 'login',
+          description: 'Use this code to finish signing in to Weevil.',
+          metadata: { purpose: 'login', from_name: 'Weevil' },
+        }),
+    });
+  }
+
+  async verifyLoginOtp(
+    input: VerifyLoginOtpInput,
+  ): Promise<{ session: IssuedSession; userId: string; defaultWorkspaceId: string | null }> {
+    const identifier = normalizeLoginIdentifier(input.identifier, input.channel);
+    const user = await this.findVerifiedLoginUser(identifier, input.channel);
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('Verification code is invalid or expired.');
+    }
+    const challenge = await this.otpService.verify({
+      purpose: OtpPurpose.LOGIN,
+      recipient: identifier,
+      code: input.code,
+    });
+    const payload = challenge.payload as Record<string, unknown> | null;
+    if (payload?.userId !== user.id) {
+      throw new UnauthorizedException('Verification code is invalid or expired.');
+    }
+
+    const session = await this.prisma.$transaction(async (tx) => {
+      await this.otpService.consume(tx, challenge.id);
+      return this.issueSessionInTx(
+        tx,
+        user.id,
+        user.defaultWorkspaceId,
+        input.userAgent,
+        input.ipAddress,
+      );
+    });
     return { session, userId: user.id, defaultWorkspaceId: user.defaultWorkspaceId };
+  }
+
+  private findVerifiedLoginUser(identifier: string, channel: OtpChannel) {
+    return this.prisma.user.findFirst({
+      where:
+        channel === 'email'
+          ? { email: identifier, emailVerified: { not: null } }
+          : { phoneNumber: identifier, phoneVerifiedAt: { not: null } },
+    });
   }
 
   async authenticateWithFirebaseGoogle(
@@ -731,15 +824,6 @@ export class AuthService {
       where: { id: sessionId },
       data: { revokedAt: new Date() },
     });
-  }
-
-  private async issueSession(
-    userId: string,
-    workspaceId: string | null,
-    userAgent: string | undefined,
-    ipAddress: string | undefined,
-  ): Promise<IssuedSession> {
-    return this.issueSessionInTx(this.prisma, userId, workspaceId, userAgent, ipAddress);
   }
 
   private async issueSessionInTx(
@@ -1135,6 +1219,8 @@ interface CreateWorkspaceSignupOtpPayload {
   displayName: string | null;
   workspaceName: string;
   workspaceSlug: string;
+  channel: OtpChannel;
+  phoneNumber: string | null;
 }
 
 interface JoinWorkspaceSignupOtpPayload {
@@ -1144,6 +1230,8 @@ interface JoinWorkspaceSignupOtpPayload {
   workspaceId: string;
   workspaceName: string;
   workspaceSlug: string;
+  channel: OtpChannel;
+  phoneNumber: string | null;
 }
 
 type SignupOtpPayload = CreateWorkspaceSignupOtpPayload | JoinWorkspaceSignupOtpPayload;
@@ -1161,6 +1249,12 @@ function parseSignupOtpPayload(payload: unknown): SignupOtpPayload {
     throw new UnauthorizedException('Verification code is invalid or expired.');
   }
   const displayName = typeof record.displayName === 'string' ? record.displayName : null;
+  const channel =
+    record.channel === 'email' || record.channel === 'whatsapp' ? record.channel : null;
+  const phoneNumber = typeof record.phoneNumber === 'string' ? record.phoneNumber : null;
+  if (!channel || (channel === 'whatsapp' && !phoneNumber)) {
+    throw new UnauthorizedException('Verification code is invalid or expired.');
+  }
   if (!isValidWorkspaceSlug(record.workspaceSlug)) {
     throw new UnauthorizedException('Verification code is invalid or expired.');
   }
@@ -1175,6 +1269,8 @@ function parseSignupOtpPayload(payload: unknown): SignupOtpPayload {
       workspaceId: record.workspaceId,
       workspaceName: record.workspaceName,
       workspaceSlug: record.workspaceSlug,
+      channel,
+      phoneNumber,
     };
   }
   return {
@@ -1183,6 +1279,56 @@ function parseSignupOtpPayload(payload: unknown): SignupOtpPayload {
     displayName,
     workspaceName: record.workspaceName,
     workspaceSlug: record.workspaceSlug,
+    channel,
+    phoneNumber,
+  };
+}
+
+function normalizePhone(value: string | undefined): string {
+  const phone = value?.trim() ?? '';
+  if (!/^\+[1-9]\d{7,14}$/.test(phone)) {
+    throw new BadRequestException('Use international phone format, for example +628123456789.');
+  }
+  return phone;
+}
+
+function normalizeLoginIdentifier(value: string, channel: OtpChannel): string {
+  return channel === 'email' ? value.trim().toLowerCase() : normalizePhone(value);
+}
+
+function buildOtpNotification(input: {
+  channel: OtpChannel;
+  recipient: string;
+  code: string;
+  expiresAt: Date;
+  title: string;
+  purposeLabel: string;
+  description: string;
+  metadata: Record<string, unknown>;
+}) {
+  if (input.channel === 'whatsapp') {
+    return {
+      channel: 'whatsapp' as const,
+      recipient: input.recipient,
+      body: `Kode OTP Weevil Anda: ${input.code}. Berlaku 10 menit. Jangan bagikan kode ini.`,
+      metadata: input.metadata,
+    };
+  }
+  return {
+    channel: 'email' as const,
+    recipient: input.recipient,
+    body: renderOtpEmail({
+      code: input.code,
+      title: input.title,
+      purposeLabel: input.purposeLabel,
+      description: input.description,
+      expiresAt: input.expiresAt,
+    }),
+    metadata: {
+      ...input.metadata,
+      subject: otpEmailSubject({ purposeLabel: input.purposeLabel }),
+      content_type: 'text/html',
+    },
   };
 }
 

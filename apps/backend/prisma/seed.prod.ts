@@ -63,7 +63,9 @@ if (!adminPassword || adminPassword.length < 10) {
 }
 
 if (!/^[a-z0-9-]{2,40}$/.test(workspaceSlug)) {
-  console.error('❌ SEED_WORKSPACE_SLUG must resolve to 2-40 lowercase letters, numbers, or hyphens.');
+  console.error(
+    '❌ SEED_WORKSPACE_SLUG must resolve to 2-40 lowercase letters, numbers, or hyphens.',
+  );
   process.exit(1);
 }
 
@@ -106,6 +108,7 @@ async function main() {
     where: { email: adminEmail },
     create: {
       email: adminEmail,
+      emailVerified: new Date(),
       displayName: adminName,
       passwordHash: hashed,
       defaultWorkspaceId: workspace.id,
@@ -114,6 +117,7 @@ async function main() {
     update: {
       // Keep the account in sync; rotate the password to the provided one.
       passwordHash: hashed,
+      emailVerified: new Date(),
       displayName: adminName,
       defaultWorkspaceId: workspace.id,
       platformRole: PlatformRole.PLATFORM_ADMIN,

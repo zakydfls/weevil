@@ -8,7 +8,7 @@ import {
 import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 import { AppConfigService } from '@weevil/config';
 import { PrismaService } from '@weevil/database';
-import { MailerService } from '@weevil/notifications';
+import { NotificationGatewayClient, type EnqueueNotificationInput } from '@weevil/notifications';
 import { OtpPurpose, type OtpChallenge, type Prisma } from '@weevil/prisma-client';
 
 const OTP_TTL_MS = 10 * 60 * 1_000;
@@ -18,6 +18,7 @@ const OTP_MAX_ATTEMPTS = 5;
 
 export interface OtpChallengeState {
   recipient: string;
+  channel: 'email' | 'whatsapp';
   purpose: OtpPurpose;
   expiresAt: string;
   resendAvailableAt: string;
@@ -32,13 +33,8 @@ interface IssueOtpInput {
   payload?: Prisma.InputJsonValue;
   ipAddress?: string;
   userAgent?: string;
-  buildEmail: (input: { code: string; expiresAt: Date }) => {
-    to: string;
-    subject: string;
-    html?: string;
-    text?: string;
-    metadata?: Record<string, unknown>;
-  };
+  channel: 'email' | 'whatsapp';
+  buildNotification: (input: { code: string; expiresAt: Date }) => EnqueueNotificationInput;
 }
 
 interface VerifyOtpInput {
@@ -52,7 +48,7 @@ export class OtpService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: AppConfigService,
-    private readonly mailer: MailerService,
+    private readonly notificationGateway: NotificationGatewayClient,
   ) {}
 
   async issue(input: IssueOtpInput): Promise<OtpChallengeState> {
@@ -81,7 +77,7 @@ export class OtpService {
     const nextResendAt = new Date(Date.now() + OTP_RESEND_COOLDOWN_MS);
     const resendCount =
       existing && !existing.consumedAt && existing.expiresAt > now ? existing.resendCount + 1 : 0;
-    const email = input.buildEmail({ code, expiresAt });
+    const notification = input.buildNotification({ code, expiresAt });
 
     const challenge = await this.prisma.otpChallenge.upsert({
       where: { purpose_recipient: { purpose: input.purpose, recipient } },
@@ -113,26 +109,22 @@ export class OtpService {
       },
     });
 
-    const delivery = await this.mailer.send({
-      to: email.to,
-      subject: email.subject,
-      html: email.html,
-      text: email.text,
-      metadata: {
-        ...email.metadata,
-        otp_purpose: input.purpose,
-      },
-    });
-
-    if (!delivery.sent) {
+    try {
+      await this.notificationGateway.enqueue({
+        ...notification,
+        metadata: { ...notification.metadata, otp_purpose: input.purpose },
+      });
+    } catch {
       await this.prisma.otpChallenge.update({
         where: { id: challenge.id },
         data: { nextResendAt: now, resendCount: Math.max(resendCount - 1, 0) },
       });
-      throw new ServiceUnavailableException('Could not send verification code. Try again in a moment.');
+      throw new ServiceUnavailableException(
+        'Could not send verification code. Try again in a moment.',
+      );
     }
 
-    return toState(challenge);
+    return toState(challenge, input.channel);
   }
 
   async verify(input: VerifyOtpInput): Promise<OtpChallenge> {
@@ -177,7 +169,12 @@ export class OtpService {
     });
   }
 
-  private matches(purpose: OtpPurpose, recipient: string, code: string, expectedHash: string): boolean {
+  private matches(
+    purpose: OtpPurpose,
+    recipient: string,
+    code: string,
+    expectedHash: string,
+  ): boolean {
     const actual = Buffer.from(this.hashCode(purpose, recipient, normalizeCode(code)), 'hex');
     const expected = Buffer.from(expectedHash, 'hex');
     return actual.length === expected.length && timingSafeEqual(actual, expected);
@@ -210,9 +207,10 @@ function secondsUntil(value: Date): number {
   return Math.max(1, Math.ceil((value.getTime() - Date.now()) / 1_000));
 }
 
-function toState(challenge: OtpChallenge): OtpChallengeState {
+function toState(challenge: OtpChallenge, channel: 'email' | 'whatsapp'): OtpChallengeState {
   return {
-    recipient: challenge.recipient,
+    recipient: maskRecipient(challenge.recipient, channel),
+    channel,
     purpose: challenge.purpose,
     expiresAt: challenge.expiresAt.toISOString(),
     resendAvailableAt: challenge.nextResendAt.toISOString(),
@@ -220,6 +218,12 @@ function toState(challenge: OtpChallenge): OtpChallengeState {
     maxResends: OTP_MAX_RESENDS,
     maxAttempts: OTP_MAX_ATTEMPTS,
   };
+}
+
+function maskRecipient(recipient: string, channel: 'email' | 'whatsapp'): string {
+  if (channel === 'whatsapp') return `${recipient.slice(0, 4)}••••${recipient.slice(-3)}`;
+  const [name, domain] = recipient.split('@');
+  return `${name.slice(0, 2)}•••@${domain}`;
 }
 
 function tooManyRequests(message: string): HttpException {

@@ -149,6 +149,7 @@ async function main() {
         where: { email: seedUser.email },
         create: {
           email: seedUser.email,
+          emailVerified: new Date(),
           displayName: seedUser.displayName,
           passwordHash: hashed,
           defaultWorkspaceId: workspace.id,
@@ -156,6 +157,7 @@ async function main() {
         },
         update: {
           passwordHash: hashed,
+          emailVerified: new Date(),
           displayName: seedUser.displayName,
           defaultWorkspaceId: workspace.id,
           platformRole,

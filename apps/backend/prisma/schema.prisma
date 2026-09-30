@@ -203,6 +203,7 @@ enum BackendTraceStatus {
 
 enum OtpPurpose {
   SIGNUP
+  LOGIN
 }
 
 enum UserIdentityProvider {
@@ -217,18 +218,18 @@ model Workspace {
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
 
-  projects     Project[]
-  reports      BugReport[]
-  members      WorkspaceMember[]
-  invites      WorkspaceInvite[]
-  sessions     AuthSession[]
-  apiTokens    ApiToken[]
-  reportAssignees ReportAssignee[]
-  reportBoardColumns ReportBoardColumn[]
+  projects                Project[]
+  reports                 BugReport[]
+  members                 WorkspaceMember[]
+  invites                 WorkspaceInvite[]
+  sessions                AuthSession[]
+  apiTokens               ApiToken[]
+  reportAssignees         ReportAssignee[]
+  reportBoardColumns      ReportBoardColumn[]
   notificationPreferences UserNotificationPreference[]
-  inAppNotifications InAppNotification[]
+  inAppNotifications      InAppNotification[]
   /// Users who have selected this workspace as their default.
-  defaultedBy  User[]            @relation("UserDefaultWorkspace")
+  defaultedBy             User[]                       @relation("UserDefaultWorkspace")
 
   @@map("workspaces")
 }
@@ -251,32 +252,34 @@ model Project {
 }
 
 model User {
-  id            String       @id @default(cuid())
-  email         String       @unique
-  emailVerified DateTime?
-  displayName   String?
-  avatarUrl     String?
+  id                 String       @id @default(cuid())
+  email              String       @unique
+  emailVerified      DateTime?
+  phoneNumber        String?      @unique
+  phoneVerifiedAt    DateTime?
+  displayName        String?
+  avatarUrl          String?
   /// Hashed password (argon2id). Null for OAuth-only accounts.
-  passwordHash  String?
+  passwordHash       String?
   /// Platform-level role. 99% of users are USER; reserved for Weevil ops staff.
-  platformRole  PlatformRole @default(USER)
-  status        UserStatus   @default(ACTIVE)
+  platformRole       PlatformRole @default(USER)
+  status             UserStatus   @default(ACTIVE)
   /// Last workspace the user opened — used for cold-start tenant switching.
   defaultWorkspaceId String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
-  defaultWorkspace Workspace?         @relation("UserDefaultWorkspace", fields: [defaultWorkspaceId], references: [id], onDelete: SetNull)
-  memberships      WorkspaceMember[]
-  sessions         AuthSession[]
-  invitesCreated   WorkspaceInvite[]  @relation("InviteCreator")
-  reports          BugReport[]
-  apiTokens        ApiToken[]
-  assignedReports  ReportAssignee[]
-  reportAssignmentsCreated ReportAssignee[] @relation("ReportAssigner")
-  identities       UserIdentity[]
-  notificationPreferences UserNotificationPreference[]
-  inAppNotifications InAppNotification[]
+  defaultWorkspace         Workspace?                   @relation("UserDefaultWorkspace", fields: [defaultWorkspaceId], references: [id], onDelete: SetNull)
+  memberships              WorkspaceMember[]
+  sessions                 AuthSession[]
+  invitesCreated           WorkspaceInvite[]            @relation("InviteCreator")
+  reports                  BugReport[]
+  apiTokens                ApiToken[]
+  assignedReports          ReportAssignee[]
+  reportAssignmentsCreated ReportAssignee[]             @relation("ReportAssigner")
+  identities               UserIdentity[]
+  notificationPreferences  UserNotificationPreference[]
+  inAppNotifications       InAppNotification[]
 
   @@index([status])
   @@map("users")
@@ -304,22 +307,22 @@ model UserIdentity {
 /// password reset, email change, and future auth challenges. Raw OTP codes are
 /// never stored; purpose-specific data lives in payload.
 model OtpChallenge {
-  id            String     @id @default(cuid())
-  purpose       OtpPurpose
-  recipient     String
-  codeHash      String
-  payload       Json?
-  attemptCount  Int        @default(0)
-  resendCount   Int        @default(0)
-  expiresAt     DateTime
-  nextResendAt  DateTime
-  lastSentAt    DateTime   @default(now())
-  consumedAt    DateTime?
-  lockedAt      DateTime?
-  ipAddress     String?
-  userAgent     String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id           String     @id @default(cuid())
+  purpose      OtpPurpose
+  recipient    String
+  codeHash     String
+  payload      Json?
+  attemptCount Int        @default(0)
+  resendCount  Int        @default(0)
+  expiresAt    DateTime
+  nextResendAt DateTime
+  lastSentAt   DateTime   @default(now())
+  consumedAt   DateTime?
+  lockedAt     DateTime?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   @@unique([purpose, recipient])
   @@index([purpose, expiresAt])
@@ -330,20 +333,20 @@ model OtpChallenge {
 /// Junction table — a user can belong to multiple workspaces with distinct roles.
 /// This is the foundation of multi-tenancy: every workspace-scoped query joins through here.
 model WorkspaceMember {
-  id                 String           @id @default(cuid())
-  workspaceId        String
-  userId             String
-  role               WorkspaceRole    @default(MEMBER)
-  status             MembershipStatus @default(ACTIVE)
+  id                String           @id @default(cuid())
+  workspaceId       String
+  userId            String
+  role              WorkspaceRole    @default(MEMBER)
+  status            MembershipStatus @default(ACTIVE)
   /// Permissions granted on top of the role's defaults.
-  extraPermissions   Permission[]
+  extraPermissions  Permission[]
   /// Permissions explicitly revoked from this member, overriding the role.
-  deniedPermissions  Permission[]
-  invitedById        String?
-  joinedAt           DateTime?
-  lastActiveAt       DateTime?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  deniedPermissions Permission[]
+  invitedById       String?
+  joinedAt          DateTime?
+  lastActiveAt      DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -357,14 +360,14 @@ model WorkspaceMember {
 /// Per-user notification preferences inside one workspace. Features default off
 /// until the user explicitly enables them from Settings.
 model UserNotificationPreference {
-  id                 String   @id @default(cuid())
-  workspaceId        String
-  userId             String
-  emailOnNewCapture  Boolean  @default(false)
-  emailOnNewComment  Boolean  @default(false)
-  emailOnAssignment  Boolean  @default(false)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                String   @id @default(cuid())
+  workspaceId       String
+  userId            String
+  emailOnNewCapture Boolean  @default(false)
+  emailOnNewComment Boolean  @default(false)
+  emailOnAssignment Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -422,18 +425,18 @@ model WorkspaceInvite {
 /// Session = opaque bearer token (httpOnly cookie on the web, header on the extension/API).
 /// Rotation: a new session is issued on login; long-lived rotation extends expiresAt.
 model AuthSession {
-  id            String   @id @default(cuid())
-  userId        String
+  id          String    @id @default(cuid())
+  userId      String
   /// SHA-256 of the bearer token. Never store the raw token.
-  tokenHash     String   @unique
+  tokenHash   String    @unique
   /// Optional active workspace for this session — saves a join on every request.
-  workspaceId   String?
-  userAgent     String?
-  ipAddress     String?
-  lastUsedAt    DateTime @default(now())
-  expiresAt     DateTime
-  createdAt     DateTime @default(now())
-  revokedAt     DateTime?
+  workspaceId String?
+  userAgent   String?
+  ipAddress   String?
+  lastUsedAt  DateTime  @default(now())
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  revokedAt   DateTime?
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
@@ -444,18 +447,18 @@ model AuthSession {
 
 /// Scoped programmatic-access token (for CI, integrations, extension headless mode).
 model ApiToken {
-  id            String   @id @default(cuid())
-  workspaceId   String
-  createdById   String
-  name          String
+  id          String       @id @default(cuid())
+  workspaceId String
+  createdById String
+  name        String
   /// SHA-256 of the raw token. Display the raw token to the user exactly once at creation.
-  tokenHash     String   @unique
+  tokenHash   String       @unique
   /// Permissions granted to this token. Subset of the creator's effective permissions.
-  permissions   Permission[]
-  lastUsedAt    DateTime?
-  expiresAt     DateTime?
-  createdAt     DateTime @default(now())
-  revokedAt     DateTime?
+  permissions Permission[]
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime     @default(now())
+  revokedAt   DateTime?
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   createdBy User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
@@ -492,21 +495,21 @@ model BugReport {
   updatedAt      DateTime     @updatedAt
   deletedAt      DateTime?
 
-  workspace       Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  project         Project               @relation(fields: [projectId], references: [id], onDelete: Restrict)
-  createdBy       User?                 @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  uploads         ReportUpload[]
-  events          ReportEvent[]
-  consoleLogs     ConsoleLogEntry[]
-  networkRequests NetworkRequestEntry[]
-  comments        ReportComment[]
-  assignees       ReportAssignee[]
-  captureSessions CaptureSession[]
-  pageActions     PageActionEntry[]
-  runtimeErrors   RuntimeErrorEntry[]
+  workspace          Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  project            Project               @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  createdBy          User?                 @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  uploads            ReportUpload[]
+  events             ReportEvent[]
+  consoleLogs        ConsoleLogEntry[]
+  networkRequests    NetworkRequestEntry[]
+  comments           ReportComment[]
+  assignees          ReportAssignee[]
+  captureSessions    CaptureSession[]
+  pageActions        PageActionEntry[]
+  runtimeErrors      RuntimeErrorEntry[]
   performanceEntries PerformanceEntry[]
-  domEvents       DomEventEntry[]
-  backendTraces   BackendTraceEntry[]
+  domEvents          DomEventEntry[]
+  backendTraces      BackendTraceEntry[]
 
   @@index([workspaceId, boardColumn, boardOrder, createdAt])
   @@index([workspaceId, projectId, status, createdAt])
@@ -552,35 +555,35 @@ model ReportBoardColumn {
 }
 
 model CaptureSession {
-  id                  String               @id @default(cuid())
-  reportId            String
-  status              CaptureSessionStatus @default(STARTED)
-  startedAt           DateTime
-  endedAt             DateTime?
-  durationMs          Int?
-  recordingStartedAt  DateTime?
-  recordingEndedAt    DateTime?
-  pageUrl             String?
-  referrer            String?
-  title               String?
-  timezone            String?
-  locale              String?
-  userAgent           String?
-  browserName         String?
-  browserVersion      String?
-  osName              String?
-  extensionVersion    String?
-  manifestVersion     String?
-  tabId               String?
-  windowId            String?
-  viewportWidth       Int?
-  viewportHeight      Int?
-  screenWidth         Int?
-  screenHeight        Int?
-  devicePixelRatio    Float?
-  metadata            Json?
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  id                 String               @id @default(cuid())
+  reportId           String
+  status             CaptureSessionStatus @default(STARTED)
+  startedAt          DateTime
+  endedAt            DateTime?
+  durationMs         Int?
+  recordingStartedAt DateTime?
+  recordingEndedAt   DateTime?
+  pageUrl            String?
+  referrer           String?
+  title              String?
+  timezone           String?
+  locale             String?
+  userAgent          String?
+  browserName        String?
+  browserVersion     String?
+  osName             String?
+  extensionVersion   String?
+  manifestVersion    String?
+  tabId              String?
+  windowId           String?
+  viewportWidth      Int?
+  viewportHeight     Int?
+  screenWidth        Int?
+  screenHeight       Int?
+  devicePixelRatio   Float?
+  metadata           Json?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 
   report             BugReport             @relation(fields: [reportId], references: [id], onDelete: Cascade)
   pageActions        PageActionEntry[]
@@ -596,13 +599,13 @@ model CaptureSession {
 }
 
 model ReportComment {
-  id          String   @id @default(cuid())
-  reportId    String
-  authorId    String?
-  authorName  String
-  body        String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  reportId   String
+  authorId   String?
+  authorName String
+  body       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   report BugReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
@@ -611,21 +614,21 @@ model ReportComment {
 }
 
 model ReportUpload {
-  id            String       @id @default(cuid())
-  reportId      String
-  kind          UploadKind
-  status        UploadStatus @default(PENDING)
-  bucket        String
-  objectKey     String       @unique
-  contentType   String
-  byteSize      BigInt?
+  id             String       @id @default(cuid())
+  reportId       String
+  kind           UploadKind
+  status         UploadStatus @default(PENDING)
+  bucket         String
+  objectKey      String       @unique
+  contentType    String
+  byteSize       BigInt?
   checksumSha256 String?
-  uploadSession String?
-  metadata      Json?
-  failureReason String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  completedAt   DateTime?
+  uploadSession  String?
+  metadata       Json?
+  failureReason  String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  completedAt    DateTime?
 
   report BugReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
@@ -634,25 +637,25 @@ model ReportUpload {
 }
 
 model PageActionEntry {
-  id            String          @id @default(cuid())
-  reportId      String
-  sessionId     String?
-  kind          PageActionKind
-  selector      String?
-  nodePath      String?
-  label         String?
-  tagName       String?
-  textPreview   String?
-  valuePreview  String?
-  pageUrl       String?
-  x             Int?
-  y             Int?
-  scrollX       Int?
-  scrollY       Int?
-  offsetMs      Int?
-  occurredAt    DateTime
-  metadata      Json?
-  createdAt     DateTime        @default(now())
+  id           String         @id @default(cuid())
+  reportId     String
+  sessionId    String?
+  kind         PageActionKind
+  selector     String?
+  nodePath     String?
+  label        String?
+  tagName      String?
+  textPreview  String?
+  valuePreview String?
+  pageUrl      String?
+  x            Int?
+  y            Int?
+  scrollX      Int?
+  scrollY      Int?
+  offsetMs     Int?
+  occurredAt   DateTime
+  metadata     Json?
+  createdAt    DateTime       @default(now())
 
   report  BugReport       @relation(fields: [reportId], references: [id], onDelete: Cascade)
   session CaptureSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
@@ -801,7 +804,7 @@ model ConsoleLogEntry {
 }
 
 model NetworkRequestEntry {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   reportId        String
   sessionId       String?
   requestId       String?
@@ -822,7 +825,7 @@ model NetworkRequestEntry {
   offsetMs        Int?
   startedAt       DateTime
   endedAt         DateTime?
-  createdAt       DateTime @default(now())
+  createdAt       DateTime  @default(now())
 
   report  BugReport       @relation(fields: [reportId], references: [id], onDelete: Cascade)
   session CaptureSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)

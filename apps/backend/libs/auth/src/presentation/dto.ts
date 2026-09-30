@@ -1,4 +1,16 @@
-import { IsEmail, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+
+const OTP_CHANNELS = ['email', 'whatsapp'] as const;
+const E164_PHONE = /^\+[1-9]\d{7,14}$/;
 
 export class SignupDto {
   @IsEmail({}, { message: 'Enter a valid email address.' })
@@ -30,13 +42,34 @@ export class SignupDto {
 }
 
 export class LoginDto {
-  @IsEmail({}, { message: 'Enter a valid email address.' })
-  email: string;
+  @IsString()
+  @MaxLength(254)
+  identifier: string;
 
   @IsString()
   @MinLength(1)
   @MaxLength(128)
   password: string;
+
+  @IsIn(OTP_CHANNELS)
+  channel: (typeof OTP_CHANNELS)[number];
+}
+
+export class VerifyLoginOtpDto {
+  @IsString()
+  @MaxLength(254)
+  identifier: string;
+
+  @IsIn(OTP_CHANNELS)
+  channel: (typeof OTP_CHANNELS)[number];
+
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'Enter the 6-digit verification code.' })
+  code: string;
+
+  @IsOptional()
+  @IsBoolean()
+  rememberMe?: boolean;
 }
 
 export class FirebaseGoogleOAuthDto {
@@ -93,6 +126,14 @@ export class RequestSignupOtpDto {
   @IsEmail({}, { message: 'Enter a valid email address.' })
   email: string;
 
+  @IsIn(OTP_CHANNELS)
+  channel: (typeof OTP_CHANNELS)[number];
+
+  @IsOptional()
+  @IsString()
+  @Matches(E164_PHONE, { message: 'Use international format, for example +628123456789.' })
+  phoneNumber?: string;
+
   @IsString()
   @MinLength(8, { message: 'Password must be at least 8 characters.' })
   @MaxLength(128)
@@ -129,6 +170,14 @@ export class RequestSignupOtpDto {
 export class VerifySignupOtpDto {
   @IsEmail({}, { message: 'Enter a valid email address.' })
   email: string;
+
+  @IsIn(OTP_CHANNELS)
+  channel: (typeof OTP_CHANNELS)[number];
+
+  @IsOptional()
+  @IsString()
+  @Matches(E164_PHONE, { message: 'Use international format, for example +628123456789.' })
+  phoneNumber?: string;
 
   @IsString()
   @Matches(/^\d{6}$/, { message: 'Enter the 6-digit verification code.' })

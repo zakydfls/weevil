@@ -325,6 +325,8 @@ export const apiClient = {
 
   requestSignupOtp: (body: {
     email: string;
+    channel: "email" | "whatsapp";
+    phoneNumber?: string;
     password: string;
     displayName?: string;
     workspaceName?: string;
@@ -333,6 +335,7 @@ export const apiClient = {
   }) =>
     request<{
       recipient: string;
+      channel: "email" | "whatsapp";
       purpose: string;
       expiresAt: string;
       resendAvailableAt: string;
@@ -344,7 +347,12 @@ export const apiClient = {
       body: JSON.stringify(body),
     }),
 
-  verifySignupOtp: (body: { email: string; code: string }) =>
+  verifySignupOtp: (body: {
+    email: string;
+    channel: "email" | "whatsapp";
+    phoneNumber?: string;
+    code: string;
+  }) =>
     request<
       | {
           status: "ACTIVE";
@@ -366,14 +374,37 @@ export const apiClient = {
       body: JSON.stringify(body),
     }),
 
-  login: (body: { email: string; password: string }) =>
+  login: (body: {
+    identifier: string;
+    password: string;
+    channel: "email" | "whatsapp";
+  }) =>
+    request<{
+      recipient: string;
+      channel: "email" | "whatsapp";
+      expiresAt: string;
+      resendAvailableAt: string;
+      resendCount: number;
+      maxResends: number;
+      maxAttempts: number;
+    }>("/auth/login", { method: "POST", body: JSON.stringify(body) }),
+
+  verifyLoginOtp: (body: {
+    identifier: string;
+    channel: "email" | "whatsapp";
+    code: string;
+    rememberMe: boolean;
+  }) =>
     request<{
       token: string;
       sessionId: string;
       userId: string;
       defaultWorkspaceId: string | null;
       expiresAt: string;
-    }>("/auth/login", { method: "POST", body: JSON.stringify(body) }),
+    }>("/auth/login/verify-otp", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 
   firebaseGoogleOAuth: (body: {
     idToken: string;

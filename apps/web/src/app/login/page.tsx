@@ -2,7 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
-import { ArrowLeft, Building2, Eye, EyeOff, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Building2,
+  Clock3,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Loader2,
+  Mail,
+  MessageCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AuthShell } from "@/features/auth/auth-shell";
@@ -34,12 +44,27 @@ interface GoogleRegistrationState {
   displayName: string | null;
 }
 
+interface LoginOtpState {
+  recipient: string;
+  channel: "email" | "whatsapp";
+  expiresAt: string;
+  resendAvailableAt: string;
+  resendCount: number;
+  maxResends: number;
+  maxAttempts: number;
+}
+
 export default function LoginPage() {
   const auth = useAuth();
   const [inviteToken, setInviteToken] = useState("");
   const [nextPath, setNextPath] = useState("");
   const [email, setEmail] = useState(devSeedEmail);
+  const [channel, setChannel] = useState<"email" | "whatsapp">("email");
   const [password, setPassword] = useState(devSeedPassword);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpState, setOtpState] = useState<LoginOtpState | null>(null);
+  const [rememberMe, setRememberMe] = useState(true);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [invitePreview, setInvitePreview] = useState<InvitePreview | null>(
     null,
@@ -60,6 +85,16 @@ export default function LoginPage() {
     workspaceName.trim().length >= 2 &&
     isValidWorkspaceSlug(workspaceSlug.trim());
   const signupHref = buildAuthHref("/signup", { inviteToken, next: nextPath });
+  const otpExpiresInMs = otpState
+    ? new Date(otpState.expiresAt).getTime() - nowMs
+    : 0;
+  const resendInMs = otpState
+    ? new Date(otpState.resendAvailableAt).getTime() - nowMs
+    : 0;
+  const canResend =
+    Boolean(otpState) &&
+    resendInMs <= 0 &&
+    otpState!.resendCount < otpState!.maxResends;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -99,23 +134,63 @@ export default function LoginPage() {
     };
   }, [inviteToken]);
 
+  useEffect(() => {
+    if (!otpState) return;
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, [otpState]);
+
+  async function requestLoginOtp() {
+    const result = await apiClient.login({
+      identifier: email.trim(),
+      password,
+      channel,
+    });
+    setOtpState(result);
+    setOtpCode("");
+    setNowMs(Date.now());
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitPhase("checking");
     setError(null);
     try {
-      await auth.login(email.trim(), password, {
-        ...(inviteToken ? { inviteToken } : {}),
-        ...(nextPath ? { redirectTo: nextPath } : {}),
-      });
-      setSubmitPhase("redirecting");
+      if (!otpState) {
+        await requestLoginOtp();
+        setSubmitPhase("idle");
+      } else {
+        await auth.verifyLoginOtp(
+          { identifier: email.trim(), channel, code: otpCode, rememberMe },
+          {
+            ...(inviteToken ? { inviteToken } : {}),
+            ...(nextPath ? { redirectTo: nextPath } : {}),
+          },
+        );
+        setSubmitPhase("redirecting");
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Login failed.";
       setError(
         err instanceof ApiError && err.status === 401
-          ? "Invalid email or password."
+          ? "Invalid credentials, identity, or verification code."
           : message,
       );
+      setSubmitPhase("idle");
+    }
+  }
+
+  async function resendLoginOtp() {
+    if (!canResend) return;
+    setSubmitPhase("checking");
+    setError(null);
+    try {
+      await requestLoginOtp();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not resend the code.",
+      );
+    } finally {
       setSubmitPhase("idle");
     }
   }
@@ -340,7 +415,7 @@ export default function LoginPage() {
             type="button"
             variant="secondary"
             className="h-10 w-full"
-            disabled={isSubmitting || Boolean(inviteError)}
+            disabled={isSubmitting || Boolean(inviteError) || Boolean(otpState)}
             onClick={() => void handleGoogleLogin()}
           >
             {isGoogleSubmitting ? (
@@ -359,22 +434,62 @@ export default function LoginPage() {
             </span>
             <span className="h-px flex-1 bg-[var(--divider)]" />
           </div>
+          {!inviteToken ? (
+            <fieldset
+              className="space-y-2"
+              disabled={isSubmitting || Boolean(otpState)}
+            >
+              <legend className="font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
+                Sign in with
+              </legend>
+              <div className="grid grid-cols-2 gap-2">
+                {(["email", "whatsapp"] as const).map((option) => {
+                  const selected = channel === option;
+                  const Icon = option === "email" ? Mail : MessageCircle;
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => {
+                        setChannel(option);
+                        setEmail("");
+                      }}
+                      aria-pressed={selected}
+                      className={`flex h-10 items-center justify-center gap-2 rounded-md border text-sm font-medium transition-colors disabled:opacity-60 ${
+                        selected
+                          ? "border-[var(--primary)] bg-[var(--primary-subtle)] text-[var(--primary)]"
+                          : "border-[var(--border)] bg-[var(--bg)] text-[var(--ink-muted)] hover:border-[var(--border-strong)]"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" aria-hidden />
+                      {option === "email" ? "Email" : "WhatsApp"}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+          ) : null}
           <div className="space-y-1.5">
             <label
               htmlFor="email"
               className="block text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)] font-mono"
             >
-              Email
+              {channel === "email" ? "Email" : "WhatsApp number"}
             </label>
             <Input
               id="email"
-              type="email"
+              type={channel === "email" ? "email" : "tel"}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              disabled={isSubmitting || Boolean(invitePreview)}
+              disabled={
+                isSubmitting || Boolean(invitePreview) || Boolean(otpState)
+              }
               required
-              autoComplete="email"
-              placeholder="you@example.com"
+              autoComplete={channel === "email" ? "email" : "tel"}
+              inputMode={channel === "email" ? "email" : "tel"}
+              placeholder={
+                channel === "email" ? "you@example.com" : "+628123456789"
+              }
             />
           </div>
           {inviteToken ? (
@@ -413,7 +528,7 @@ export default function LoginPage() {
                 type={isPasswordVisible ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                disabled={isSubmitting}
+                disabled={isSubmitting || Boolean(otpState)}
                 required
                 autoComplete="current-password"
                 placeholder="••••••••"
@@ -436,6 +551,73 @@ export default function LoginPage() {
               </button>
             </div>
           </div>
+          {otpState ? (
+            <div className="space-y-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+              <div className="flex items-start gap-3">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-[var(--primary-subtle)] text-[var(--primary)]">
+                  <KeyRound className="h-4 w-4" aria-hidden />
+                </span>
+                <div className="min-w-0 text-xs leading-5 text-[var(--ink-muted)]">
+                  Code sent to <strong>{otpState.recipient}</strong>. Expires in{" "}
+                  <strong>{formatDuration(otpExpiresInMs)}</strong>.
+                </div>
+              </div>
+              <Input
+                value={otpCode}
+                onChange={(event) =>
+                  setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="000000"
+                className="h-12 text-center font-mono text-xl tracking-[0.42em]"
+                aria-label="6-digit verification code"
+              />
+              <div className="flex items-center justify-between gap-3 text-xs text-[var(--ink-muted)]">
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock3 className="h-3.5 w-3.5" aria-hidden />
+                  {canResend
+                    ? "Ready to resend"
+                    : `Resend in ${formatDuration(resendInMs)}`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void resendLoginOtp()}
+                  disabled={!canResend || isSubmitting}
+                  className="font-medium text-[var(--primary)] disabled:text-[var(--ink-faint)]"
+                >
+                  Resend
+                </button>
+              </div>
+              <label className="flex cursor-pointer items-start gap-2 text-xs leading-5 text-[var(--ink-muted)]">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(event) => setRememberMe(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
+                />
+                <span>
+                  <strong className="text-[var(--ink)]">
+                    Remember this device
+                  </strong>
+                  <br />
+                  Stay signed in for up to 30 days.
+                </span>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setOtpState(null);
+                  setOtpCode("");
+                  setError(null);
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+                Change sign-in details
+              </button>
+            </div>
+          ) : null}
           {error ? (
             <div className="rounded-md border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3 py-2 text-xs font-medium text-[var(--danger)]">
               {error}
@@ -444,16 +626,26 @@ export default function LoginPage() {
           <Button
             type="submit"
             className="h-10 w-full"
-            disabled={isSubmitting || Boolean(inviteError)}
+            disabled={
+              isSubmitting ||
+              Boolean(inviteError) ||
+              (otpState ? otpCode.length !== 6 || otpExpiresInMs <= 0 : false)
+            }
           >
             {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {submitPhase === "checking"
-              ? "Checking credentials"
+              ? otpState
+                ? "Verifying code"
+                : "Sending code"
               : submitPhase === "redirecting"
                 ? "Opening dashboard"
                 : inviteToken
-                  ? "Sign in and join"
-                  : "Sign in"}
+                  ? otpState
+                    ? "Verify and join"
+                    : "Continue"
+                  : otpState
+                    ? "Verify and sign in"
+                    : "Continue"}
           </Button>
           {isSubmitting ? (
             <div
@@ -463,7 +655,9 @@ export default function LoginPage() {
             >
               {submitPhase === "redirecting"
                 ? "Workspace loaded. Redirecting..."
-                : "Securing your workspace session..."}
+                : otpState
+                  ? "Verifying your one-time code..."
+                  : "Sending a one-time code..."}
             </div>
           ) : null}
           {showDevSeedHint ? (
@@ -509,4 +703,13 @@ function slugify(value: string): string {
 
 function isValidWorkspaceSlug(value: string): boolean {
   return /^[a-z0-9-]{2,40}$/.test(value);
+}
+
+function formatDuration(valueMs: number): string {
+  const seconds = Math.max(0, Math.ceil(valueMs / 1_000));
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return minutes > 0
+    ? `${minutes}:${remainder.toString().padStart(2, "0")}`
+    : `${seconds}s`;
 }

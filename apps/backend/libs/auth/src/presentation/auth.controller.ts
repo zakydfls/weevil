@@ -11,6 +11,7 @@ import {
   LoginDto,
   RequestSignupOtpDto,
   SignupDto,
+  VerifyLoginOtpDto,
   VerifySignupOtpDto,
 } from './dto';
 
@@ -100,18 +101,32 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(
-    @Body() body: LoginDto,
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const result = await this.authService.login({
-      email: body.email,
-      password: body.password,
+  async login(@Body() body: LoginDto, @Req() req: Request) {
+    return this.authService.requestLoginOtp({
+      ...body,
       userAgent: req.headers['user-agent'],
       ipAddress: clientIp(req),
     });
-    this.setSessionCookie(res, result.session.token, result.session.expiresAt);
+  }
+
+  @Public()
+  @Post('login/verify-otp')
+  @HttpCode(HttpStatus.OK)
+  async verifyLoginOtp(
+    @Body() body: VerifyLoginOtpDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.verifyLoginOtp({
+      ...body,
+      userAgent: req.headers['user-agent'],
+      ipAddress: clientIp(req),
+    });
+    this.setSessionCookie(
+      res,
+      result.session.token,
+      body.rememberMe ? result.session.expiresAt : undefined,
+    );
     return {
       token: result.session.token,
       sessionId: result.session.sessionId,
@@ -174,8 +189,11 @@ export class AuthController {
     };
   }
 
-  private setSessionCookie(res: Response, token: string, expiresAt: Date) {
-    res.cookie(SESSION_COOKIE, token, { ...this.cookieOptions(), expires: expiresAt });
+  private setSessionCookie(res: Response, token: string, expiresAt?: Date) {
+    res.cookie(SESSION_COOKIE, token, {
+      ...this.cookieOptions(),
+      ...(expiresAt ? { expires: expiresAt } : {}),
+    });
   }
 
   /**

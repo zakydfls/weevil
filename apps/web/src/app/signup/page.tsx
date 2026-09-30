@@ -12,6 +12,7 @@ import {
   KeyRound,
   Loader2,
   MailCheck,
+  MessageCircle,
   ShieldCheck,
   UserPlus,
 } from "lucide-react";
@@ -41,6 +42,7 @@ interface SignupErrorState {
 
 interface OtpState {
   recipient: string;
+  channel: "email" | "whatsapp";
   expiresAt: string;
   resendAvailableAt: string;
   resendCount: number;
@@ -50,6 +52,7 @@ interface OtpState {
 
 type SignupStep = "details" | "otp";
 type SignupMode = "create" | "join";
+type OtpChannel = "email" | "whatsapp";
 
 interface PendingApprovalState {
   email: string;
@@ -66,6 +69,8 @@ export default function SignupPage() {
   const [isInviteLoading, setIsInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
+  const [otpChannel, setOtpChannel] = useState<OtpChannel>("email");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -106,6 +111,7 @@ export default function SignupPage() {
   const showPasswordMismatch = confirmPassword.length > 0 && !passwordsMatch;
   const canSubmitDetails =
     email.trim().length > 0 &&
+    (otpChannel === "email" || isValidPhone(phoneNumber)) &&
     password.length >= 8 &&
     passwordsMatch &&
     (isInviteMode ||
@@ -250,6 +256,10 @@ export default function SignupPage() {
     try {
       const result = await apiClient.requestSignupOtp({
         email: email.trim(),
+        channel: otpChannel,
+        ...(otpChannel === "whatsapp"
+          ? { phoneNumber: phoneNumber.trim() }
+          : {}),
         password,
         displayName: displayName.trim() || undefined,
         ...(isJoinRequestMode
@@ -282,8 +292,14 @@ export default function SignupPage() {
     setError(null);
     try {
       const result = await auth.verifySignupOtp(
-        email.trim(),
-        otpCode,
+        {
+          email: email.trim(),
+          channel: otpChannel,
+          ...(otpChannel === "whatsapp"
+            ? { phoneNumber: phoneNumber.trim() }
+            : {}),
+          code: otpCode,
+        },
         nextPath ? { redirectTo: nextPath } : undefined,
       );
       if (result.status === "PENDING_APPROVAL") {
@@ -411,8 +427,8 @@ export default function SignupPage() {
                       Code sent
                     </div>
                     <div className="mt-1 text-xs leading-5 text-[var(--ink-muted)]">
-                      It expires in{" "}
-                      <strong>{formatDuration(otpExpiresInMs)}</strong>. You
+                      Sent to <strong>{otpState.recipient}</strong>. It expires
+                      in <strong>{formatDuration(otpExpiresInMs)}</strong>. You
                       have up to <strong>{otpState.maxAttempts}</strong>{" "}
                       attempts.
                     </div>
@@ -525,6 +541,55 @@ export default function SignupPage() {
                   autoComplete="email"
                 />
               </div>
+              {!isInviteMode ? (
+                <fieldset className="space-y-2">
+                  <legend className="font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
+                    Send verification code via
+                  </legend>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["email", "whatsapp"] as const).map((channel) => {
+                      const selected = otpChannel === channel;
+                      const Icon =
+                        channel === "email" ? MailCheck : MessageCircle;
+                      return (
+                        <button
+                          key={channel}
+                          type="button"
+                          onClick={() => setOtpChannel(channel)}
+                          aria-pressed={selected}
+                          className={`flex h-10 items-center justify-center gap-2 rounded-md border text-sm font-medium transition-colors ${
+                            selected
+                              ? "border-[var(--primary)] bg-[var(--primary-subtle)] text-[var(--primary)]"
+                              : "border-[var(--border)] bg-[var(--bg)] text-[var(--ink-muted)] hover:border-[var(--border-strong)]"
+                          }`}
+                        >
+                          <Icon className="h-4 w-4" aria-hidden />
+                          {channel === "email" ? "Email" : "WhatsApp"}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              ) : null}
+              {!isInviteMode && otpChannel === "whatsapp" ? (
+                <div className="space-y-1.5">
+                  <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
+                    WhatsApp number
+                  </label>
+                  <Input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(event) => setPhoneNumber(event.target.value)}
+                    required
+                    autoComplete="tel"
+                    inputMode="tel"
+                    placeholder="+628123456789"
+                  />
+                  <p className="text-xs leading-5 text-[var(--ink-muted)]">
+                    Use international format including the country code.
+                  </p>
+                </div>
+              ) : null}
               <div className="space-y-1.5">
                 <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
                   Full name
@@ -769,7 +834,7 @@ function SignupProgress({ step }: { step: SignupStep }) {
         </div>
         <StepMarker
           icon={MailCheck}
-          label="Verify email"
+          label="Verify identity"
           state={isOtpStep ? "active" : "upcoming"}
         />
       </div>
@@ -930,6 +995,10 @@ function slugify(value: string): string {
 
 function isValidWorkspaceSlug(value: string): boolean {
   return /^[a-z0-9-]{2,40}$/.test(value);
+}
+
+function isValidPhone(value: string): boolean {
+  return /^\+[1-9]\d{7,14}$/.test(value.trim());
 }
 
 function formatDuration(valueMs: number): string {
