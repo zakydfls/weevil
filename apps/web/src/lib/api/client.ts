@@ -374,8 +374,16 @@ export const apiClient = {
       body: JSON.stringify(body),
     }),
 
-  login: (body: {
-    identifier: string;
+  login: (body: { email: string; password: string }) =>
+    request<{
+      channels: Array<{
+        channel: "email" | "whatsapp";
+        recipient: string;
+      }>;
+    }>("/auth/login", { method: "POST", body: JSON.stringify(body) }),
+
+  requestLoginOtp: (body: {
+    email: string;
     password: string;
     channel: "email" | "whatsapp";
   }) =>
@@ -387,10 +395,13 @@ export const apiClient = {
       resendCount: number;
       maxResends: number;
       maxAttempts: number;
-    }>("/auth/login", { method: "POST", body: JSON.stringify(body) }),
+    }>("/auth/login/request-otp", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 
   verifyLoginOtp: (body: {
-    identifier: string;
+    email: string;
     channel: "email" | "whatsapp";
     code: string;
     rememberMe: boolean;

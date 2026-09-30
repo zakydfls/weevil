@@ -75,7 +75,7 @@ interface AuthContextValue {
   can: (permission: string) => boolean;
   verifyLoginOtp: (
     input: {
-      identifier: string;
+      email: string;
       channel: "email" | "whatsapp";
       code: string;
       rememberMe: boolean;
@@ -318,7 +318,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const verifyLoginOtp = useCallback(
     async (
       input: {
-        identifier: string;
+        email: string;
         channel: "email" | "whatsapp";
         code: string;
         rememberMe: boolean;

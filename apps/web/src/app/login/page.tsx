@@ -14,6 +14,13 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AuthShell } from "@/features/auth/auth-shell";
 import { useAuth } from "@/features/auth/auth-context";
@@ -54,6 +61,11 @@ interface LoginOtpState {
   maxAttempts: number;
 }
 
+interface LoginOtpChannel {
+  channel: "email" | "whatsapp";
+  recipient: string;
+}
+
 export default function LoginPage() {
   const auth = useAuth();
   const [inviteToken, setInviteToken] = useState("");
@@ -63,6 +75,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState(devSeedPassword);
   const [otpCode, setOtpCode] = useState("");
   const [otpState, setOtpState] = useState<LoginOtpState | null>(null);
+  const [availableChannels, setAvailableChannels] = useState<LoginOtpChannel[]>(
+    [],
+  );
+  const [channelModalOpen, setChannelModalOpen] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -140,12 +156,13 @@ export default function LoginPage() {
     return () => window.clearInterval(timer);
   }, [otpState]);
 
-  async function requestLoginOtp() {
-    const result = await apiClient.login({
-      identifier: email.trim(),
+  async function requestLoginOtp(nextChannel: "email" | "whatsapp" = channel) {
+    const result = await apiClient.requestLoginOtp({
+      email: email.trim(),
       password,
-      channel,
+      channel: nextChannel,
     });
+    setChannel(nextChannel);
     setOtpState(result);
     setOtpCode("");
     setNowMs(Date.now());
@@ -157,11 +174,13 @@ export default function LoginPage() {
     setError(null);
     try {
       if (!otpState) {
-        await requestLoginOtp();
+        const result = await apiClient.login({ email: email.trim(), password });
+        setAvailableChannels(result.channels);
+        setChannelModalOpen(true);
         setSubmitPhase("idle");
       } else {
         await auth.verifyLoginOtp(
-          { identifier: email.trim(), channel, code: otpCode, rememberMe },
+          { email: email.trim(), channel, code: otpCode, rememberMe },
           {
             ...(inviteToken ? { inviteToken } : {}),
             ...(nextPath ? { redirectTo: nextPath } : {}),
@@ -185,11 +204,26 @@ export default function LoginPage() {
     setSubmitPhase("checking");
     setError(null);
     try {
-      await requestLoginOtp();
+      await requestLoginOtp(channel);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Could not resend the code.",
       );
+    } finally {
+      setSubmitPhase("idle");
+    }
+  }
+
+  async function chooseOtpChannel(nextChannel: "email" | "whatsapp") {
+    setChannel(nextChannel);
+    setSubmitPhase("checking");
+    setError(null);
+    try {
+      await requestLoginOtp(nextChannel);
+      setChannelModalOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not send the code.");
+      setChannelModalOpen(false);
     } finally {
       setSubmitPhase("idle");
     }
@@ -411,6 +445,50 @@ export default function LoginPage() {
         </form>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
+          <Dialog open={channelModalOpen} onOpenChange={setChannelModalOpen}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader className="border-b border-[var(--divider)] pr-12">
+                <DialogTitle>Choose where to receive your code</DialogTitle>
+                <DialogDescription>
+                  We&apos;ll send a 6-digit code to a verified contact on this
+                  account.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2 px-4 pb-4">
+                {(["email", "whatsapp"] as const).map((option) => {
+                  const available = availableChannels.find(
+                    (item) => item.channel === option,
+                  );
+                  const Icon = option === "email" ? Mail : MessageCircle;
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      disabled={!available || isSubmitting}
+                      onClick={() => void chooseOtpChannel(option)}
+                      className="flex w-full items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-3 text-left transition-colors hover:border-[var(--primary)] hover:bg-[var(--primary-subtle)] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-[var(--primary-subtle)] text-[var(--primary)]">
+                        <Icon className="h-4 w-4" aria-hidden />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-[var(--ink)]">
+                          {option === "email" ? "Email" : "WhatsApp"}
+                        </span>
+                        <span className="block truncate text-xs text-[var(--ink-muted)]">
+                          {available?.recipient ??
+                            "Not verified on this account"}
+                        </span>
+                      </span>
+                      {isSubmitting && channel === option ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-[var(--primary)]" />
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </DialogContent>
+          </Dialog>
           <Button
             type="button"
             variant="secondary"
@@ -434,62 +512,25 @@ export default function LoginPage() {
             </span>
             <span className="h-px flex-1 bg-[var(--divider)]" />
           </div>
-          {!inviteToken ? (
-            <fieldset
-              className="space-y-2"
-              disabled={isSubmitting || Boolean(otpState)}
-            >
-              <legend className="font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
-                Sign in with
-              </legend>
-              <div className="grid grid-cols-2 gap-2">
-                {(["email", "whatsapp"] as const).map((option) => {
-                  const selected = channel === option;
-                  const Icon = option === "email" ? Mail : MessageCircle;
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => {
-                        setChannel(option);
-                        setEmail("");
-                      }}
-                      aria-pressed={selected}
-                      className={`flex h-10 items-center justify-center gap-2 rounded-md border text-sm font-medium transition-colors disabled:opacity-60 ${
-                        selected
-                          ? "border-[var(--primary)] bg-[var(--primary-subtle)] text-[var(--primary)]"
-                          : "border-[var(--border)] bg-[var(--bg)] text-[var(--ink-muted)] hover:border-[var(--border-strong)]"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" aria-hidden />
-                      {option === "email" ? "Email" : "WhatsApp"}
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
-          ) : null}
           <div className="space-y-1.5">
             <label
               htmlFor="email"
               className="block text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)] font-mono"
             >
-              {channel === "email" ? "Email" : "WhatsApp number"}
+              Email
             </label>
             <Input
               id="email"
-              type={channel === "email" ? "email" : "tel"}
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={
                 isSubmitting || Boolean(invitePreview) || Boolean(otpState)
               }
               required
-              autoComplete={channel === "email" ? "email" : "tel"}
-              inputMode={channel === "email" ? "email" : "tel"}
-              placeholder={
-                channel === "email" ? "you@example.com" : "+628123456789"
-              }
+              autoComplete="email"
+              inputMode="email"
+              placeholder="you@example.com"
             />
           </div>
           {inviteToken ? (
@@ -636,7 +677,7 @@ export default function LoginPage() {
             {submitPhase === "checking"
               ? otpState
                 ? "Verifying code"
-                : "Sending code"
+                : "Checking credentials"
               : submitPhase === "redirecting"
                 ? "Opening dashboard"
                 : inviteToken
@@ -657,7 +698,7 @@ export default function LoginPage() {
                 ? "Workspace loaded. Redirecting..."
                 : otpState
                   ? "Verifying your one-time code..."
-                  : "Sending a one-time code..."}
+                  : "Checking your email and password..."}
             </div>
           ) : null}
           {showDevSeedHint ? (

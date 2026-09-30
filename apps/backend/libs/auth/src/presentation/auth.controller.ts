@@ -9,6 +9,7 @@ import {
   AcceptInviteDto,
   FirebaseGoogleOAuthDto,
   LoginDto,
+  RequestLoginOtpDto,
   RequestSignupOtpDto,
   SignupDto,
   VerifyLoginOtpDto,
@@ -102,6 +103,17 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() body: LoginDto, @Req() req: Request) {
+    return this.authService.login({
+      ...body,
+      userAgent: req.headers['user-agent'],
+      ipAddress: clientIp(req),
+    });
+  }
+
+  @Public()
+  @Post('login/request-otp')
+  @HttpCode(HttpStatus.OK)
+  requestLoginOtp(@Body() body: RequestLoginOtpDto, @Req() req: Request) {
     return this.authService.requestLoginOtp({
       ...body,
       userAgent: req.headers['user-agent'],
