@@ -21,6 +21,8 @@ import { WeevilMark } from '@/components/brand/weevil-mark';
 import { Button } from '@/components/ui/button';
 
 const SITE_URL = 'https://theweevil.space';
+const CHROME_EXTENSION_URL =
+  'https://chromewebstore.google.com/detail/weevil/kccgjhjidcdfmifeejhfdpbfnhkjoamp';
 const LANDING_DESCRIPTION =
   'Weevil is an all-in-one bug recorder and triage workspace for web teams. Capture screen recordings, console logs, network requests, runtime errors, user actions, board states, assignees, and notifications in one debugging workflow.';
 
@@ -513,10 +515,10 @@ export default async function LandingPage({
               ))}
             </ul>
             <Button asChild size="lg" className="weevil-button-pop mt-9">
-              <Link href="/signup">
-                Get started
+              <a href={CHROME_EXTENSION_URL} target="_blank" rel="noreferrer">
+                Add to Chrome
                 <ArrowRight className="h-4 w-4" aria-hidden />
-              </Link>
+              </a>
             </Button>
           </div>
         </div>
