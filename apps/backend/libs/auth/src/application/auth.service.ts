@@ -53,18 +53,6 @@ export interface LoginInput {
   ipAddress?: string;
 }
 
-export interface RequestLoginOtpInput extends LoginInput {
-  channel: OtpChannel;
-}
-
-export interface VerifyLoginOtpInput {
-  email: string;
-  channel: OtpChannel;
-  code: string;
-  userAgent?: string;
-  ipAddress?: string;
-}
-
 type OtpChannel = 'email' | 'whatsapp';
 
 export interface FirebaseGoogleOAuthInput {
@@ -607,86 +595,73 @@ export class AuthService {
       10 * 60,
     );
     const user = await this.verifyLoginCredentials(input);
+    const session = await this.issueSessionInTx(
+      this.prisma,
+      user.id,
+      user.defaultWorkspaceId,
+      input.userAgent,
+      input.ipAddress,
+    );
     return {
-      channels: [
-        ...(user.emailVerified
-          ? [{ channel: 'email' as const, recipient: maskRecipient(user.email, 'email') }]
-          : []),
-        ...(user.phoneNumber && user.phoneVerifiedAt
-          ? [
-              {
-                channel: 'whatsapp' as const,
-                recipient: maskRecipient(user.phoneNumber, 'whatsapp'),
-              },
-            ]
-          : []),
-      ],
+      session,
+      userId: user.id,
+      defaultWorkspaceId: user.defaultWorkspaceId,
     };
   }
 
-  async requestLoginOtp(input: RequestLoginOtpInput): Promise<OtpChallengeState> {
-    const normalizedEmail = input.email.trim().toLowerCase();
+  async requestEmailOtp(input: {
+    userId: string;
+    email: string;
+    userAgent?: string;
+    ipAddress?: string;
+  }): Promise<OtpChallengeState> {
+    const email = input.email.trim().toLowerCase();
     await this.assertRateLimit(
-      'login',
-      `${normalizedEmail}:${input.ipAddress ?? 'unknown'}`,
-      10,
-      10 * 60,
+      'email-otp',
+      `${input.userId}:${input.ipAddress ?? 'unknown'}`,
+      5,
+      60 * 60,
     );
 
-    const user = await this.verifyLoginCredentials(input);
-    const recipient = loginOtpRecipient(user, input.channel);
-
     return this.otpService.issue({
-      purpose: OtpPurpose.LOGIN,
-      recipient,
-      channel: input.channel,
-      payload: { userId: user.id },
+      purpose: OtpPurpose.EMAIL_VERIFICATION,
+      recipient: email,
+      channel: 'email',
+      payload: { userId: input.userId },
       ipAddress: input.ipAddress,
       userAgent: input.userAgent,
       buildNotification: ({ code, expiresAt }) =>
         buildOtpNotification({
-          channel: input.channel,
-          recipient,
+          channel: 'email',
+          recipient: email,
           code,
           expiresAt,
-          title: 'Confirm your Weevil login',
-          purposeLabel: 'login',
-          description: 'Use this code to finish signing in to Weevil.',
-          metadata: { purpose: 'login', from_name: 'Weevil' },
+          title: 'Verify your email address',
+          purposeLabel: 'email verification',
+          description: 'Use this code to add email as a Weevil login option.',
+          metadata: { purpose: 'email_verification', from_name: 'Weevil' },
         }),
     });
   }
 
-  async verifyLoginOtp(
-    input: VerifyLoginOtpInput,
-  ): Promise<{ session: IssuedSession; userId: string; defaultWorkspaceId: string | null }> {
-    const normalizedEmail = input.email.trim().toLowerCase();
-    const user = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
-    if (!user || user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException('Verification code is invalid or expired.');
-    }
-    const recipient = loginOtpRecipient(user, input.channel);
+  async verifyEmailOtp(userId: string, emailValue: string, code: string) {
+    const email = emailValue.trim().toLowerCase();
     const challenge = await this.otpService.verify({
-      purpose: OtpPurpose.LOGIN,
-      recipient,
-      code: input.code,
+      purpose: OtpPurpose.EMAIL_VERIFICATION,
+      recipient: email,
+      code,
     });
     const payload = challenge.payload as Record<string, unknown> | null;
-    if (payload?.userId !== user.id) {
+    if (payload?.userId !== userId) {
       throw new UnauthorizedException('Verification code is invalid or expired.');
     }
 
-    const session = await this.prisma.$transaction(async (tx) => {
+    const verifiedAt = new Date();
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: userId }, data: { emailVerified: verifiedAt } });
       await this.otpService.consume(tx, challenge.id);
-      return this.issueSessionInTx(
-        tx,
-        user.id,
-        user.defaultWorkspaceId,
-        input.userAgent,
-        input.ipAddress,
-      );
     });
-    return { session, userId: user.id, defaultWorkspaceId: user.defaultWorkspaceId };
+    return { email, emailVerified: verifiedAt.toISOString() };
   }
 
   async requestPhoneOtp(input: {
@@ -1383,26 +1358,6 @@ function normalizePhone(value: string | undefined): string {
     throw new BadRequestException('Use international phone format, for example +628123456789.');
   }
   return phone;
-}
-
-function loginOtpRecipient(
-  user: {
-    email: string;
-    emailVerified: Date | null;
-    phoneNumber: string | null;
-    phoneVerifiedAt: Date | null;
-  },
-  channel: OtpChannel,
-): string {
-  if (channel === 'email' && user.emailVerified) return user.email;
-  if (channel === 'whatsapp' && user.phoneNumber && user.phoneVerifiedAt) return user.phoneNumber;
-  throw new BadRequestException('That OTP channel is not verified for this account.');
-}
-
-function maskRecipient(recipient: string, channel: OtpChannel): string {
-  if (channel === 'whatsapp') return `${recipient.slice(0, 4)}••••${recipient.slice(-3)}`;
-  const [name, domain] = recipient.split('@');
-  return `${name.slice(0, 2)}•••@${domain}`;
 }
 
 function buildOtpNotification(input: {

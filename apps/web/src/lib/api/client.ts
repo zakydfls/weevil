@@ -374,48 +374,14 @@ export const apiClient = {
       body: JSON.stringify(body),
     }),
 
-  login: (body: { email: string; password: string }) =>
-    request<{
-      channels: Array<{
-        channel: "email" | "whatsapp";
-        recipient: string;
-      }>;
-    }>("/auth/login", { method: "POST", body: JSON.stringify(body) }),
-
-  requestLoginOtp: (body: {
-    email: string;
-    password: string;
-    channel: "email" | "whatsapp";
-  }) =>
-    request<{
-      recipient: string;
-      channel: "email" | "whatsapp";
-      expiresAt: string;
-      resendAvailableAt: string;
-      resendCount: number;
-      maxResends: number;
-      maxAttempts: number;
-    }>("/auth/login/request-otp", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-
-  verifyLoginOtp: (body: {
-    email: string;
-    channel: "email" | "whatsapp";
-    code: string;
-    rememberMe: boolean;
-  }) =>
+  login: (body: { email: string; password: string; rememberMe: boolean }) =>
     request<{
       token: string;
       sessionId: string;
       userId: string;
       defaultWorkspaceId: string | null;
       expiresAt: string;
-    }>("/auth/login/verify-otp", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
+    }>("/auth/login", { method: "POST", body: JSON.stringify(body) }),
 
   firebaseGoogleOAuth: (body: {
     idToken: string;
@@ -471,6 +437,23 @@ export const apiClient = {
 
   logout: () => request<void>("/auth/logout", { method: "POST" }),
 
+  requestEmailOtp: () =>
+    request<{
+      recipient: string;
+      channel: "email";
+      expiresAt: string;
+      resendAvailableAt: string;
+      resendCount: number;
+      maxResends: number;
+      maxAttempts: number;
+    }>("/auth/email/request-otp", { method: "POST" }),
+
+  verifyEmailOtp: (body: { code: string }) =>
+    request<{ email: string; emailVerified: string }>(
+      "/auth/email/verify-otp",
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+
   requestPhoneOtp: (body: { phoneNumber: string }) =>
     request<{
       recipient: string;
@@ -499,6 +482,7 @@ export const apiClient = {
       user: {
         id: string;
         email: string;
+        emailVerified: string | null;
         phoneNumber: string | null;
         phoneVerifiedAt: string | null;
         displayName: string | null;

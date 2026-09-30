@@ -20,6 +20,7 @@ import {
 interface AuthUser {
   id: string;
   email: string;
+  emailVerified: string | null;
   phoneNumber: string | null;
   phoneVerifiedAt: string | null;
   displayName: string | null;
@@ -75,13 +76,8 @@ interface AuthContextValue {
   workspace: ActiveWorkspace | null;
   workspaces: WorkspaceSummary[];
   can: (permission: string) => boolean;
-  verifyLoginOtp: (
-    input: {
-      email: string;
-      channel: "email" | "whatsapp";
-      code: string;
-      rememberMe: boolean;
-    },
+  login: (
+    input: { email: string; password: string; rememberMe: boolean },
     options?: { inviteToken?: string; redirectTo?: string },
   ) => Promise<void>;
   continueWithGoogle: (
@@ -317,17 +313,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [refresh],
   );
 
-  const verifyLoginOtp = useCallback(
+  const login = useCallback(
     async (
-      input: {
-        email: string;
-        channel: "email" | "whatsapp";
-        code: string;
-        rememberMe: boolean;
-      },
+      input: { email: string; password: string; rememberMe: boolean },
       options?: { inviteToken?: string; redirectTo?: string },
     ) => {
-      const result = await apiClient.verifyLoginOtp(input);
+      const result = await apiClient.login(input);
       saveToken(result.token);
       setAuthToken(result.token);
       if (options?.inviteToken) {
@@ -454,7 +445,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       workspace,
       workspaces,
       can,
-      verifyLoginOtp,
+      login,
       continueWithGoogle,
       signup,
       verifySignupOtp,
@@ -470,7 +461,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       workspace,
       workspaces,
       can,
-      verifyLoginOtp,
+      login,
       continueWithGoogle,
       signup,
       verifySignupOtp,

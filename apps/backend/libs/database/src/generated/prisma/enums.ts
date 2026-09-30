@@ -247,6 +247,7 @@ export type BackendTraceStatus = (typeof BackendTraceStatus)[keyof typeof Backen
 export const OtpPurpose = {
   SIGNUP: 'SIGNUP',
   LOGIN: 'LOGIN',
+  EMAIL_VERIFICATION: 'EMAIL_VERIFICATION',
   PHONE_VERIFICATION: 'PHONE_VERIFICATION'
 } as const
 

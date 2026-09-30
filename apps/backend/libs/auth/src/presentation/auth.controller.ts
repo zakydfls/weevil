@@ -9,11 +9,10 @@ import {
   AcceptInviteDto,
   FirebaseGoogleOAuthDto,
   LoginDto,
-  RequestLoginOtpDto,
   RequestPhoneOtpDto,
   RequestSignupOtpDto,
   SignupDto,
-  VerifyLoginOtpDto,
+  VerifyEmailOtpDto,
   VerifyPhoneOtpDto,
   VerifySignupOtpDto,
 } from './dto';
@@ -104,34 +103,12 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() body: LoginDto, @Req() req: Request) {
-    return this.authService.login({
-      ...body,
-      userAgent: req.headers['user-agent'],
-      ipAddress: clientIp(req),
-    });
-  }
-
-  @Public()
-  @Post('login/request-otp')
-  @HttpCode(HttpStatus.OK)
-  requestLoginOtp(@Body() body: RequestLoginOtpDto, @Req() req: Request) {
-    return this.authService.requestLoginOtp({
-      ...body,
-      userAgent: req.headers['user-agent'],
-      ipAddress: clientIp(req),
-    });
-  }
-
-  @Public()
-  @Post('login/verify-otp')
-  @HttpCode(HttpStatus.OK)
-  async verifyLoginOtp(
-    @Body() body: VerifyLoginOtpDto,
+  async login(
+    @Body() body: LoginDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.verifyLoginOtp({
+    const result = await this.authService.login({
       ...body,
       userAgent: req.headers['user-agent'],
       ipAddress: clientIp(req),
@@ -148,6 +125,23 @@ export class AuthController {
       defaultWorkspaceId: result.defaultWorkspaceId,
       expiresAt: result.session.expiresAt.toISOString(),
     };
+  }
+
+  @Post('email/request-otp')
+  @HttpCode(HttpStatus.OK)
+  requestEmailOtp(@CurrentAuth() auth: AuthContext, @Req() req: Request) {
+    return this.authService.requestEmailOtp({
+      userId: auth.user.id,
+      email: auth.user.email,
+      userAgent: req.headers['user-agent'],
+      ipAddress: clientIp(req),
+    });
+  }
+
+  @Post('email/verify-otp')
+  @HttpCode(HttpStatus.OK)
+  verifyEmailOtp(@CurrentAuth() auth: AuthContext, @Body() body: VerifyEmailOtpDto) {
+    return this.authService.verifyEmailOtp(auth.user.id, auth.user.email, body.code);
   }
 
   @Post('phone/request-otp')

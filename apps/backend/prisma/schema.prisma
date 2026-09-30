@@ -204,6 +204,7 @@ enum BackendTraceStatus {
 enum OtpPurpose {
   SIGNUP
   LOGIN
+  EMAIL_VERIFICATION
   PHONE_VERIFICATION
 }
 

@@ -49,23 +49,6 @@ export class LoginDto {
   @MinLength(1)
   @MaxLength(128)
   password: string;
-}
-
-export class RequestLoginOtpDto extends LoginDto {
-  @IsIn(OTP_CHANNELS)
-  channel: (typeof OTP_CHANNELS)[number];
-}
-
-export class VerifyLoginOtpDto {
-  @IsEmail({}, { message: 'Enter a valid email address.' })
-  email: string;
-
-  @IsIn(OTP_CHANNELS)
-  channel: (typeof OTP_CHANNELS)[number];
-
-  @IsString()
-  @Matches(/^\d{6}$/, { message: 'Enter the 6-digit verification code.' })
-  code: string;
 
   @IsOptional()
   @IsBoolean()
@@ -79,6 +62,12 @@ export class RequestPhoneOtpDto {
 }
 
 export class VerifyPhoneOtpDto extends RequestPhoneOtpDto {
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'Enter the 6-digit verification code.' })
+  code: string;
+}
+
+export class VerifyEmailOtpDto {
   @IsString()
   @Matches(/^\d{6}$/, { message: 'Enter the 6-digit verification code.' })
   code: string;

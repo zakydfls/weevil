@@ -27,7 +27,7 @@ pnpm --filter @weevil/extension build:prod
 
 The production build:
 
-- injects `https://api-weevil.centurycode.id/v1` as the default API base URL
+- injects `https://prod-api.theweevil.space/v1` as the default API base URL
 - injects `https://theweevil.space` as the dashboard URL
 - migrates any previously stored API URL back to the current build's default
 - minifies JavaScript bundles

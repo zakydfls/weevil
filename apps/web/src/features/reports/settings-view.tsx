@@ -7,6 +7,7 @@ import {
   Check,
   LayoutGrid,
   Loader2,
+  Mail,
   MessageSquareText,
   Smartphone,
   ShieldCheck,
@@ -254,7 +255,10 @@ export function SettingsView() {
 
         <div className="min-w-0">
           <TabsContent value="account" className="mt-0">
-            <WhatsAppIdentityCard />
+            <div className="grid gap-4">
+              <EmailIdentityCard />
+              <WhatsAppIdentityCard />
+            </div>
           </TabsContent>
 
           <TabsContent value="members" className="mt-0">
@@ -431,6 +435,169 @@ export function SettingsView() {
         </div>
       </Tabs>
     </div>
+  );
+}
+
+function EmailIdentityCard() {
+  const auth = useAuth();
+  const [otpCode, setOtpCode] = useState("");
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState<{
+    tone: "success" | "error";
+    text: string;
+  } | null>(null);
+  const verified = Boolean(auth.user?.emailVerified);
+
+  async function requestOtp() {
+    setIsSubmitting(true);
+    setMessage(null);
+    try {
+      const result = await apiClient.requestEmailOtp();
+      setSentTo(result.recipient);
+      setOtpCode("");
+    } catch (error) {
+      setMessage({
+        tone: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Could not send the verification code.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function verifyOtp(event: React.FormEvent) {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setMessage(null);
+    try {
+      await apiClient.verifyEmailOtp({ code: otpCode });
+      await auth.refresh();
+      setSentTo(null);
+      setOtpCode("");
+      setMessage({
+        tone: "success",
+        text: "Email is now available for login OTP.",
+      });
+    } catch (error) {
+      setMessage({
+        tone: "error",
+        text:
+          error instanceof Error ? error.message : "Could not verify the code.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-5">
+        <div className="flex gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--primary-subtle)] text-[var(--primary)]">
+            <Mail className="h-5 w-5" aria-hidden />
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base font-semibold text-[var(--ink)]">
+                Email login
+              </h2>
+              <span
+                className={`rounded-md px-2 py-0.5 text-xs font-medium ${
+                  verified
+                    ? "bg-[var(--success-bg)] text-[var(--success)]"
+                    : "bg-[var(--warning-bg)] text-[var(--warning)]"
+                }`}
+              >
+                {verified ? "Verified" : "Not verified"}
+              </span>
+            </div>
+            <p className="mt-1 max-w-xl text-sm leading-6 text-[var(--ink-muted)]">
+              Verify {auth.user?.email} to choose email when receiving login
+              codes.
+            </p>
+          </div>
+        </div>
+
+        {!verified || sentTo || message ? (
+          <form
+            onSubmit={
+              sentTo
+                ? verifyOtp
+                : (event) => {
+                    event.preventDefault();
+                    void requestOtp();
+                  }
+            }
+            className="mt-5 grid max-w-md gap-3 sm:pl-[3.25rem]"
+          >
+            {sentTo ? (
+              <label className="grid gap-1.5 text-sm font-medium text-[var(--ink)]">
+                <span>Verification code sent to {sentTo}</span>
+                <Input
+                  value={otpCode}
+                  onChange={(event) =>
+                    setOtpCode(
+                      event.target.value.replace(/\D/g, "").slice(0, 6),
+                    )
+                  }
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="000000"
+                  className="h-11 text-center font-mono text-lg tracking-[0.32em]"
+                  disabled={isSubmitting}
+                  required
+                />
+              </label>
+            ) : null}
+
+            {message ? (
+              <p
+                className={`text-xs font-medium ${
+                  message.tone === "success"
+                    ? "text-[var(--success)]"
+                    : "text-[var(--danger)]"
+                }`}
+              >
+                {message.text}
+              </p>
+            ) : null}
+
+            {!verified ? (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="submit"
+                  disabled={
+                    isSubmitting || (sentTo ? otpCode.length !== 6 : false)
+                  }
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : null}
+                  {sentTo ? "Verify email" : "Send code"}
+                </Button>
+                {sentTo ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setSentTo(null);
+                      setOtpCode("");
+                    }}
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+          </form>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 

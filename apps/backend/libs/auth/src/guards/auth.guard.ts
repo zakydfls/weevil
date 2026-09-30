@@ -69,6 +69,7 @@ export class AuthGuard implements CanActivate {
       user: {
         id: session.user.id,
         email: session.user.email,
+        emailVerified: session.user.emailVerified,
         phoneNumber: session.user.phoneNumber,
         phoneVerifiedAt: session.user.phoneVerifiedAt,
         displayName: session.user.displayName,
