@@ -9,6 +9,8 @@ export interface AuthContext {
   user: {
     id: string;
     email: string;
+    phoneNumber: string | null;
+    phoneVerifiedAt: Date | null;
     displayName: string | null;
     platformRole: PlatformRole;
   };

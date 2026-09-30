@@ -689,6 +689,72 @@ export class AuthService {
     return { session, userId: user.id, defaultWorkspaceId: user.defaultWorkspaceId };
   }
 
+  async requestPhoneOtp(input: {
+    userId: string;
+    phoneNumber: string;
+    userAgent?: string;
+    ipAddress?: string;
+  }): Promise<OtpChallengeState> {
+    const phoneNumber = normalizePhone(input.phoneNumber);
+    await this.assertRateLimit(
+      'phone-otp',
+      `${input.userId}:${input.ipAddress ?? 'unknown'}`,
+      5,
+      60 * 60,
+    );
+    const owner = await this.prisma.user.findUnique({ where: { phoneNumber } });
+    if (owner && owner.id !== input.userId) {
+      throw new ConflictException('That WhatsApp number is already linked to another account.');
+    }
+
+    return this.otpService.issue({
+      purpose: OtpPurpose.PHONE_VERIFICATION,
+      recipient: phoneNumber,
+      channel: 'whatsapp',
+      payload: { userId: input.userId },
+      ipAddress: input.ipAddress,
+      userAgent: input.userAgent,
+      buildNotification: ({ code, expiresAt }) =>
+        buildOtpNotification({
+          channel: 'whatsapp',
+          recipient: phoneNumber,
+          code,
+          expiresAt,
+          title: 'Verify your WhatsApp number',
+          purposeLabel: 'WhatsApp verification',
+          description: 'Use this code to add WhatsApp as a Weevil login option.',
+          metadata: { purpose: 'phone_verification', from_name: 'Weevil' },
+        }),
+    });
+  }
+
+  async verifyPhoneOtp(userId: string, phoneValue: string, code: string) {
+    const phoneNumber = normalizePhone(phoneValue);
+    const challenge = await this.otpService.verify({
+      purpose: OtpPurpose.PHONE_VERIFICATION,
+      recipient: phoneNumber,
+      code,
+    });
+    const payload = challenge.payload as Record<string, unknown> | null;
+    if (payload?.userId !== userId) {
+      throw new UnauthorizedException('Verification code is invalid or expired.');
+    }
+    const owner = await this.prisma.user.findUnique({ where: { phoneNumber } });
+    if (owner && owner.id !== userId) {
+      throw new ConflictException('That WhatsApp number is already linked to another account.');
+    }
+
+    const verifiedAt = new Date();
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { phoneNumber, phoneVerifiedAt: verifiedAt },
+      });
+      await this.otpService.consume(tx, challenge.id);
+    });
+    return { phoneNumber, phoneVerifiedAt: verifiedAt.toISOString() };
+  }
+
   private async verifyLoginCredentials(input: LoginInput) {
     const normalizedEmail = input.email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });

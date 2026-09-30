@@ -20,6 +20,8 @@ import {
 interface AuthUser {
   id: string;
   email: string;
+  phoneNumber: string | null;
+  phoneVerifiedAt: string | null;
   displayName: string | null;
   platformRole: string;
 }

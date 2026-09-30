@@ -10,9 +10,11 @@ import {
   FirebaseGoogleOAuthDto,
   LoginDto,
   RequestLoginOtpDto,
+  RequestPhoneOtpDto,
   RequestSignupOtpDto,
   SignupDto,
   VerifyLoginOtpDto,
+  VerifyPhoneOtpDto,
   VerifySignupOtpDto,
 } from './dto';
 
@@ -146,6 +148,27 @@ export class AuthController {
       defaultWorkspaceId: result.defaultWorkspaceId,
       expiresAt: result.session.expiresAt.toISOString(),
     };
+  }
+
+  @Post('phone/request-otp')
+  @HttpCode(HttpStatus.OK)
+  requestPhoneOtp(
+    @CurrentAuth() auth: AuthContext,
+    @Body() body: RequestPhoneOtpDto,
+    @Req() req: Request,
+  ) {
+    return this.authService.requestPhoneOtp({
+      userId: auth.user.id,
+      phoneNumber: body.phoneNumber,
+      userAgent: req.headers['user-agent'],
+      ipAddress: clientIp(req),
+    });
+  }
+
+  @Post('phone/verify-otp')
+  @HttpCode(HttpStatus.OK)
+  verifyPhoneOtp(@CurrentAuth() auth: AuthContext, @Body() body: VerifyPhoneOtpDto) {
+    return this.authService.verifyPhoneOtp(auth.user.id, body.phoneNumber, body.code);
   }
 
   @Public()

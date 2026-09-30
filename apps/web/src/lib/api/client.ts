@@ -471,11 +471,36 @@ export const apiClient = {
 
   logout: () => request<void>("/auth/logout", { method: "POST" }),
 
+  requestPhoneOtp: (body: { phoneNumber: string }) =>
+    request<{
+      recipient: string;
+      channel: "whatsapp";
+      expiresAt: string;
+      resendAvailableAt: string;
+      resendCount: number;
+      maxResends: number;
+      maxAttempts: number;
+    }>("/auth/phone/request-otp", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  verifyPhoneOtp: (body: { phoneNumber: string; code: string }) =>
+    request<{ phoneNumber: string; phoneVerifiedAt: string }>(
+      "/auth/phone/verify-otp",
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
+    ),
+
   me: () =>
     request<{
       user: {
         id: string;
         email: string;
+        phoneNumber: string | null;
+        phoneVerifiedAt: string | null;
         displayName: string | null;
         platformRole: string;
       };

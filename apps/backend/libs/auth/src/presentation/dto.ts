@@ -72,6 +72,18 @@ export class VerifyLoginOtpDto {
   rememberMe?: boolean;
 }
 
+export class RequestPhoneOtpDto {
+  @IsString()
+  @Matches(E164_PHONE, { message: 'Use international format, for example +628123456789.' })
+  phoneNumber: string;
+}
+
+export class VerifyPhoneOtpDto extends RequestPhoneOtpDto {
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'Enter the 6-digit verification code.' })
+  code: string;
+}
+
 export class FirebaseGoogleOAuthDto {
   @IsString()
   @MinLength(1)
