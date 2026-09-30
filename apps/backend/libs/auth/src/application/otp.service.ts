@@ -1,14 +1,12 @@
-import {
-  HttpException,
-  HttpStatus,
-  Injectable,
-  ServiceUnavailableException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 import { AppConfigService } from '@weevil/config';
 import { PrismaService } from '@weevil/database';
-import { NotificationGatewayClient, type EnqueueNotificationInput } from '@weevil/notifications';
+import {
+  NotificationGatewayClient,
+  NotificationGatewayRequestError,
+  type EnqueueNotificationInput,
+} from '@weevil/notifications';
 import { OtpPurpose, type OtpChallenge, type Prisma } from '@weevil/prisma-client';
 
 const OTP_TTL_MS = 10 * 60 * 1_000;
@@ -114,13 +112,16 @@ export class OtpService {
         ...notification,
         metadata: { ...notification.metadata, otp_purpose: input.purpose },
       });
-    } catch {
+    } catch (error) {
       await this.prisma.otpChallenge.update({
         where: { id: challenge.id },
         data: { nextResendAt: now, resendCount: Math.max(resendCount - 1, 0) },
       });
-      throw new ServiceUnavailableException(
-        'Could not send verification code. Try again in a moment.',
+      throw new HttpException(
+        error instanceof Error ? error.message : 'Notification gateway request failed.',
+        error instanceof NotificationGatewayRequestError && error.status
+          ? error.status
+          : HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
 
