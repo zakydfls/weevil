@@ -80,6 +80,7 @@ import { apiClient } from '@/lib/api/client';
 import { toast } from '@/components/ui/toaster';
 import { cn, formatBytes, formatDate } from '@/lib/utils';
 import { reportKeys } from '../queries';
+import { findNetworkMatch } from '../network-search';
 import { AssigneeEditorPopover } from './report-assignees';
 import { StatusBadge } from './status-badge';
 
@@ -204,7 +205,7 @@ export function CaptureDetailView({
 
   useEffect(() => {
     function handleKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !event.defaultPrevented) {
         event.preventDefault();
         onBack();
       }
@@ -2553,37 +2554,63 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
   );
   const [searchTerm, setSearchTerm] = useState('');
   const [errorsOnly, setErrorsOnly] = useState(false);
+  const [searchDetailTab, setSearchDetailTab] = useState<NetworkDetailTab | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<CopyFeedbackTarget>(null);
   const [requestListWidth, setRequestListWidth] = useState(224);
   const [bodyViewMode, setBodyViewMode] = useState<BodyViewMode>('tree');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const requestListRef = useRef<HTMLDivElement>(null);
+  const normalizedQuery = searchTerm.trim().toLowerCase();
+  const searchMatches = useMemo(
+    () => new Map(report.networkRequests.map((request) => [request.id, findNetworkMatch(request, searchTerm)])),
+    [report.networkRequests, searchTerm],
+  );
+
+  useEffect(() => {
+    function handleFind(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'f') {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    }
+    window.addEventListener('keydown', handleFind);
+    return () => window.removeEventListener('keydown', handleFind);
+  }, []);
 
   const filteredRequests = useMemo(
     () =>
       report.networkRequests.filter((request) => {
         const category = classifyNetworkRequest(request);
         const matchesCategory = activeFilter === 'All' || category === activeFilter;
-        const normalizedQuery = searchTerm.trim().toLowerCase();
         const matchesSearch =
           normalizedQuery.length === 0 ||
-          [
-            request.method,
-            request.url,
-            shortRequestName(request.url),
-            isNextRscRequest(request) ? 'next rsc flight react server components' : '',
-            String(request.statusCode ?? ''),
-            request.error ?? '',
-          ]
-            .join(' ')
-            .toLowerCase()
-            .includes(normalizedQuery);
+          Boolean(searchMatches.get(request.id)) ||
+          (isNextRscRequest(request) && 'next rsc flight react server components'.includes(normalizedQuery));
         const matchesError = !errorsOnly || Boolean(request.error || (request.statusCode ?? 0) >= 400);
 
         return matchesCategory && matchesSearch && matchesError;
       }),
-    [activeFilter, errorsOnly, report.networkRequests, searchTerm],
+    [activeFilter, errorsOnly, report.networkRequests, normalizedQuery, searchMatches],
   );
   const selected =
     filteredRequests.find((request) => request.id === selectedRequestId) ?? filteredRequests[0] ?? null;
+  const selectedMatch = selected ? searchMatches.get(selected.id) : null;
+  const detailTab = normalizedQuery ? searchDetailTab ?? selectedMatch?.tab ?? activeDetailTab : activeDetailTab;
+
+  useEffect(() => {
+    if (normalizedQuery) {
+      requestListRef.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [normalizedQuery, selected?.id]);
+
+  function navigateSearch(direction: number) {
+    if (!filteredRequests.length) return;
+    const index = filteredRequests.findIndex((request) => request.id === selected?.id);
+    const next = (index + direction + filteredRequests.length) % filteredRequests.length;
+    setSelectedRequestId(filteredRequests[next].id);
+    setSearchDetailTab(null);
+  }
 
   async function handleCopyCurl() {
     if (!selected) {
@@ -2622,11 +2649,37 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
               aria-hidden
             />
             <Input
+              ref={searchInputRef}
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              className="h-8 border-[var(--border)] bg-[var(--surface)] pl-8 font-mono text-xs"
-              placeholder="Filter method, URL, status, domain…"
+              onChange={(event) => {
+                setSearchTerm(event.target.value);
+                setSearchDetailTab(null);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  event.preventDefault();
+                  setSearchTerm('');
+                } else if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                  event.preventDefault();
+                  navigateSearch(event.shiftKey ? -1 : 1);
+                }
+              }}
+              className="h-8 border-[var(--border)] bg-[var(--surface)] pl-8 pr-9 font-mono text-xs"
+              aria-label="Search all network text"
+              aria-keyshortcuts="Control+f Meta+f"
+              title="Search URL, headers, request and response bodies (Ctrl/Cmd + F)"
+              placeholder="Search requests, responses, headers…"
             />
+            {searchTerm ? (
+              <button
+                type="button"
+                aria-label="Clear network search"
+                onClick={() => { setSearchTerm(''); searchInputRef.current?.focus(); }}
+                className="absolute right-1 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded text-[var(--ink-muted)] hover:bg-[var(--primary-subtle)] focus-visible:outline-2 focus-visible:outline-[var(--focus)]"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            ) : null}
           </div>
           <ToggleGroup
             type="multiple"
@@ -2643,6 +2696,19 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
               errors only
             </ToggleGroupItem>
           </ToggleGroup>
+        </div>
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--ink-muted)]">
+          <span aria-live="polite" role="status">
+            {normalizedQuery
+              ? `${selected ? filteredRequests.indexOf(selected) + 1 : 0} / ${filteredRequests.length} matching requests`
+              : 'Ctrl/Cmd + F to search all network text'}
+          </span>
+          {normalizedQuery ? (
+            <>
+              <button type="button" disabled={!filteredRequests.length} onClick={() => navigateSearch(-1)} className="rounded px-1 hover:bg-[var(--primary-subtle)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-[var(--focus)]" title="Shift + Enter">Previous</button>
+              <button type="button" disabled={!filteredRequests.length} onClick={() => navigateSearch(1)} className="rounded px-1 hover:bg-[var(--primary-subtle)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-[var(--focus)]" title="Enter">Next</button>
+            </>
+          ) : null}
         </div>
         <ToggleGroup
           type="single"
@@ -2677,7 +2743,7 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
         className="grid min-h-0 min-w-0 grid-cols-1 overflow-y-auto lg:overflow-hidden lg:[grid-template-columns:var(--network-list-width)_6px_minmax(0,1fr)]"
         style={{ '--network-list-width': `${requestListWidth}px` } as CSSProperties}
       >
-        <ScrollArea className="max-h-52 min-h-0 border-b border-[var(--border)] bg-[var(--bg)] lg:max-h-none lg:border-b-0 lg:border-r">
+        <ScrollArea ref={requestListRef} className="max-h-52 min-h-0 border-b border-[var(--border)] bg-[var(--bg)] lg:max-h-none lg:border-b-0 lg:border-r">
           <PanelEmptyState
             isEmpty={filteredRequests.length === 0}
             label={report.networkRequests.length === 0 ? 'No network requests yet.' : 'No matching requests.'}
@@ -2689,7 +2755,11 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
               <button
                 key={request.id}
                 type="button"
-                onClick={() => setSelectedRequestId(request.id)}
+                aria-current={isSelected ? 'true' : undefined}
+                onClick={() => {
+                  setSelectedRequestId(request.id);
+                  setSearchDetailTab(null);
+                }}
                 className={`grid w-full grid-cols-[1.75rem_minmax(0,1fr)_auto] items-start gap-1.5 border-b border-[var(--divider)] border-l-2 px-2 py-2 text-left transition-colors ${
                   isSelected
                     ? `${networkRowAccentClass(category)} bg-[var(--primary-subtle)]`
@@ -2753,12 +2823,15 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
               <RefreshCcw className="h-3.5 w-3.5" aria-hidden />
             </button>
             {networkDetailTabs.map((tab) => {
-              const active = activeDetailTab === tab;
+              const active = detailTab === tab;
               return (
                 <button
                   key={tab}
                   type="button"
-                  onClick={() => setActiveDetailTab(tab)}
+                  onClick={() => {
+                    setActiveDetailTab(tab);
+                    setSearchDetailTab(tab);
+                  }}
                   className={`relative h-9 shrink-0 px-2.5 font-mono text-[8px] uppercase tracking-wide transition-colors ${
                     active
                       ? 'font-semibold text-[var(--ink)]'
@@ -2810,8 +2883,16 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
             </Button>
           </div>
           <ScrollArea className="min-h-0">
+            {selectedMatch ? (
+              <div className="border-b border-[var(--border)] bg-[var(--primary-subtle)] px-3 py-2 text-xs">
+                <span className="font-medium text-[var(--ink-muted)]">{selectedMatch.label}: </span>
+                <span className="whitespace-pre-wrap break-all font-mono text-[var(--ink)]">
+                  {selectedMatch.before}<mark className="rounded bg-[var(--primary-soft)] text-[var(--ink)]">{selectedMatch.match}</mark>{selectedMatch.after}
+                </span>
+              </div>
+            ) : null}
             {selected ? (
-              <NetworkRequestDetails request={selected} activeTab={activeDetailTab} bodyViewMode={bodyViewMode} />
+              <NetworkRequestDetails request={selected} activeTab={detailTab} bodyViewMode={bodyViewMode} />
             ) : (
               <div className="p-8 text-center font-mono text-[11px] uppercase tracking-wider text-[var(--ink-faint)]">
                 select a request to inspect
