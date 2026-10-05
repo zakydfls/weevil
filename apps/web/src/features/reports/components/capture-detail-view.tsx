@@ -5,6 +5,8 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  createContext,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -80,7 +82,7 @@ import { apiClient } from '@/lib/api/client';
 import { toast } from '@/components/ui/toaster';
 import { cn, formatBytes, formatDate } from '@/lib/utils';
 import { reportKeys } from '../queries';
-import { findNetworkMatch } from '../network-search';
+import { splitSearchText } from '../network-search';
 import { AssigneeEditorPopover } from './report-assignees';
 import { StatusBadge } from './status-badge';
 
@@ -839,6 +841,15 @@ function jsonRecordEntries(value: unknown): Array<[string, string]> {
   ]);
 }
 
+const NetworkSearchContext = createContext('');
+
+function SearchText({ text }: { text: string }) {
+  const query = useContext(NetworkSearchContext);
+  return splitSearchText(text, query).map((part, index) => part.match ? (
+    <mark key={index} data-network-match className="rounded-sm bg-[var(--primary-soft)] text-[var(--ink)] data-[active=true]:bg-[var(--primary)] data-[active=true]:text-white">{part.text}</mark>
+  ) : part.text);
+}
+
 function BodyPreview({
   title,
   value,
@@ -887,7 +898,7 @@ function BodyPreview({
           <JsonTreeView value={formatted.parsedJson} />
         ) : (
           <pre className="thin-scrollbar overflow-x-auto whitespace-pre bg-[var(--bg)] px-3 py-2.5 font-mono text-[11px] leading-5 text-[var(--ink)]">
-            {viewMode === 'raw' ? value : formatted.body}
+            <SearchText text={viewMode === 'raw' ? value : formatted.body} />
           </pre>
         )}
       </div>
@@ -915,6 +926,8 @@ function JsonTreeNode({
   depth: number;
 }) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const query = useContext(NetworkSearchContext).trim().toLowerCase();
+  const expanded = isExpanded || Boolean(query && JSON.stringify(value)?.toLowerCase().includes(query));
   const isArray = Array.isArray(value);
   const isObject = Boolean(value) && typeof value === 'object' && !isArray;
   const isExpandable = isArray || isObject;
@@ -927,7 +940,7 @@ function JsonTreeNode({
   if (!isExpandable) {
     return (
       <div className="flex min-w-0 items-start gap-1.5 py-0.5" style={{ paddingLeft: `${depth * 14}px` }}>
-        {name !== null ? <span className="shrink-0 text-[var(--ink-faint)]">{formatJsonKey(name)}:</span> : null}
+        {name !== null ? <span className="shrink-0 text-[var(--ink-faint)]"><SearchText text={String(formatJsonKey(name))} />:</span> : null}
         <JsonPrimitive value={value} />
       </div>
     );
@@ -941,13 +954,13 @@ function JsonTreeNode({
         className="flex w-full min-w-0 items-center gap-1.5 rounded-sm py-0.5 text-left transition-colors hover:bg-[var(--primary-subtle)]"
         style={{ paddingLeft: `${depth * 14}px` }}
       >
-        <span className="w-3 shrink-0 text-[var(--ink-faint)] transition-transform" style={{ transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}>
+        <span className="w-3 shrink-0 text-[var(--ink-faint)] transition-transform" style={{ transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}>
           ▾
         </span>
-        {name !== null ? <span className="shrink-0 text-[var(--ink-faint)]">{formatJsonKey(name)}:</span> : null}
+        {name !== null ? <span className="shrink-0 text-[var(--ink-faint)]"><SearchText text={String(formatJsonKey(name))} />:</span> : null}
         <span className="text-[var(--ink-muted)]">
           {isArray ? '[' : '{'}
-          {!isExpanded ? (
+          {!expanded ? (
             <span className="text-[var(--ink-faint)]">
               {' '}
               {entries.length} {isArray ? 'items' : 'keys'} {isArray ? ']' : '}'}
@@ -957,7 +970,7 @@ function JsonTreeNode({
           )}
         </span>
       </button>
-      {isExpanded ? (
+      {expanded ? (
         <>
           {entries.map(([entryName, entryValue]) => (
             <JsonTreeNode key={String(entryName)} name={entryName} value={entryValue} depth={depth + 1} />
@@ -973,22 +986,22 @@ function JsonTreeNode({
 
 function JsonPrimitive({ value }: { value: unknown }) {
   if (typeof value === 'string') {
-    return <span className="break-all text-[#3a5419]">{JSON.stringify(value)}</span>;
+    return <span className="break-all text-[#3a5419]"><SearchText text={JSON.stringify(value)} /></span>;
   }
 
   if (typeof value === 'number') {
-    return <span className="text-[#7e5a14]">{value}</span>;
+    return <span className="text-[#7e5a14]"><SearchText text={String(value)} /></span>;
   }
 
   if (typeof value === 'boolean') {
-    return <span className="text-[#a13c19]">{String(value)}</span>;
+    return <span className="text-[#a13c19]"><SearchText text={String(value)} /></span>;
   }
 
   if (value === null) {
-    return <span className="italic text-[var(--ink-faint)]">null</span>;
+    return <span className="italic text-[var(--ink-faint)]"><SearchText text="null" /></span>;
   }
 
-  return <span className="break-all text-[var(--ink-muted)]">{String(value)}</span>;
+  return <span className="break-all text-[var(--ink-muted)]"><SearchText text={String(value)} /></span>;
 }
 
 function formatJsonKey(key: string | number) {
@@ -2554,62 +2567,72 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
   );
   const [searchTerm, setSearchTerm] = useState('');
   const [errorsOnly, setErrorsOnly] = useState(false);
-  const [searchDetailTab, setSearchDetailTab] = useState<NetworkDetailTab | null>(null);
+  const [findQueries, setFindQueries] = useState<Record<NetworkDetailTab, string>>({ Headers: '', Request: '', Response: '' });
+  const [findOpen, setFindOpen] = useState<Record<NetworkDetailTab, boolean>>({ Headers: false, Request: false, Response: false });
+  const [findPosition, setFindPosition] = useState({ index: 0, total: 0 });
   const [copyFeedback, setCopyFeedback] = useState<CopyFeedbackTarget>(null);
   const [requestListWidth, setRequestListWidth] = useState(224);
   const [bodyViewMode, setBodyViewMode] = useState<BodyViewMode>('tree');
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const requestListRef = useRef<HTMLDivElement>(null);
-  const normalizedQuery = searchTerm.trim().toLowerCase();
-  const searchMatches = useMemo(
-    () => new Map(report.networkRequests.map((request) => [request.id, findNetworkMatch(request, searchTerm)])),
-    [report.networkRequests, searchTerm],
-  );
+  const findInputRef = useRef<HTMLInputElement>(null);
+  const detailContentRef = useRef<HTMLDivElement>(null);
+  const findQuery = findQueries[activeDetailTab];
+
+  function openFind() {
+    setFindOpen((current) => ({ ...current, [activeDetailTab]: true }));
+    requestAnimationFrame(() => { findInputRef.current?.focus(); findInputRef.current?.select(); });
+  }
 
   useEffect(() => {
     function handleFind(event: KeyboardEvent) {
       if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'f') {
         event.preventDefault();
-        searchInputRef.current?.focus();
-        searchInputRef.current?.select();
+        setFindOpen((current) => ({ ...current, [activeDetailTab]: true }));
+        requestAnimationFrame(() => { findInputRef.current?.focus(); findInputRef.current?.select(); });
       }
     }
     window.addEventListener('keydown', handleFind);
     return () => window.removeEventListener('keydown', handleFind);
-  }, []);
+  }, [activeDetailTab]);
 
   const filteredRequests = useMemo(
     () =>
       report.networkRequests.filter((request) => {
         const category = classifyNetworkRequest(request);
         const matchesCategory = activeFilter === 'All' || category === activeFilter;
+        const normalizedQuery = searchTerm.trim().toLowerCase();
         const matchesSearch =
           normalizedQuery.length === 0 ||
-          Boolean(searchMatches.get(request.id)) ||
-          (isNextRscRequest(request) && 'next rsc flight react server components'.includes(normalizedQuery));
+          [request.method, request.url, shortRequestName(request.url),
+            isNextRscRequest(request) ? 'next rsc flight react server components' : '',
+            String(request.statusCode ?? ''), request.error ?? '']
+            .join(' ').toLowerCase().includes(normalizedQuery);
         const matchesError = !errorsOnly || Boolean(request.error || (request.statusCode ?? 0) >= 400);
 
         return matchesCategory && matchesSearch && matchesError;
       }),
-    [activeFilter, errorsOnly, report.networkRequests, normalizedQuery, searchMatches],
+    [activeFilter, errorsOnly, report.networkRequests, searchTerm],
   );
   const selected =
     filteredRequests.find((request) => request.id === selectedRequestId) ?? filteredRequests[0] ?? null;
-  const selectedMatch = selected ? searchMatches.get(selected.id) : null;
-  const detailTab = normalizedQuery ? searchDetailTab ?? selectedMatch?.tab ?? activeDetailTab : activeDetailTab;
-
   useEffect(() => {
-    if (normalizedQuery) {
-      requestListRef.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
-    }
-  }, [normalizedQuery, selected?.id]);
+    const matches = detailContentRef.current?.querySelectorAll<HTMLElement>('[data-network-match]');
+    setFindPosition({ index: 0, total: matches?.length ?? 0 });
+    matches?.forEach((match, index) => { match.dataset.active = String(index === 0); });
+    matches?.[0]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [findQuery, activeDetailTab, selected?.id, bodyViewMode]);
 
   function navigateSearch(direction: number) {
-    if (!filteredRequests.length) return;
-    const index = filteredRequests.findIndex((request) => request.id === selected?.id);
-    const next = (index + direction + filteredRequests.length) % filteredRequests.length;
-    setSelectedRequestId(filteredRequests[next].id);
-    setSearchDetailTab(null);
+    const matches = detailContentRef.current?.querySelectorAll<HTMLElement>('[data-network-match]');
+    if (!matches?.length) return;
+    const next = (findPosition.index + direction + matches.length) % matches.length;
+    matches.forEach((match, index) => { match.dataset.active = String(index === next); });
+    matches[next].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    setFindPosition({ index: next, total: matches.length });
+  }
+
+  function closeFind() {
+    setFindOpen((current) => ({ ...current, [activeDetailTab]: false }));
+    setFindQueries((current) => ({ ...current, [activeDetailTab]: '' }));
   }
 
   async function handleCopyCurl() {
@@ -2640,7 +2663,16 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
   }
 
   return (
-    <div className="grid h-full min-h-0 min-w-0 grid-rows-[auto_1fr] overflow-hidden bg-[var(--bg)]">
+    <div
+      className="grid h-full min-h-0 min-w-0 grid-rows-[auto_1fr] overflow-hidden bg-[var(--bg)]"
+      onKeyDownCapture={(event) => {
+        if (event.key === 'Escape' && findOpen[activeDetailTab]) {
+          event.preventDefault();
+          event.stopPropagation();
+          closeFind();
+        }
+      }}
+    >
       <div className="min-w-0 border-b border-[var(--border)] bg-[var(--bg)] px-3 py-2.5">
         <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
           <div className="relative">
@@ -2649,37 +2681,12 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
               aria-hidden
             />
             <Input
-              ref={searchInputRef}
               value={searchTerm}
-              onChange={(event) => {
-                setSearchTerm(event.target.value);
-                setSearchDetailTab(null);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') {
-                  event.preventDefault();
-                  setSearchTerm('');
-                } else if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
-                  event.preventDefault();
-                  navigateSearch(event.shiftKey ? -1 : 1);
-                }
-              }}
-              className="h-8 border-[var(--border)] bg-[var(--surface)] pl-8 pr-9 font-mono text-xs"
-              aria-label="Search all network text"
-              aria-keyshortcuts="Control+f Meta+f"
-              title="Search URL, headers, request and response bodies (Ctrl/Cmd + F)"
-              placeholder="Search requests, responses, headers…"
+              onChange={(event) => setSearchTerm(event.target.value)}
+              className="h-8 border-[var(--border)] bg-[var(--surface)] pl-8 font-mono text-xs"
+              aria-label="Filter network requests"
+              placeholder="Filter method, URL, status, domain…"
             />
-            {searchTerm ? (
-              <button
-                type="button"
-                aria-label="Clear network search"
-                onClick={() => { setSearchTerm(''); searchInputRef.current?.focus(); }}
-                className="absolute right-1 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded text-[var(--ink-muted)] hover:bg-[var(--primary-subtle)] focus-visible:outline-2 focus-visible:outline-[var(--focus)]"
-              >
-                <X className="h-3.5 w-3.5" aria-hidden />
-              </button>
-            ) : null}
           </div>
           <ToggleGroup
             type="multiple"
@@ -2696,19 +2703,6 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
               errors only
             </ToggleGroupItem>
           </ToggleGroup>
-        </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--ink-muted)]">
-          <span aria-live="polite" role="status">
-            {normalizedQuery
-              ? `${selected ? filteredRequests.indexOf(selected) + 1 : 0} / ${filteredRequests.length} matching requests`
-              : 'Ctrl/Cmd + F to search all network text'}
-          </span>
-          {normalizedQuery ? (
-            <>
-              <button type="button" disabled={!filteredRequests.length} onClick={() => navigateSearch(-1)} className="rounded px-1 hover:bg-[var(--primary-subtle)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-[var(--focus)]" title="Shift + Enter">Previous</button>
-              <button type="button" disabled={!filteredRequests.length} onClick={() => navigateSearch(1)} className="rounded px-1 hover:bg-[var(--primary-subtle)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-[var(--focus)]" title="Enter">Next</button>
-            </>
-          ) : null}
         </div>
         <ToggleGroup
           type="single"
@@ -2743,7 +2737,7 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
         className="grid min-h-0 min-w-0 grid-cols-1 overflow-y-auto lg:overflow-hidden lg:[grid-template-columns:var(--network-list-width)_6px_minmax(0,1fr)]"
         style={{ '--network-list-width': `${requestListWidth}px` } as CSSProperties}
       >
-        <ScrollArea ref={requestListRef} className="max-h-52 min-h-0 border-b border-[var(--border)] bg-[var(--bg)] lg:max-h-none lg:border-b-0 lg:border-r">
+        <ScrollArea className="max-h-52 min-h-0 border-b border-[var(--border)] bg-[var(--bg)] lg:max-h-none lg:border-b-0 lg:border-r">
           <PanelEmptyState
             isEmpty={filteredRequests.length === 0}
             label={report.networkRequests.length === 0 ? 'No network requests yet.' : 'No matching requests.'}
@@ -2756,10 +2750,7 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
                 key={request.id}
                 type="button"
                 aria-current={isSelected ? 'true' : undefined}
-                onClick={() => {
-                  setSelectedRequestId(request.id);
-                  setSearchDetailTab(null);
-                }}
+                onClick={() => setSelectedRequestId(request.id)}
                 className={`grid w-full grid-cols-[1.75rem_minmax(0,1fr)_auto] items-start gap-1.5 border-b border-[var(--divider)] border-l-2 px-2 py-2 text-left transition-colors ${
                   isSelected
                     ? `${networkRowAccentClass(category)} bg-[var(--primary-subtle)]`
@@ -2800,7 +2791,7 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
           className="hidden h-full cursor-col-resize border-r border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--primary-subtle)] lg:block"
           onPointerDown={handleRequestListResize}
         />
-        <div className="grid min-h-[22rem] min-w-0 grid-rows-[auto_1fr] overflow-hidden bg-[var(--bg)] lg:min-h-0">
+        <div className="grid min-h-[22rem] min-w-0 grid-rows-[auto_auto_1fr] overflow-hidden bg-[var(--bg)] lg:min-h-0">
           {/* One horizontally-scrollable strip. Every child is shrink-0 so the
               row overflows naturally and scrolls continuously to the very end
               (curl included). No flex-1, no pinned split, no ml-auto. */}
@@ -2816,6 +2807,8 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
                 setErrorsOnly(false);
                 setSelectedRequestId(report.networkRequests[0]?.id ?? null);
                 setActiveDetailTab('Headers');
+                setFindQueries({ Headers: '', Request: '', Response: '' });
+                setFindOpen({ Headers: false, Request: false, Response: false });
               }}
               aria-label="Reset network filters"
               className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[var(--ink-faint)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--ink-muted)]"
@@ -2823,15 +2816,12 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
               <RefreshCcw className="h-3.5 w-3.5" aria-hidden />
             </button>
             {networkDetailTabs.map((tab) => {
-              const active = detailTab === tab;
+              const active = activeDetailTab === tab;
               return (
                 <button
                   key={tab}
                   type="button"
-                  onClick={() => {
-                    setActiveDetailTab(tab);
-                    setSearchDetailTab(tab);
-                  }}
+                  onClick={() => setActiveDetailTab(tab)}
                   className={`relative h-9 shrink-0 px-2.5 font-mono text-[8px] uppercase tracking-wide transition-colors ${
                     active
                       ? 'font-semibold text-[var(--ink)]'
@@ -2846,6 +2836,9 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
               );
             })}
             <span className="mx-0.5 h-5 w-px shrink-0 bg-[var(--border)]" aria-hidden />
+            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={openFind} aria-label={`Find in ${activeDetailTab}`} aria-keyshortcuts="Control+f Meta+f" title={`Find in ${activeDetailTab} (Ctrl/Cmd + F)`}>
+              <Search className="h-3.5 w-3.5" aria-hidden />
+            </Button>
             <Button
               type="button"
               variant="ghost"
@@ -2882,22 +2875,34 @@ function NetworkPanel({ report }: { report: ReportDetail }) {
               {copyFeedback === 'curl' ? 'copied' : 'curl'}
             </Button>
           </div>
-          <ScrollArea className="min-h-0">
-            {selectedMatch ? (
-              <div className="border-b border-[var(--border)] bg-[var(--primary-subtle)] px-3 py-2 text-xs">
-                <span className="font-medium text-[var(--ink-muted)]">{selectedMatch.label}: </span>
-                <span className="whitespace-pre-wrap break-all font-mono text-[var(--ink)]">
-                  {selectedMatch.before}<mark className="rounded bg-[var(--primary-soft)] text-[var(--ink)]">{selectedMatch.match}</mark>{selectedMatch.after}
-                </span>
+          <div>
+            {findOpen[activeDetailTab] ? (
+              <div className="flex min-w-0 items-center gap-1 border-b border-[var(--border)] bg-[var(--surface)] px-2 py-1">
+                <Input ref={findInputRef} value={findQuery} onChange={(event) => setFindQueries((current) => ({ ...current, [activeDetailTab]: event.target.value }))}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') { event.preventDefault(); closeFind(); }
+                    if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); navigateSearch(event.shiftKey ? -1 : 1); }
+                  }}
+                  aria-label={`Find in ${activeDetailTab}`} placeholder={`Find in ${activeDetailTab}…`} className="h-7 min-w-0 flex-1 font-mono text-xs" />
+                <span role="status" aria-live="polite" className="shrink-0 px-1 font-mono text-xs text-[var(--ink-muted)]">{findPosition.total ? findPosition.index + 1 : 0}/{findPosition.total}</span>
+                <Button type="button" variant="ghost" size="sm" className="h-7 px-2" disabled={!findPosition.total} onClick={() => navigateSearch(-1)} title="Shift + Enter">Previous</Button>
+                <Button type="button" variant="ghost" size="sm" className="h-7 px-2" disabled={!findPosition.total} onClick={() => navigateSearch(1)} title="Enter">Next</Button>
+                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label="Close find" onClick={closeFind}><X className="h-3.5 w-3.5" aria-hidden /></Button>
               </div>
             ) : null}
+          </div>
+          <ScrollArea className="min-h-0">
+            <div ref={detailContentRef}>
             {selected ? (
-              <NetworkRequestDetails request={selected} activeTab={detailTab} bodyViewMode={bodyViewMode} />
+              <NetworkSearchContext.Provider value={findQuery}>
+                <NetworkRequestDetails request={selected} activeTab={activeDetailTab} bodyViewMode={bodyViewMode} />
+              </NetworkSearchContext.Provider>
             ) : (
               <div className="p-8 text-center font-mono text-[11px] uppercase tracking-wider text-[var(--ink-faint)]">
                 select a request to inspect
               </div>
             )}
+            </div>
           </ScrollArea>
         </div>
       </div>
@@ -3103,7 +3108,7 @@ function KeyValueList({
 function SectionTitle({ title }: { title: string }) {
   return (
     <div className="sticky top-0 z-10 border-y border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
-      {title}
+      <SearchText text={title} />
     </div>
   );
 }
@@ -3243,8 +3248,8 @@ function inferOsName(userAgent: string) {
 function KeyValue({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="grid grid-cols-1 border-b border-[var(--divider)] text-xs transition-colors last:border-b-0 hover:bg-[var(--surface)] sm:grid-cols-[8rem_1fr]">
-      <div className="px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]">{label}</div>
-      <div className="break-all px-3 pb-1.5 font-mono text-[11px] text-[var(--ink)] sm:py-1.5">{value}</div>
+      <div className="px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--ink-faint)]"><SearchText text={label} /></div>
+      <div className="break-all px-3 pb-1.5 font-mono text-[11px] text-[var(--ink)] sm:py-1.5">{typeof value === 'string' || typeof value === 'number' ? <SearchText text={String(value)} /> : value}</div>
     </div>
   );
 }
