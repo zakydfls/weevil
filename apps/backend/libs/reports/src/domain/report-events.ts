@@ -10,6 +10,8 @@ export interface ReportCommentCreatedEvent {
   actorUserId?: string | null;
   authorName: string;
   body: string;
+  mentionedUserIds?: string[];
+  commentId?: string;
 }
 
 export interface ReportCaptureReadyEvent {

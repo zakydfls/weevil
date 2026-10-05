@@ -2,6 +2,12 @@
 
 Chrome/Chromium Manifest V3 extension for capturing Weevil bug reports.
 
+## Version
+
+`apps/ext/package.json` is the source of truth for the Weevil release version.
+Update its `version` once, then rebuild the web app and extension. The web About
+page, extension manifest, and production ZIP filename all use that value.
+
 ## Local Development
 
 ```bash

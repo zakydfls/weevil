@@ -15,6 +15,7 @@ export interface ReportCommentEmailTemplateInput {
   report: ReportNotificationDetail;
   authorLabel: string;
   commentBody: string;
+  mentioned?: boolean;
 }
 
 export interface NewCaptureEmailTemplateInput {
@@ -30,8 +31,8 @@ export interface ReportAssignedEmailTemplateInput {
   assigneeLabel: string;
 }
 
-export function reportCommentEmailSubject(input: { reportTitle: string }): string {
-  return `New comment on ${input.reportTitle}`;
+export function reportCommentEmailSubject(input: { reportTitle: string; mentioned?: boolean }): string {
+  return `${input.mentioned ? 'You were mentioned on' : 'New comment on'} ${input.reportTitle}`;
 }
 
 export function newCaptureEmailSubject(input: { reportTitle: string }): string {
@@ -48,10 +49,10 @@ export function renderReportCommentEmail(input: ReportCommentEmailTemplateInput)
 
   return renderEmailLayout({
     eyebrow: 'Weevil capture comment',
-    title: `New comment on ${report.title}`,
-    previewText: `${input.authorLabel} commented on ${report.title}.`,
+    title: reportCommentEmailSubject({ reportTitle: report.title, mentioned: input.mentioned }),
+    previewText: `${input.authorLabel} ${input.mentioned ? 'mentioned you' : 'commented'} on ${report.title}.`,
     bodyHtml: `
-      <p style="margin:0 0 14px;">${escapeHtml(input.authorLabel)} commented on <strong>${escapeHtml(report.title)}</strong>.</p>
+      <p style="margin:0 0 14px;">${escapeHtml(input.authorLabel)} ${input.mentioned ? 'mentioned you in a comment' : 'commented'} on <strong>${escapeHtml(report.title)}</strong>.</p>
       ${renderQuote(input.commentBody)}
       ${renderReportDetails(report)}
     `,

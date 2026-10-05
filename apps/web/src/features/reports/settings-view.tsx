@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { version as weevilVersion } from "../../../../ext/package.json";
 import {
   AlertTriangle,
   Bell,
@@ -67,6 +68,7 @@ export function SettingsView() {
       emailOnNewCapture: false,
       emailOnNewComment: false,
       emailOnAssignment: false,
+      emailOnMention: false,
     });
   const [isSaving, setIsSaving] = useState(false);
   const [isNotificationLoading, setIsNotificationLoading] = useState(true);
@@ -83,6 +85,7 @@ export function SettingsView() {
     emailOnNewCapture: "idle",
     emailOnNewComment: "idle",
     emailOnAssignment: "idle",
+    emailOnMention: "idle",
   });
   const [notificationSyncError, setNotificationSyncError] = useState<
     Record<keyof NotificationPreferences, string | null>
@@ -90,6 +93,7 @@ export function SettingsView() {
     emailOnNewCapture: null,
     emailOnNewComment: null,
     emailOnAssignment: null,
+    emailOnMention: null,
   });
 
   useEffect(() => {
@@ -129,11 +133,13 @@ export function SettingsView() {
       emailOnNewCapture: "idle",
       emailOnNewComment: "idle",
       emailOnAssignment: "idle",
+      emailOnMention: "idle",
     });
     setNotificationSyncError({
       emailOnNewCapture: null,
       emailOnNewComment: null,
       emailOnAssignment: null,
+      emailOnMention: null,
     });
 
     void apiClient
@@ -148,6 +154,7 @@ export function SettingsView() {
           emailOnNewCapture: "failed",
           emailOnNewComment: "failed",
           emailOnAssignment: "failed",
+          emailOnMention: "failed",
         });
         setNotificationSyncError({
           emailOnNewCapture:
@@ -155,6 +162,8 @@ export function SettingsView() {
           emailOnNewComment:
             error instanceof Error ? error.message : String(error),
           emailOnAssignment:
+            error instanceof Error ? error.message : String(error),
+          emailOnMention:
             error instanceof Error ? error.message : String(error),
         });
       })
@@ -366,6 +375,28 @@ export function SettingsView() {
                   />
                 }
               />
+              <SettingsCard
+                icon={MessageSquareText}
+                title="Mention emails"
+                description="Email me when someone mentions me in a comment. In-app mentions are always delivered."
+                trailing={
+                  <Switch
+                    checked={notificationPreferences.emailOnMention}
+                    onCheckedChange={(value) => void handleNotificationPreferenceChange("emailOnMention", value)}
+                    disabled={isNotificationLoading || savingNotificationKey !== null}
+                    aria-label="Toggle mention email notifications"
+                    className={savingNotificationKey === "emailOnMention" ? "cursor-wait" : undefined}
+                  />
+                }
+                footer={
+                  <NotificationPreferenceStatus
+                    isLoading={isNotificationLoading}
+                    isSaving={savingNotificationKey === "emailOnMention"}
+                    syncState={notificationSyncState.emailOnMention}
+                    error={notificationSyncError.emailOnMention}
+                  />
+                }
+              />
             </div>
           </TabsContent>
 
@@ -421,7 +452,7 @@ export function SettingsView() {
                       Weevil
                     </h2>
                     <p className="font-mono text-xs text-[var(--ink-faint)]">
-                      Version 0.1.0
+                      Version {weevilVersion}
                     </p>
                   </div>
                 </div>

@@ -77,11 +77,41 @@ export class ReportNotificationService {
     const report = await this.loadReport(event.reportId);
     if (!report) return;
 
-    const recipients = await this.findRecipients(
+    const mentionedUserIds = [...new Set(event.mentionedUserIds ?? [])].filter((id) => id !== event.actorUserId);
+    const mentionedRecipients = mentionedUserIds.length
+      ? await this.findAssignedRecipients(report.workspaceId, mentionedUserIds)
+      : [];
+    const commentPath = `${this.buildPrivateCapturePath(report.id)}${event.commentId ? `#comment-${encodeURIComponent(event.commentId)}` : ''}`;
+    this.emitInAppNotifications(mentionedRecipients, {
+      workspaceId: report.workspaceId,
+      type: 'report_comment_mentioned',
+      title: `${event.authorName} mentioned you`,
+      body: report.title,
+      actionUrl: commentPath,
+      metadata: { report_id: report.id, comment_id: event.commentId, workspace_slug: report.workspace.slug },
+    });
+    const mentionEmailRecipients = mentionedUserIds.length
+      ? await this.findAssignedEmailRecipients(report.workspaceId, mentionedUserIds, 'emailOnMention')
+      : [];
+    if (mentionEmailRecipients.length) {
+      const baseUrl = this.webBaseUrl();
+      await this.sendToRecipients(mentionEmailRecipients, {
+        subject: reportCommentEmailSubject({ reportTitle: report.title, mentioned: true }),
+        html: renderReportCommentEmail({
+          report: this.toDetail(report, baseUrl ? new URL(commentPath, `${baseUrl}/`).toString() : commentPath),
+          authorLabel: event.authorName,
+          commentBody: event.body,
+          mentioned: true,
+        }),
+        metadata: { notification_type: 'report_comment_mentioned', report_id: report.id, workspace_id: report.workspaceId, comment_id: event.commentId },
+      });
+    }
+
+    const recipients = (await this.findRecipients(
       report.workspaceId,
       'emailOnNewComment',
       event.actorUserId,
-    );
+    )).filter((recipient) => !mentionedUserIds.includes(recipient.userId));
     if (recipients.length === 0) return;
 
     const detail = this.toDetail(report);
@@ -265,12 +295,13 @@ export class ReportNotificationService {
   private async findAssignedEmailRecipients(
     workspaceId: string,
     userIds: string[],
+    preferenceKey: 'emailOnAssignment' | 'emailOnMention' = 'emailOnAssignment',
   ): Promise<ReportNotificationRecipient[]> {
     const preferences = await this.prisma.userNotificationPreference.findMany({
       where: {
         workspaceId,
         userId: { in: userIds },
-        emailOnAssignment: true,
+        [preferenceKey]: true,
         user: {
           status: UserStatus.ACTIVE,
           memberships: {

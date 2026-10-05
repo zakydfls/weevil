@@ -32,6 +32,7 @@ import {
 } from '@weevil/prisma-client';
 import { RedactionService } from '@weevil/redaction';
 import { nanoid } from 'nanoid';
+import { extractMentionEmails } from '../domain/comment-mentions';
 import {
   ReportEvents,
   type ReportAssigneesChangedEvent,
@@ -926,9 +927,26 @@ export class ReportsService {
     assertWorkspaceAccess(report, options.workspaceId);
     const shouldRedact = this.redaction.shouldRedact(report.metadata);
 
+    const mentionEmails = extractMentionEmails(dto.body);
+    const mentionedMembers = mentionEmails.length ? await this.prisma.workspaceMember.findMany({
+      where: {
+        workspaceId: report.workspaceId,
+        status: MembershipStatus.ACTIVE,
+        user: { status: UserStatus.ACTIVE, email: { in: mentionEmails, mode: 'insensitive' } },
+      },
+      select: { user: { select: { id: true, email: true } } },
+    }) : [];
+    if (mentionedMembers.some((member) => member.user.id === options.actorUserId)) {
+      throw new BadRequestException('You cannot mention yourself.');
+    }
+    if (mentionedMembers.length !== mentionEmails.length) {
+      throw new BadRequestException('You can only mention active members of this workspace.');
+    }
+
     const comment = await this.prisma.reportComment.create({
       data: {
         reportId,
+        authorId: options.actorUserId,
         authorName: options.authorName?.trim() || dto.authorName?.trim() || 'Weevil User',
         body: this.redactText(dto.body, shouldRedact) ?? dto.body,
       },
@@ -939,6 +957,8 @@ export class ReportsService {
       actorUserId: options.actorUserId,
       authorName: comment.authorName,
       body: comment.body,
+      mentionedUserIds: mentionedMembers.map((member) => member.user.id),
+      commentId: comment.id,
     } satisfies ReportCommentCreatedEvent);
 
     return {

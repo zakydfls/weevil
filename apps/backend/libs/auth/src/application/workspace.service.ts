@@ -28,6 +28,7 @@ interface WorkspaceNotificationPreferencesInput {
   emailOnNewCapture?: boolean;
   emailOnNewComment?: boolean;
   emailOnAssignment?: boolean;
+  emailOnMention?: boolean;
 }
 
 const OWNER_ONLY_PERMISSIONS = new Set<Permission>([
@@ -204,6 +205,7 @@ export class WorkspaceService {
       emailOnNewCapture: preferences?.emailOnNewCapture ?? false,
       emailOnNewComment: preferences?.emailOnNewComment ?? false,
       emailOnAssignment: preferences?.emailOnAssignment ?? false,
+      emailOnMention: preferences?.emailOnMention ?? false,
     };
   }
 
@@ -222,11 +224,13 @@ export class WorkspaceService {
         emailOnNewCapture: input.emailOnNewCapture ?? false,
         emailOnNewComment: input.emailOnNewComment ?? false,
         emailOnAssignment: input.emailOnAssignment ?? false,
+        emailOnMention: input.emailOnMention ?? false,
       },
       update: compactBooleanUpdate({
         emailOnNewCapture: input.emailOnNewCapture,
         emailOnNewComment: input.emailOnNewComment,
         emailOnAssignment: input.emailOnAssignment,
+        emailOnMention: input.emailOnMention,
       }),
     });
 
@@ -234,6 +238,7 @@ export class WorkspaceService {
       emailOnNewCapture: preferences.emailOnNewCapture,
       emailOnNewComment: preferences.emailOnNewComment,
       emailOnAssignment: preferences.emailOnAssignment,
+      emailOnMention: preferences.emailOnMention,
     };
   }
 

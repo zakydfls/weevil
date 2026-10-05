@@ -97,6 +97,7 @@ export interface NotificationPreferences {
   emailOnNewCapture: boolean;
   emailOnNewComment: boolean;
   emailOnAssignment: boolean;
+  emailOnMention: boolean;
 }
 
 export interface WorkspaceMemberSummary {

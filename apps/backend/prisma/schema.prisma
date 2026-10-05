@@ -368,6 +368,7 @@ model UserNotificationPreference {
   emailOnNewCapture Boolean  @default(false)
   emailOnNewComment Boolean  @default(false)
   emailOnAssignment Boolean  @default(false)
+  emailOnMention    Boolean  @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

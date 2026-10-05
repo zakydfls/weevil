@@ -85,6 +85,7 @@ import { reportKeys } from '../queries';
 import { splitSearchText } from '../network-search';
 import { AssigneeEditorPopover } from './report-assignees';
 import { StatusBadge } from './status-badge';
+import { CommentBody, CommentMentionInput } from './comment-mention-input';
 
 interface CaptureDetailViewProps {
   report: ReportDetail | undefined;
@@ -555,26 +556,15 @@ export function CaptureDetailView({
                   </span>
                 </div>
                 {canComment ? (
-                  <Card className="mt-4 overflow-hidden transition-colors focus-within:border-[var(--primary)]">
+                  <Card className="mt-4 transition-colors focus-within:border-[var(--primary)]">
                     <CardContent className="p-4">
                       <div className="flex flex-col gap-3 sm:flex-row">
                         <CommentAvatar name="You" />
-                        <Textarea
+                        <CommentMentionInput
                           value={commentBody}
-                          onChange={(event) => setCommentBody(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (
-                              (event.metaKey || event.ctrlKey) &&
-                              event.key === 'Enter' &&
-                              commentBody.trim() &&
-                              !isPostingComment
-                            ) {
-                              event.preventDefault();
-                              void handleCreateComment();
-                            }
-                          }}
-                          className="min-h-24 w-full border-0 p-0 text-sm shadow-none focus:ring-0"
-                          placeholder="Write a comment, paste a fix, or @mention..."
+                          onChange={setCommentBody}
+                          onSubmit={() => void handleCreateComment()}
+                          disabled={isPostingComment}
                         />
                       </div>
                       {commentError ? (
@@ -602,7 +592,7 @@ export function CaptureDetailView({
                 {comments.length > 0 ? (
                   <ol className="mt-6 space-y-5 border-l border-[var(--border)] pl-5">
                     {comments.map((comment) => (
-                      <li key={comment.id} className="relative">
+                      <li key={comment.id} id={`comment-${comment.id}`} className="relative scroll-mt-4">
                         <span className="absolute -left-[29px] top-1.5" aria-hidden>
                           <CommentAvatar name={comment.authorName} size="sm" />
                         </span>
@@ -613,7 +603,7 @@ export function CaptureDetailView({
                           <time className="font-mono text-[11px] text-[var(--ink-faint)]">{formatDate(comment.createdAt)}</time>
                         </div>
                         <div className="mt-1 max-w-[72ch] text-sm leading-6 text-[var(--ink-muted)]">
-                          {comment.body}
+                          <CommentBody body={comment.body} />
                         </div>
                       </li>
                     ))}
