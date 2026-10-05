@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/input';
 import { useAuth } from '@/features/auth/auth-context';
 import { apiClient } from '@/lib/api/client';
 import type { WorkspaceMemberSummary } from '@/lib/api/types';
+import { memberMentionToken, readCommentMentions, updateCommentMentionText, writeCommentMentions } from '../comment-mentions';
 
 export function CommentMentionInput({ value, onChange, onSubmit, disabled }: {
   value: string;
@@ -18,7 +19,8 @@ export function CommentMentionInput({ value, onChange, onSubmit, disabled }: {
   const [caret, setCaret] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [dismissed, setDismissed] = useState(false);
-  const mention = value.slice(0, caret).match(/(?:^|[\s(])@([^\s]*)$/);
+  const draft = readCommentMentions(value);
+  const mention = draft.text.slice(0, caret).match(/(?:^|[\s(])@([^\s]*)$/);
   const query = mention?.[1].toLowerCase() ?? '';
   const open = Boolean(mention && !dismissed && !disabled);
   const members = useQuery({
@@ -35,13 +37,19 @@ export function CommentMentionInput({ value, onChange, onSubmit, disabled }: {
 
   function insertMention(member: WorkspaceMemberSummary) {
     const start = caret - (mention?.[1].length ?? 0) - 1;
-    const token = `@${member.email} `;
-    onChange(`${value.slice(0, start)}${token}${value.slice(caret)}`);
+    const name = member.displayName?.trim() || member.email.split('@')[0];
+    const label = `@${name}`;
+    const nextText = `${draft.text.slice(0, start)}${label} ${draft.text.slice(caret)}`;
+    const updated = readCommentMentions(updateCommentMentionText(value, nextText));
+    onChange(writeCommentMentions(nextText, [
+      ...updated.mentions.filter((range) => range.end <= start || range.start >= start + label.length),
+      { start, end: start + label.length, token: memberMentionToken(member.userId!, name) },
+    ]));
     setDismissed(true);
     requestAnimationFrame(() => {
       inputRef.current?.focus();
-      inputRef.current?.setSelectionRange(start + token.length, start + token.length);
-      setCaret(start + token.length);
+      inputRef.current?.setSelectionRange(start + label.length + 1, start + label.length + 1);
+      setCaret(start + label.length + 1);
     });
   }
 
@@ -49,11 +57,11 @@ export function CommentMentionInput({ value, onChange, onSubmit, disabled }: {
     <div className="relative min-w-0 flex-1">
       <Textarea
         ref={inputRef}
-        value={value}
+        value={draft.text}
         disabled={disabled}
         maxLength={4000}
         onChange={(event) => {
-          onChange(event.target.value);
+          onChange(updateCommentMentionText(value, event.target.value));
           setCaret(event.target.selectionStart);
           setActiveIndex(0);
           setDismissed(false);
@@ -93,7 +101,7 @@ export function CommentMentionInput({ value, onChange, onSubmit, disabled }: {
               <button key={member.id} id={`comment-mention-${index}`} type="button" role="option" aria-selected={index === selectedIndex}
                 onMouseDown={(event) => event.preventDefault()} onClick={() => insertMention(member)}
                 className={`block w-full rounded-md px-3 py-2 text-left hover:bg-[var(--primary-subtle)] ${index === selectedIndex ? 'bg-[var(--primary-subtle)]' : ''}`}>
-                <span className="block truncate text-sm font-medium text-[var(--ink)]">{member.displayName || member.email}</span>
+                <span className="block truncate text-sm font-medium text-[var(--ink)]">{member.displayName?.trim() || member.email.split('@')[0]}</span>
                 <span className="block truncate text-xs text-[var(--ink-muted)]">{member.email}</span>
               </button>
             ))}
@@ -104,7 +112,14 @@ export function CommentMentionInput({ value, onChange, onSubmit, disabled }: {
 }
 
 export function CommentBody({ body }: { body: string }) {
-  return <>{body.split(/(@[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+)/gi).map((part, index) =>
-    index % 2 ? <span key={index} className="rounded bg-[var(--primary-subtle)] px-0.5 font-medium text-[var(--primary)]">{part}</span> : part,
-  )}</>;
+  const { text, mentions } = readCommentMentions(body);
+  const parts = [];
+  let offset = 0;
+  for (const mention of mentions) {
+    parts.push(text.slice(offset, mention.start));
+    parts.push(<span key={mention.start} className="rounded bg-[var(--primary-subtle)] px-0.5 font-medium text-[var(--primary)]">{text.slice(mention.start, mention.end)}</span>);
+    offset = mention.end;
+  }
+  parts.push(text.slice(offset));
+  return <>{parts}</>;
 }

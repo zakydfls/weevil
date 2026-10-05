@@ -32,7 +32,7 @@ import {
 } from '@weevil/prisma-client';
 import { RedactionService } from '@weevil/redaction';
 import { nanoid } from 'nanoid';
-import { extractMentionEmails } from '../domain/comment-mentions';
+import { extractMentionEmails, extractMentionUserIds, renderMentionNames } from '../domain/comment-mentions';
 import {
   ReportEvents,
   type ReportAssigneesChangedEvent,
@@ -928,19 +928,32 @@ export class ReportsService {
     const shouldRedact = this.redaction.shouldRedact(report.metadata);
 
     const mentionEmails = extractMentionEmails(dto.body);
-    const mentionedMembers = mentionEmails.length ? await this.prisma.workspaceMember.findMany({
+    const mentionUserIds = extractMentionUserIds(dto.body);
+    const mentionedMembers = mentionEmails.length || mentionUserIds.length ? await this.prisma.workspaceMember.findMany({
       where: {
         workspaceId: report.workspaceId,
         status: MembershipStatus.ACTIVE,
-        user: { status: UserStatus.ACTIVE, email: { in: mentionEmails, mode: 'insensitive' } },
+        user: {
+          status: UserStatus.ACTIVE,
+          OR: [{ id: { in: mentionUserIds } }, { email: { in: mentionEmails, mode: 'insensitive' } }],
+        },
       },
-      select: { user: { select: { id: true, email: true } } },
+      select: { user: { select: { id: true, email: true, displayName: true } } },
     }) : [];
     if (mentionedMembers.some((member) => member.user.id === options.actorUserId)) {
       throw new BadRequestException('You cannot mention yourself.');
     }
-    if (mentionedMembers.length !== mentionEmails.length) {
+    if (mentionUserIds.some((id) => !mentionedMembers.some((member) => member.user.id === id)) ||
+      mentionEmails.some((email) => !mentionedMembers.some((member) => member.user.email.toLowerCase() === email))) {
       throw new BadRequestException('You can only mention active members of this workspace.');
+    }
+
+    const body = dto.body.replace(/@\[([^\]]+)\]\(([a-zA-Z0-9_-]+)\)/g, (_token, _name: string, userId: string) => {
+      const user = mentionedMembers.find((member) => member.user.id === userId)!.user;
+      return `@[${encodeURIComponent(user.displayName?.trim() || user.email.split('@')[0])}](${user.id})`;
+    });
+    if (renderMentionNames(body).length > 4000) {
+      throw new BadRequestException('Comments must be at most 4000 characters.');
     }
 
     const comment = await this.prisma.reportComment.create({
@@ -948,7 +961,7 @@ export class ReportsService {
         reportId,
         authorId: options.actorUserId,
         authorName: options.authorName?.trim() || dto.authorName?.trim() || 'Weevil User',
-        body: this.redactText(dto.body, shouldRedact) ?? dto.body,
+        body: this.redactText(body, shouldRedact) ?? body,
       },
     });
 
@@ -956,7 +969,7 @@ export class ReportsService {
       reportId,
       actorUserId: options.actorUserId,
       authorName: comment.authorName,
-      body: comment.body,
+      body: renderMentionNames(comment.body),
       mentionedUserIds: mentionedMembers.map((member) => member.user.id),
       commentId: comment.id,
     } satisfies ReportCommentCreatedEvent);

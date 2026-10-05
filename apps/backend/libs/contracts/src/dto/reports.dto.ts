@@ -568,7 +568,7 @@ export class CreateReportCommentDto {
   authorName?: string;
 
   @IsString()
-  @MaxLength(4000)
+  @MaxLength(16000)
   body: string;
 }
 
